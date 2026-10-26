@@ -38,7 +38,17 @@ No hagas `fetch`: alcanza con lo que ya hay. **No leas** archivos de configuraci
 
 ## 2. Detectar lo de Jira — sin preguntar
 
-Si el MCP de Atlassian no responde, decilo, dejá `jira` con los valores por defecto de la plantilla, y seguí: duck funciona sin Jira configurado, solo pierde el reconocimiento de transiciones.
+Tres fuentes, en este orden. Se pasa a la siguiente solo si la anterior no responde (sin autenticar, error o ausente), y en el paso 5 se dice qué fuente se usó:
+
+1. **MCP de Atlassian**: lo que sigue en este paso.
+2. **acli.** Si `acli jira auth status` dice que hay sesión (con la ruta de `acli` del `duck.json` existente, si la hay):
+   - Clave: `acli jira project list`.
+   - Sub-tareas y prefijos: `acli jira workitem search --jql "<la misma JQL>" --limit 5 --fields key,summary,status,issuetype`.
+   - Nombres de estado: un candidato se verifica con `acli jira workitem search --jql 'project = <CLAVE> AND status = "<nombre>"' --count`, porque JQL **rechaza** un estado que no existe; un recuento de 0 sin error lo confirma igual.
+   - acli **no lista ids de transición** (transiciona por nombre): `jira.transiciones` queda como estaba o con el valor por defecto, y se marca «sin verificar».
+3. **GitHub Projects**, si el seguimiento del proyecto vive ahí: `gh project list --owner <org>` y `gh project field-list <número> --owner <org> --format json`. Las opciones del campo `Status` son los candidatos para `jira.estados`; `jira.transiciones` y `jira.proyecto` no tienen equivalente y quedan por defecto. Si `gh` no tiene acceso a la organización, se dice y se sigue.
+
+Si ninguna responde, decilo, dejá `jira` con los valores por defecto de la plantilla, y seguí: duck funciona sin Jira configurado, solo pierde el reconocimiento de transiciones.
 
 - **Clave.** Si vino en `$ARGUMENTS`, esa. Si no, buscala en los nombres de rama y en los asuntos de los últimos commits (`git -C <d> log --oneline -50`): el patrón `ABC-123` que más se repite. Confirmala con `getVisibleJiraProjects`. Si no aparece, va al paso 3.
 - **Estados y transiciones.** Tomá una sub-tarea reciente del proyecto:
@@ -47,7 +57,7 @@ Si el MCP de Atlassian no responde, decilo, dejá `jira` con los valores por def
 - **Estados de historia.** Lo mismo con una historia (`issuetype = Story` o el nombre local, `Historia`): sus estados llenan `historiaDesarrollo`, `historiaPruebas`, `historiaCerrada` y `historiaOtros`.
 - **Prefijos de summary.** En los `summary` de esas sub-tareas, los prefijos entre corchetes (`[BE]`, `[FE]`, `[ANALISIS]`, `[BLOQ]`…). Son la base de la tabla de tipos del paso 3.
 
-**Nunca adivines un id ni un nombre de estado.** Lo que no salga de una respuesta real de Jira queda con el valor por defecto, y en el paso 5 se marca como «sin verificar».
+**Nunca adivines un id ni un nombre de estado.** Lo que no salga de una respuesta real de alguna de las tres fuentes queda con el valor por defecto, y en el paso 5 se marca como «sin verificar».
 
 ## 3. Preguntar lo que no se puede detectar
 
