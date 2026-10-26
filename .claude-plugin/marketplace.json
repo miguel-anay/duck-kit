@@ -1,0 +1,14 @@
+{
+  "name": "duck-kit",
+  "owner": {
+    "name": "Miguel Angel Anay Gomez"
+  },
+  "description": "Kit de flujo de trabajo Duck: una rama por tarea de Jira, guardias de git, estado de Jira por sesión y panel de la mesa de trabajo",
+  "plugins": [
+    {
+      "name": "duck",
+      "source": "./plugins/duck",
+      "description": "Flujo de trabajo Duck portable"
+    }
+  ]
+}

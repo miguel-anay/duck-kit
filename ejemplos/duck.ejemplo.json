@@ -1,0 +1,45 @@
+{
+  "jira": {
+    "proyecto": "PROJ",
+    "transiciones": {
+      "enProceso": ["21"],
+      "finalizado": ["31"],
+      "pendiente": ["11"]
+    },
+    "nombresTransicion": {
+      "enProceso": ["empezar", "en proceso"],
+      "finalizado": ["finalizar"],
+      "pendiente": ["backlog"]
+    },
+    "estados": {
+      "enProceso": "En Proceso",
+      "finalizado": "Finalizado",
+      "pendiente": "Pendiente",
+      "historiaDesarrollo": "Diseño/Desarrollo",
+      "historiaPruebas": "Pruebas",
+      "historiaOtros": ["Go Live"],
+      "historiaCerrada": "Historia Cerrada"
+    },
+    "historiaSigueSubtareas": true,
+    "prefijoAnalisis": "[ANALISIS]",
+    "prefijoBloqueo": "[BLOQ]"
+  },
+  "git": {
+    "ramaBase": "develop",
+    "prefijos": ["feature", "bugfix", "hotfix", "spec"],
+    "prefijosLegados": [],
+    "orgGithub": "mi-organizacion",
+    "repos": {
+      "docs": "mi-producto-docs",
+      "api": "mi-producto-api",
+      "web": "mi-producto-web"
+    },
+    "ignorarEnStatus": []
+  },
+  "acli": "acli",
+  "convenciones": ".claude/duck/convenciones.md",
+  "odd": {
+    "tareas": "odd/tasks",
+    "diseno": "docs/disenos/{historia}.md"
+  }
+}

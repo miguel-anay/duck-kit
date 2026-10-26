@@ -1,0 +1,8 @@
+{
+  "name": "duck",
+  "version": "0.1.0",
+  "description": "Flujo de trabajo Duck portable: guardias de git, estado de Jira por sesión, panel de la mesa de trabajo, comandos /duck:tomar, /duck:estado y /duck:spike, skills y agentes duck-*. Se configura por proyecto en .claude/duck.json",
+  "author": {
+    "name": "Miguel Angel Anay Gomez"
+  }
+}
