@@ -29,8 +29,9 @@ for d in */; do git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && e
 ```
 
 - **Repos.** Si la raíz es un repo, el proyecto es un solo repo: `git.repos` queda `{}`. Si no, cada subcarpeta que es repo es **candidata** a `git.repos` (puede haber repos que no son del proyecto, como una base de conocimiento clonada al lado: la lista se confirma en el paso 3), con el nombre del repo en GitHub sacado de su remoto (`git -C <d> remote get-url origin` → la última parte, sin `.git`).
+- **Sin remoto** (`remote get-url origin` falla): el nombre del repo es el de la carpeta, `git.orgGithub` queda `null` (sin él no hay merge por la API: se avisa en el paso 5), y la rama base sale de las ramas locales (`git -C <d> branch --format='%(refname:short)'`).
 - **Organización.** La parte del dueño en esas URLs. Si hay más de una, no elijas: va al paso 3.
-- **Rama base.** Es donde se integra el trabajo, que no siempre es la rama por defecto de GitHub. Si existe `origin/develop` en los repos, proponé `develop`. Si no, `git -C <d> symbolic-ref --short refs/remotes/origin/HEAD` (quitá `origin/`), y si eso no responde, la que exista de `main` o `master`. Siempre se confirma en el paso 3, con lo que viste: «`origin/HEAD` es `main`, pero existe `develop`».
+- **Rama base.** Es donde se integra el trabajo, que no siempre es la rama por defecto de GitHub. Si existe `origin/develop` (o `develop` local, si no hay remoto) en los repos, proponé `develop`. Si no, `git -C <d> symbolic-ref --short refs/remotes/origin/HEAD` (quitá `origin/`), y si eso no responde, la que exista de `main` o `master`. Siempre se confirma en el paso 3, con lo que viste: «`origin/HEAD` es `main`, pero existe `develop`».
 - **Prefijos de rama.** `git -C <d> branch -r --format='%(refname:short)'`, y contá los prefijos (`feature/`, `bugfix/`, `hotfix/`, `spec/`, …). Los que se usan entran en `git.prefijos`.
 
 No hagas `fetch`: alcanza con lo que ya hay. **No leas** archivos de configuración local con secretos (`.env`, `appsettings.local.json` y parecidos).
