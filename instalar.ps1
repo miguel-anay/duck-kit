@@ -7,7 +7,7 @@
 #      (hooks, comandos /duck:..., skills, agentes y el panel).
 #   2. Pone el «statusLine» en ~/.claude/settings.json, porque un plugin NO puede declararlo.
 #      Lee y reescribe el JSON conservando todas las demas claves, sin BOM.
-#   3. Te recuerda crear .claude/duck.json en cada proyecto (ver ejemplos/).
+#   3. Te recuerda configurar cada proyecto con /duck:iniciar.
 #
 # Necesita: claude (Claude Code >= 2.1.287) y node en el PATH. No toca ningun proyecto.
 
@@ -102,10 +102,11 @@ Write-Host @"
 duck no hace nada en un proyecto que no tenga .claude/duck.json (los hooks salen sin ruido).
 Para activarlo en un proyecto:
 
-  1. Copia un ejemplo de $kit\ejemplos\ a <proyecto>\.claude\duck.json
-     (duck.ejemplo.json; ajusta clave de Jira, repos y estados).
-  2. Agrega  .claude/estado/  al .gitignore del proyecto: ahi guardan su estado los hooks.
-  3. Abri una sesion de Claude Code en el proyecto. Si el panel no aparece, /reload-plugins.
+  1. Abri una sesion de Claude Code en el proyecto y corre  /duck:iniciar  : detecta repos, rama
+     base y Jira, te pregunta lo propio del proyecto, y escribe .claude/duck.json y sus convenciones.
+  2. /reload-plugins (o una sesion nueva) para que los hooks y el panel lean la configuracion.
+
+  A mano: copia $kit\plugins\duck\plantillas\duck.ejemplo.json a <proyecto>\.claude\duck.json.
 
 La referencia de cada campo esta en $kit\plugins\duck\README.md.
 "@

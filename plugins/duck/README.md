@@ -2,7 +2,7 @@
 
 `duck` empaqueta un flujo de trabajo para Claude Code: **una rama por tarea de
 Jira, una sola puerta hacia el remoto, un ticket que sigue al trabajo**. Son guardias de git, estado de
-Jira por sesión, un panel de la mesa de trabajo, tres comandos, una skill y cuatro agentes.
+Jira por sesión, un panel de la mesa de trabajo, cuatro comandos, una skill y cuatro agentes.
 
 El método está en [`METODO.md`](METODO.md). Este archivo dice qué trae el plugin, cómo se instala y cómo se
 configura. **Se configura por proyecto** (`.claude/duck.json`); sin ese archivo, duck no existe: los hooks
@@ -14,6 +14,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 |---|---|---|
 | `/duck:tomar <clave> [slug]` | `commands/tomar.md` | Arranca una tarea (modo tarea) o una historia (modo flujo): lee el ticket, mira el otro carril, crea la rama, pone el ticket en proceso. También `<clave> desde-spike`. |
 | `/duck:estado` | `commands/estado.md` | Panel de solo lectura: historia en curso, sub-tareas, dónde está el código de cada una, repos, alertas. |
+| `/duck:iniciar [clave]` | `commands/iniciar.md` | Configura duck en un proyecto: detecta, pregunta y genera `duck.json` y las convenciones. |
 | `/duck:spike <tema> [repos]` | `commands/spike.md` | Arranca un spike: rama `spike/<tema>` local, sin Jira ni remoto. |
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
@@ -67,9 +68,14 @@ y en `~/.claude/settings.json` (el plugin no puede declarar el status line):
 
 ### Por proyecto
 
-1. Crear `.claude/duck.json` desde [`ejemplos/`](../../ejemplos/) y ajustarlo (referencia abajo).
-2. Agregar `.claude/estado/` al `.gitignore`: ahí guardan su estado los hooks, por sesión.
-3. Abrir una sesión de Claude Code en el proyecto.
+1. Abrir una sesión de Claude Code en el proyecto y correr **`/duck:iniciar`**: detecta los repos, la rama
+   base, la organización y las transiciones de Jira; pregunta lo que no se puede detectar (tipos de ticket,
+   plan, tests por alcance), de a una pregunta; muestra `.claude/duck.json` y `.claude/duck/convenciones.md`
+   y los escribe solo con un sí. Sobre un proyecto ya configurado, muestra las diferencias y no pisa nada.
+2. `/reload-plugins` (o una sesión nueva).
+
+A mano: copiar [`plantillas/duck.ejemplo.json`](plantillas/duck.ejemplo.json) a `.claude/duck.json`, ajustarlo
+(referencia abajo), y agregar `.claude/estado/` al `.gitignore`.
 
 ## Referencia de `.claude/duck.json`
 
@@ -156,8 +162,8 @@ El kit no sabe nada de ningún proyecto. Lo propio de cada uno vive **en ese pro
 
 | Qué | Dónde | Ejemplo |
 |---|---|---|
-| Clave de Jira, transiciones, estados, rama base, repos | `.claude/duck.json` | `ejemplos/duck.ejemplo.json` |
-| Qué repositorio y prefijo corresponde a cada tipo de ticket, el orden de la serie, si exige plan o spec mergeada, mapa de carpetas, comandos de test por alcance, reglas de repositorio que no se negocian, trampas de «verde que no es verde», quién lee los comentarios de cierre | El archivo que nombre `convenciones` en `duck.json` | `ejemplos/convenciones.ejemplo.md` |
+| Clave de Jira, transiciones, estados, rama base, repos | `.claude/duck.json` | `plantillas/duck.ejemplo.json` |
+| Qué repositorio y prefijo corresponde a cada tipo de ticket, el orden de la serie, si exige plan o spec mergeada, mapa de carpetas, comandos de test por alcance, reglas de repositorio que no se negocian, trampas de «verde que no es verde», quién lee los comentarios de cierre | El archivo que nombre `convenciones` en `duck.json` | `plantillas/convenciones.ejemplo.md` |
 | Skills propias (redactar tickets con los campos obligatorios de ese Jira, por ejemplo) | `.claude/skills/` del proyecto | — |
 
 Los agentes leen el `CLAUDE.md` del repositorio y después ese archivo de convenciones: lo que diga ahí manda

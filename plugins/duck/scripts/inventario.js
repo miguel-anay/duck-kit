@@ -28,7 +28,7 @@ const RAIZ = cfg ? cfg.raiz : process.cwd();
 
 function main() {
   if (!cfg) {
-    process.stdout.write(JSON.stringify({ sinConfiguracion: true, ayuda: 'crear .claude/duck.json (ver ejemplos/ del plugin)' }) + '\n');
+    process.stdout.write(JSON.stringify({ sinConfiguracion: true, ayuda: 'configurar el proyecto con /duck:iniciar' }) + '\n');
     process.exit(0);
   }
 

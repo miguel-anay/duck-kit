@@ -336,7 +336,7 @@ export function register(on: On): void {
 
     const proyecto = await proyectoDe($)
     if (proyecto === null) {
-      return { text: 'panel Duck: este proyecto no tiene .claude/duck.json (ver ejemplos/ del plugin duck)' }
+      return { text: 'panel Duck: este proyecto no tiene .claude/duck.json (configuralo con /duck:iniciar)' }
     }
     await refrescar($, proyecto)
 
