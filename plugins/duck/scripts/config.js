@@ -131,7 +131,7 @@ function cargar() {
   }
 
   const cfg = mezclar(DEFECTOS, crudo);
-  const proveedor = cfg.tickets.proveedor === 'github' ? 'github' : 'jira';
+  const proveedor = String(cfg.tickets.proveedor).toLowerCase() === 'github' ? 'github' : 'jira';
   const proyecto = cfg.jira.proyecto ? String(cfg.jira.proyecto) : null;
   const fuente = proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+';
   const carpetas = Object.keys(cfg.git.repos);

@@ -107,6 +107,8 @@ test('elegirOpcion accepts a flow key or a Status option name, case-insensitive'
   assert.equal(elegirOpcion(campo, 'in progress', CFG).id, 'o2');
   assert.equal(elegirOpcion(campo, 'Done', CFG).name, 'Done');
   assert.throws(() => elegirOpcion(campo, 'Shipped', CFG), /Ready, In Progress, Done/);
+  assert.throws(() => elegirOpcion(campo, 'constructor', CFG), /no tiene la opcion "constructor"/);
+  assert.throws(() => elegirOpcion(null, 'Done', CFG), /no tiene un campo de seleccion unica "Status"/);
 });
 
 // gh stub: records calls, answers the query with `respuesta` and mutations with ok.

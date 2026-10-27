@@ -64,6 +64,10 @@ test('github provider exposes its section with defaults', () => {
   assert.deepEqual(cfg.github.proyecto, { owner: null, numero: null });
 });
 
+test('the provider name is case-insensitive', () => {
+  assert.equal(cargarCon({ tickets: { proveedor: 'GitHub' } }).tickets.proveedor, 'github');
+});
+
 test('github branch key is the issue number after a known prefix', () => {
   const cfg = cargarCon(GITHUB);
   assert.equal(claveDeRama('feat/123-hide-edit', cfg), '#123');
