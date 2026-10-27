@@ -115,12 +115,17 @@ La convención es la de GitHub, no la de Jira:
 - **PR**: título Conventional Commit terminado en `(#N)`. `Closes #N` solo en el PR que termina el issue; los demás, `Refs #N`.
 - **Estado**: se escribe directo en el campo del Project; no hay transiciones.
 
-`scripts/ticket.js` es el adaptador (GraphQL por `gh api graphql`):
+`scripts/ticket.js` es el adaptador (GraphQL por `gh api graphql`). Se corre desde la carpeta del
+proyecto, porque ahí lee `.claude/duck.json` y el `origin` con que completa un `#N` suelto; el `#`
+va entre comillas para que la shell no lo tome como comentario:
 
 ```bash
-node scripts/ticket.js ver '#12'                         # JSON: título, tipo, estado, padre, sub-issues
-node scripts/ticket.js mover mi-org/api#12 enProceso     # estado: clave de github.estados o nombre de la opción
+node "<plugin>/scripts/ticket.js" ver '#12'                      # JSON: título, tipo, estado, padre, sub-issues
+node "<plugin>/scripts/ticket.js" mover 'mi-org/api#12' enProceso  # estado: clave de github.estados o nombre de la opción
 ```
+
+`<plugin>` es la carpeta del plugin (en hooks y prompts, `${CLAUDE_PLUGIN_ROOT}`). Fuera de un repo con
+`origin` de GitHub, usá siempre `owner/repo#N`.
 
 Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si falta, `gh auth refresh -s project`.
 

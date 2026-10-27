@@ -54,7 +54,7 @@ Si `duck.json` tiene `"tickets": {"proveedor": "github"}`, el ticket es un issue
 
 - No tenés Bash: el hilo principal te pasa la salida de `ticket.js ver <clave>` (tipo `Feature`, `Bug` o `Task`, estado en el Project, asignados, padre = la HU, sub-issues) y el cuerpo del issue (`gh issue view <N> -R <owner>/<repo>`). Si falta algo, pedíselo en tu respuesta; no lo adivines.
 - **El issue enlaza, no copia.** El *qué* no está en el cuerpo sino en el documento de feature que nombra su bloque de referencia (`Change:`), en `## Specs`: los requisitos se citan por `S#`, no se transcriben.
-- El plan sigue yendo a `odd.diseno`, con `{historia}` = el número de la HU (`N`, sin `owner/repo#`: no sirven en un nombre de archivo). Sin `odd.diseno`, preguntá dónde va antes de escribir.
+- El plan sigue yendo a `odd.diseno`, con `{historia}` = el número de la HU (`N`, sin `owner/repo#`: no sirven en un nombre de archivo). Si las HU del proyecto viven en más de un repo, `<repo>-N` (`docs-12`), porque `N` solo choca entre repos. Sin `odd.diseno`, preguntá dónde va antes de escribir.
 - Una HU de varios repos vive en el repo de documentación, con un sub-issue `Task` por repo destino: el diseño es uno solo, el de la HU.
 - **No escribas en GitHub.** Ni `ticket.js mover`, ni `gh issue comment`, ni crear, editar o cerrar issues, etiquetas o campos del Project. Eso lo hace el hilo principal.
 
