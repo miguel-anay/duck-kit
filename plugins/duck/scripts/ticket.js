@@ -45,7 +45,8 @@ const MUTACION = `mutation($p: ID!, $i: ID!, $f: ID!, $o: String!) {
 
 // '#12' o '12' contra el repo actual (owner/repo); 'owner/repo#12' tal cual.
 function parsearClave(clave, repoActual) {
-  const m = String(clave).trim().match(/^(?:([\w.-]+)\/([\w.-]+))?#?(\d+)$/);
+  // Con owner/repo el # es obligatorio: sin el, owner/repo12 se leeria como repo1#2.
+  const m = String(clave).trim().match(/^(?:([\w.-]+)\/([\w.-]+)#|#?)(\d+)$/);
   if (!m) throw new Error(`clave invalida: ${clave} (se espera #N u owner/repo#N)`);
   if (m[1]) return { owner: m[1], repo: m[2], numero: Number(m[3]) };
   if (!repoActual) throw new Error(`sin repositorio de GitHub para resolver ${clave}: usa owner/repo#N`);
@@ -67,11 +68,17 @@ function repoActual() {
   }
 }
 
-// El item del Project configurado; sin proyecto en la configuracion, el unico que haya.
+// El item del Project configurado; sin proyecto en la configuracion, el unico que haya. Una
+// configuracion a medias es un error: caer al «unico» podria escribir en otro Project.
+// ponytail: lee los primeros 10 projects del issue y 50 sub-issues, sin paginar.
 function elegirItem(items, cfg) {
   const { owner, numero } = cfg.github.proyecto;
-  if (owner && numero) {
-    return items.find((it) => it.project?.number === Number(numero) && it.project?.owner?.login === owner) || null;
+  if (Boolean(owner) !== Boolean(numero)) throw new Error('github.proyecto necesita owner y numero, o ninguno');
+  if (owner) {
+    const login = String(owner).toLowerCase();
+    return (
+      items.find((it) => it.project?.number === Number(numero) && it.project?.owner?.login?.toLowerCase() === login) || null
+    );
   }
   return items.length === 1 ? items[0] : null;
 }

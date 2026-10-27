@@ -18,6 +18,7 @@ test('parsearClave resolves #N against the current repo and owner/repo#N as is',
   assert.deepEqual(parsearClave('org/docs#3', 'org/api'), { owner: 'org', repo: 'docs', numero: 3 });
   assert.throws(() => parsearClave('#12', null), /repositorio/);
   assert.throws(() => parsearClave('ABC-1', 'org/api'), /clave/);
+  assert.throws(() => parsearClave('org/repo12', 'org/api'), /clave/);
 });
 
 test('repoDeRemoto reads https and ssh GitHub remotes', () => {
@@ -79,6 +80,10 @@ test('elegirItem picks the configured project item, or the only one', () => {
   const sinProyecto = { github: { ...CFG.github, proyecto: { owner: null, numero: null } } };
   assert.equal(elegirItem([issue().projectItems.nodes[1]], sinProyecto).id, 'PVTI_1');
   assert.equal(elegirItem(issue().projectItems.nodes, sinProyecto), null);
+  const mayusculas = { github: { ...CFG.github, proyecto: { owner: 'ORG', numero: '5' } } };
+  assert.equal(elegirItem(issue().projectItems.nodes, mayusculas).id, 'PVTI_1');
+  const aMedias = { github: { ...CFG.github, proyecto: { owner: 'org', numero: null } } };
+  assert.throws(() => elegirItem([issue().projectItems.nodes[1]], aMedias), /github\.proyecto/);
 });
 
 test('resumir returns full keys, project status, parent and sub-issues', () => {
