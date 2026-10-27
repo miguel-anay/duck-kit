@@ -9,6 +9,8 @@ convenciones, fuera del kit: ver «Adaptar duck a un proyecto» en el `README.md
 
 Convenciones del texto: `<base>` es la rama base (`git.ramaBase`), `<CLAVE>` la clave del proyecto
 en Jira (`jira.proyecto`).
+Con `"tickets": {"proveedor": "github"}` el ticket es un issue de GitHub: lo que cambia está en la
+sección 8.
 
 > **Quién manda.** Si el proyecto tiene una regla local que contradice a este método, gana la regla
 > local: el método es el punto de partida, no un reglamento por encima del equipo.
@@ -273,3 +275,58 @@ documento de ODD, el otro carril no la ve.
 en cada sync. `sesion-inicio.js` inyecta esta regla en cada sesión mientras `odd.tareas` esté definido.
 Sin esa clave, duck no dice nada y ODD corre tal cual. Es una instrucción, no un guardia: nada bloquea
 escribir en otra ruta.
+
+## 8. Con GitHub en vez de Jira
+
+Con `"tickets": {"proveedor": "github"}` el método es el mismo —una rama por tarea, una sola puerta, el
+estado sigue al trabajo—, pero cada pieza sigue la convención de GitHub (la `gestion-github.md` del
+proyecto, si la hay), no una traducción de Jira. Lo que no aparece acá queda igual.
+
+**Tickets y claves.** La HU es un issue de tipo `Feature` o `Bug`; las tareas son sub-issues `Task` solo
+cuando una tiene su propio PR, otro repo u otra persona. Una HU de varios repos vive en el repo de
+documentación, con un sub-issue por repo destino. La clave es `#N` (u `owner/repo#N` fuera del repo);
+duck la guarda como `owner/repo#N` en minúsculas. El tipo va en el issue type, no en etiquetas.
+
+**Ramas, commits y PR (secciones 1 y 2).** Trunk-based: `<base>` es `main`. La rama es
+`<prefijo>/N-<slug>` —`feat/`, `fix/`, que tienen que estar en `git.prefijos` para que los hooks
+reconozcan la rama— con el número del issue que entrega: en
+una HU de varios repos, el de **su** sub-issue en cada repo. El cuerpo de cada commit termina con
+`Refs #N`. El título del PR es un Conventional Commit terminado en el `(#N)` de la HU. `Closes #N` solo en
+el PR que termina el issue o su sub-issue; un PR parcial lleva `Refs #N`.
+
+**El merge (paso 10).** Un agente no mergea su propio PR salvo que el dueño lo pida **para ese PR**
+(«mergealo»). En modo tarea, la autorización del paso 6 lo cubre solo si lo dice; un «dale» sin merge
+deja el PR en In Review, esperando revisión. En modo flujo, la serie se autoriza nombrando también el
+merge. Con el CI en rojo no se mergea nunca, ni con el OK del dueño (`mergear-pr.js` ya lo comprueba).
+Como `<base>` es `main`, «la rama de producción» del modo flujo es la misma troncal: el flujo llega a
+`main` por PR y no hay otra rama más allá.
+
+**El estado (sección 4).** Es la opción del campo Status del Project (`github.estados` en `duck.json`), y
+se fija directo con `node "${CLAUDE_PLUGIN_ROOT}/scripts/ticket.js" mover <clave> <estado>`: no hay ids de
+transición que consultar. Siempre por ahí, nunca con `gh project item-edit`: los hooks leen la línea
+`Issue (owner/repo#N) movido a (<opción>)` que imprime.
+
+| Momento | Estado |
+|---|---|
+| Al tomar la tarea | `enProceso` (In Progress) |
+| Al abrir el PR | `enRevision` (In Review) |
+| Al mergear | `finalizado` (Done). **Releé antes** con `ticket.js ver`: `Closes #N` y el workflow del Project pueden haberlo movido ya |
+| Lo frena algo externo | `bloqueado` (Blocked), que reemplaza al prefijo `[BLOQ]`. El motivo va en un comentario, que es texto: borrador, mostrarlo y esperar el OK |
+| La HU | `enProceso` con su primer sub-issue; `finalizado` **solo** con todos sus sub-issues cerrados. Cerrar el issue de la HU no lo decide el agente |
+
+**Convivencia con `/tbd`.** `/tbd` mueve las mismas tarjetas y crea los issues. Antes de cada escritura se
+lee el estado actual, y lo que ya está donde va no se mueve otra vez. duck no crea ni cierra issues, ni
+crea Projects, etiquetas o campos, sin autorización explícita.
+
+**Texto (secciones 4 y 5).** Mover es automático; comentar, no, igual que con Jira. El comentario de cierre
+se publica con `gh issue comment` sobre el sub-issue, nunca sobre la HU si tiene sub-issues (skill
+`evidencia-de-pruebas`). El issue enlaza, no copia: requisitos y criterios viven en el documento de
+feature, y se citan por `S#`.
+
+**Spike.** «Nada en Jira» es «nada en GitHub»: ni crear, ni mover, ni comentar issues.
+
+**Las piezas (sección 6)** son las mismas: `estado-tarea.js`, `historia-sigue-subtareas.js` y
+`panel-al-cerrar.js` escuchan `ticket.js mover` en vez de `transitionJiraIssue`, y `cierre-finalizado.js`
+ve el merge y recuerda releer y mover a Done.
+
+- **`duck:analista` no tiene Bash.** Al delegarle con GitHub, pasale en el prompt la salida de `ticket.js ver <clave>` (de la HU y de la sub-tarea) y el cuerpo con `gh issue view <N> -R <owner>/<repo>`.
