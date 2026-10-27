@@ -69,12 +69,13 @@ y en `~/.claude/settings.json` (el plugin no puede declarar el status line):
 ### Por proyecto
 
 1. Abrir una sesión de Claude Code en el proyecto y correr **`/duck:iniciar`**: detecta los repos, la rama
-   base, la organización y las transiciones de Jira; pregunta lo que no se puede detectar (tipos de ticket,
+   base, la organización y las transiciones de Jira (o el Project de GitHub); pregunta lo que no se puede detectar (tipos de ticket,
    plan, tests por alcance), de a una pregunta; muestra `.claude/duck.json` y `.claude/duck/convenciones.md`
    y los escribe solo con un sí. Sobre un proyecto ya configurado, muestra las diferencias y no pisa nada.
 2. `/reload-plugins` (o una sesión nueva).
 
-A mano: copiar [`plantillas/duck.ejemplo.json`](plantillas/duck.ejemplo.json) a `.claude/duck.json`, ajustarlo
+A mano: copiar [`plantillas/duck.ejemplo.json`](plantillas/duck.ejemplo.json) (Jira) o
+[`plantillas/duck.github.ejemplo.json`](plantillas/duck.github.ejemplo.json) (GitHub Projects) a `.claude/duck.json`, ajustarlo
 (referencia abajo), y agregar `.claude/estado/` al `.gitignore`.
 
 ## Referencia de `.claude/duck.json`
@@ -84,6 +85,42 @@ da a todo hook); sin esa variable —un comando lanzado desde Bash, el status li
 `CLAUDE_PROJECT_DIR` está y no tiene `duck.json`, el proyecto no adoptó duck y no se sigue buscando. Un
 `duck.json` que no parsea se trata como «no hay». Todo campo es opcional; lo que falte toma el valor de la
 columna «Por defecto». Los objetos se mezclan en profundidad; los arreglos reemplazan.
+
+### `tickets`
+
+| Campo | Por defecto | Qué hace |
+|---|---|---|
+| `proveedor` | `jira` | De dónde salen los tickets: `jira` (MCP de Atlassian y `acli`) o `github` (Issues + Projects v2). Sin distinguir mayúsculas; cualquier otro valor es `jira`. Con `jira`, la sección `github` se ignora, y al revés. |
+
+### `github`
+
+Solo con `"proveedor": "github"`.
+
+| Campo | Por defecto | Qué hace |
+|---|---|---|
+| `proyecto.owner` / `numero` | `null` / `null` | El Project v2 donde vive el estado (`mi-org`, `1`). |
+| `campoEstado` | `Status` | Campo de selección única del Project que guarda el estado. |
+| `estados.pendiente` / `enProceso` / `enRevision` / `finalizado` / `bloqueado` | `Ready` / `In Progress` / `In Review` / `Done` / `Blocked` | Qué opción de ese campo es cada momento del flujo. |
+
+Con GitHub, `git.prefijos` son los de `<prefijo>/N-slug` (`feat`, `fix`…) y `git.ramaBase` suele ser `main`.
+Ejemplo completo: [`plantillas/duck.github.ejemplo.json`](plantillas/duck.github.ejemplo.json).
+
+La convención es la de GitHub, no la de Jira:
+
+- **Clave**: `#N` (issue del repo de la carpeta) u `owner/repo#N` (otro repo); `owner/repo` se guarda en minúsculas.
+- **Rama**: `<prefijo>/N-slug`, por ejemplo `feat/12-login`.
+- **Commit**: el cuerpo termina con `Refs #N`.
+- **PR**: título Conventional Commit terminado en `(#N)`. `Closes #N` solo en el PR que termina el issue; los demás, `Refs #N`.
+- **Estado**: se escribe directo en el campo del Project; no hay transiciones.
+
+`scripts/ticket.js` es el adaptador (GraphQL por `gh api graphql`):
+
+```bash
+node scripts/ticket.js ver '#12'                         # JSON: título, tipo, estado, padre, sub-issues
+node scripts/ticket.js mover mi-org/api#12 enProceso     # estado: clave de github.estados o nombre de la opción
+```
+
+Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si falta, `gh auth refresh -s project`.
 
 ### `jira`
 
@@ -147,6 +184,7 @@ Es estado local por máquina: va al `.gitignore`. Las sesiones de más de 16 hor
 | **acli** + login | Refresco de Jira del panel cada 60 s | Opcional. Login: `acli jira auth login --web`, en una ventana aparte. Sin él, el panel solo ve lo que dejaron `/duck:estado` y los hooks. |
 | **MCP de Atlassian** | `/duck:tomar`, `/duck:estado` y los hooks de Jira | Los hooks no lo usan (no pueden): le piden las llamadas al agente. |
 | **Credencial de git para github.com** | `mergear-pr.js` | Se lee con `git credential fill`; no usa `gh`. |
+| **gh** + scope `project` | `ticket.js` y el panel, con `"proveedor": "github"` | `gh auth refresh -s project` agrega el scope. |
 
 Notas de Windows y de otras plataformas:
 
@@ -179,5 +217,7 @@ sobre sus ejemplos. Sin convenciones, el método funciona igual con valores gen�
 - `instalar.sh` se probó en Git Bash sobre Windows (sintaxis, y el paso del statusLine contra un
   `settings.json` temporal: idempotente, conserva las demás claves, no toca un JSON roto). **No se probó en
   Ubuntu ni macOS.**
+- Con GitHub, `ticket.js` lee los primeros 10 Projects de cada issue y los primeros 50 sub-issues (sin paginar),
+  y el panel lo invoca con `node`, que tiene que estar en el PATH.
 - Los nombres de estado se reconocen por el texto de la respuesta de Jira, con el nombre configurado
   (`En Proceso` también reconoce `EnProceso`). Un estado cuyo nombre contenga el de otro se podría confundir.

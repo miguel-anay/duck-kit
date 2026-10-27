@@ -1,0 +1,27 @@
+{
+  "tickets": { "proveedor": "github" },
+  "github": {
+    "proyecto": { "owner": "mi-org", "numero": 1 },
+    "campoEstado": "Status",
+    "estados": {
+      "pendiente": "Ready",
+      "enProceso": "In Progress",
+      "enRevision": "In Review",
+      "finalizado": "Done",
+      "bloqueado": "Blocked"
+    }
+  },
+  "git": {
+    "ramaBase": "main",
+    "prefijos": ["feat", "fix", "refactor", "docs"],
+    "prefijosLegados": [],
+    "orgGithub": "mi-org",
+    "repos": {},
+    "ignorarEnStatus": []
+  },
+  "convenciones": ".claude/duck/convenciones.md",
+  "odd": {
+    "tareas": "odd/tasks",
+    "diseno": null
+  }
+}

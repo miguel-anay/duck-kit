@@ -1,7 +1,7 @@
 # duck-kit
 
 Marketplace de Claude Code con un solo plugin, **`duck`**: un flujo de trabajo portable para equipos que
-trabajan con Jira y git.
+trabajan con Jira (o GitHub Issues + Projects) y git.
 
 - **Una rama por tarea de Jira**, creada desde la rama base al día.
 - **Una sola puerta hacia el remoto**: push, PR y merge pasan por un único punto de autorización.
@@ -34,8 +34,9 @@ proyecto y corré:
 /duck:iniciar
 ```
 
-Detecta los repos, la rama base, la organización y los estados de Jira (por el MCP de Atlassian, con `acli`
-o GitHub Projects como respaldo), pregunta lo que no puede detectar y escribe `.claude/duck.json` y
+Detecta los repos, la rama base, la organización y los estados de Jira (por el MCP de Atlassian, o `acli`).
+Si el seguimiento vive en GitHub Projects, escribe `"tickets": { "proveedor": "github" }` y la sección `github`
+(Project, campo y estados; requiere `gh` con el scope `project`). Pregunta lo que no puede detectar y escribe `.claude/duck.json` y
 `.claude/duck/convenciones.md` solo después de mostrarlos. Después: `/reload-plugins` y
 `/duck:tomar <clave>`.
 
