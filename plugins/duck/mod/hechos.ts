@@ -64,13 +64,15 @@ export function construirHechosRepo(salida: SalidaGitRepo, config: ConfigDuck): 
     }
   }
 
-  const claveMatch = salida.rama.match(config.patronClave)
+  // GitHub: feature/27-slug -> #27 (la convencion de la rama no lleva el #).
+  const claveMatch = salida.rama.match(config.patronRama)
+  const clave = claveMatch ? (config.proveedor === 'github' ? `#${claveMatch[1]}` : claveMatch[0]) : null
 
   return {
     repo: salida.repo,
     disponible: true,
     rama: salida.rama,
-    clave: claveMatch ? claveMatch[0] : null,
+    clave,
     limpio: salida.estado === '',
     alDia: leerAlDia(salida.leftRight),
     commitsPropios: Number(salida.propios) || 0,

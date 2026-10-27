@@ -20,6 +20,7 @@ import {
   RUTA_CONFIG,
   TICK_MS,
   argvJira,
+  claveValida,
   parsearConfig,
   rutaHistoria,
   rutaSesion,
@@ -27,7 +28,7 @@ import {
   type ConfigDuck,
 } from './nombres'
 import { construirHechos, type Hechos, type SalidaGitRepo } from './hechos'
-import { fusionarConJira, parsearHistoria, type Historia } from './historia'
+import { fusionarConJira, parsearHistoria, textoDesdeTicket, type Historia } from './historia'
 import { construirHechosSpike, parsearSpike, ramaSpike, type EstadoSpike, type HechosSpikeRepo } from './spike'
 import { panelPrincipal, type Kit } from './vista'
 
@@ -208,12 +209,16 @@ async function consultarJira($: EngineInterface, proyecto: Proyecto): Promise<bo
   if (actual === null || actual.historias.length === 0) return false
   // Una consulta por historia, en paralelo; correr() devuelve '' si una falla,
   // y esa historia queda como estaba. Una clave invalida no se consulta.
+  // GitHub: `ticket.js ver` del propio plugin, traducido a lo que devolveria acli.
+  const config = proyecto.config
   const textos = await Promise.all(
-    actual.historias.map((b) =>
-      /^[A-Z][A-Z0-9]*-\d+$/.test(b.historia.clave)
-        ? correr($, argvJira(proyecto.config.acli, b.historia.clave), proyecto.raiz)
-        : Promise.resolve(''),
-    ),
+    actual.historias.map(async (b) => {
+      const clave = b.historia.clave
+      if (!claveValida(clave, config)) return ''
+      if (config.proveedor !== 'github') return correr($, argvJira(config.acli, clave), proyecto.raiz)
+      const salida = await correr($, ['node', `${$.plugin.root}/scripts/ticket.js`, 'ver', clave], proyecto.raiz)
+      return textoDesdeTicket(salida, clave, config.estados)
+    }),
   )
   const ahora = new Date(await $.clock.now()).toISOString()
   const fusion = fusionarConJira(actual, textos, ahora)

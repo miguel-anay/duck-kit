@@ -132,6 +132,52 @@ function categoriaDe(item: ItemJira): CategoriaEstado | undefined {
   return k === 'new' || k === 'indeterminate' || k === 'done' ? k : undefined
 }
 
+// Lo que imprime `ticket.js ver` (proveedor github), solo lo que se usa.
+type TicketGithub = { clave: string; titulo?: string; abierto?: boolean; estado?: string | null; asignados?: string[]; hijas?: unknown }
+
+function esTicketGithub(valor: unknown): valor is TicketGithub {
+  return typeof valor === 'object' && valor !== null && typeof (valor as Record<string, unknown>).clave === 'string'
+}
+
+// Pasa la salida de `ticket.js ver <claveHistoria>` a lo que devolveria acli (la historia y sus
+// hijas como ItemJira), para que fusionarConJira no distinga proveedores. Sin opcion de estado
+// en el Project, el estado sale de abierto/cerrado. La categoria: finalizado o cerrado -> done;
+// pendiente o Backlog -> new; el resto -> indeterminate. ticket.js da claves completas
+// (owner/repo#N); si el archivo trae la historia como #N (estado anterior), la historia conserva
+// esa clave y las hijas del mismo repo tambien quedan cortas. Salida rota o vacia -> '' (la
+// historia queda como estaba).
+export function textoDesdeTicket(
+  salida: string,
+  claveHistoria: string,
+  estados: { finalizado: string; pendiente: string },
+): string {
+  let datos: unknown
+  try {
+    datos = JSON.parse(salida)
+  } catch {
+    return ''
+  }
+  if (!esTicketGithub(datos)) return ''
+  const repo = datos.clave.slice(0, datos.clave.indexOf('#'))
+  const clave = (c: string) => (claveHistoria.startsWith('#') && c.startsWith(`${repo}#`) ? c.slice(repo.length) : c)
+  const hijas = Array.isArray(datos.hijas) ? datos.hijas : []
+  const item = (t: TicketGithub, key: string): ItemJira => {
+    const cerrado = t.abierto === false
+    const nombre = t.estado ?? (cerrado ? estados.finalizado : estados.pendiente)
+    const categoria =
+      cerrado || nombre === estados.finalizado ? 'done' : nombre === estados.pendiente || nombre === 'Backlog' ? 'new' : 'indeterminate'
+    return {
+      key,
+      fields: {
+        summary: t.titulo,
+        status: { name: nombre, statusCategory: { key: categoria } },
+        assignee: t.asignados?.[0] ? { displayName: t.asignados[0] } : null,
+      },
+    }
+  }
+  return JSON.stringify([item(datos, claveHistoria), ...hijas.filter(esTicketGithub).map((h) => item(h, clave(h.clave)))])
+}
+
 // "[BE] Ampliar el esquema..." -> prefijo "[BE]", titulo "Ampliar el esquema...".
 function partirResumen(resumen: string): { prefijo: string; titulo: string } {
   const m = resumen.match(/^\s*(\[[^\]]+\])\s*(.*)$/)
