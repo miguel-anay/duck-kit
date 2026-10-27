@@ -121,7 +121,7 @@ function elegirOpcion(campo, estado, cfg) {
 // Un error de gh se reduce a su stderr: el mensaje de execFileSync repite la consulta entera.
 function ghReal(args) {
   try {
-    return JSON.parse(execFileSync('gh', ['api', 'graphql', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    return JSON.parse(execFileSync('gh', ['api', 'graphql', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 }));
   } catch (e) {
     throw new Error(String(e.stderr || e.message).trim());
   }
