@@ -27,8 +27,19 @@ const DEFECTOS = {
   tickets: { proveedor: 'jira' },
   // Solo con proveedor 'github', que sigue la convencion de GitHub y no la de Jira: la clave es
   // #N (u owner/repo#N si el issue vive en otro repo) y la rama es <prefijo>/N-slug.
-  // proyecto: el Project v2 cuyo campo campoEstado guarda el estado.
-  github: { proyecto: { owner: null, numero: null }, campoEstado: 'Status' },
+  // proyecto: el Project v2 cuyo campo campoEstado guarda el estado. estados: que opcion de ese
+  // campo es cada momento del flujo (los de gestion-github.md por defecto).
+  github: {
+    proyecto: { owner: null, numero: null },
+    campoEstado: 'Status',
+    estados: {
+      pendiente: 'Ready',
+      enProceso: 'In Progress',
+      enRevision: 'In Review',
+      finalizado: 'Done',
+      bloqueado: 'Blocked',
+    },
+  },
   jira: {
     proyecto: null, // null = cualquier clave tipo ABC-123
     transiciones: { enProceso: [], finalizado: [], pendiente: [] }, // ids; solo sirven para reconocer
