@@ -25,10 +25,10 @@ const RELATIVA = path.join('.claude', 'duck.json');
 const DEFECTOS = {
   // De donde salen los tickets: 'jira' (MCP de Atlassian y acli) o 'github' (Issues + Projects v2).
   tickets: { proveedor: 'jira' },
-  // Solo con proveedor 'github'. prefijos: clave sintetica -> repo, {"GH": "org/repo"} hace de
-  // GH-123 el issue org/repo#123; varios prefijos para un proyecto con varios repos.
+  // Solo con proveedor 'github', que sigue la convencion de GitHub y no la de Jira: la clave es
+  // #N (u owner/repo#N si el issue vive en otro repo) y la rama es <prefijo>/N-slug.
   // proyecto: el Project v2 cuyo campo campoEstado guarda el estado.
-  github: { proyecto: { owner: null, numero: null }, prefijos: {}, campoEstado: 'Status' },
+  github: { proyecto: { owner: null, numero: null }, campoEstado: 'Status' },
   jira: {
     proyecto: null, // null = cualquier clave tipo ABC-123
     transiciones: { enProceso: [], finalizado: [], pendiente: [] }, // ids; solo sirven para reconocer
@@ -107,16 +107,6 @@ function patronNombre(nombre) {
   return new RegExp(escapar(nombre).replace(/\s+/g, '\\s*'), 'i');
 }
 
-// Solo letras mayusculas (2 o mas) y un repo owner/nombre: asi la clave GH-123 la siguen
-// reconociendo los patrones fijos de los hooks y del mod (guard-spike pide [A-Z]{2,}-\d+).
-function prefijosValidos(prefijos) {
-  return Object.fromEntries(
-    Object.entries(prefijos || {}).filter(
-      ([p, repo]) => /^[A-Z]{2,}$/.test(p) && /^[\w.-]+\/[\w.-]+$/.test(String(repo))
-    )
-  );
-}
-
 // Devuelve la configuracion normalizada, o null si no hay duck.json legible.
 function cargar() {
   const raiz = buscarProyecto();
@@ -131,17 +121,14 @@ function cargar() {
 
   const cfg = mezclar(DEFECTOS, crudo);
   const proveedor = cfg.tickets.proveedor === 'github' ? 'github' : 'jira';
-  const prefijos = proveedor === 'github' ? prefijosValidos(cfg.github.prefijos) : {};
   const proyecto = cfg.jira.proyecto ? String(cfg.jira.proyecto) : null;
-  let fuente = proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+';
-  if (Object.keys(prefijos).length) fuente = `(?:${Object.keys(prefijos).join('|')})-\\d+`;
+  const fuente = proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+';
   const carpetas = Object.keys(cfg.git.repos);
 
   return {
     ...cfg,
     raiz,
     tickets: { ...cfg.tickets, proveedor },
-    github: { ...cfg.github, prefijos },
     jira: {
       ...cfg.jira,
       proyecto,
@@ -223,6 +210,27 @@ function deducirEstado(evento, cfg, { soloSubtareas = false } = {}) {
   return null;
 }
 
+// Clave del ticket de una rama, o null. Jira: la clave donde aparezca (feature/ABC-12-slug).
+// GitHub: el numero que sigue a un prefijo conocido (feat/12-slug -> #12); exigir el prefijo
+// evita leer release/2026-10 como el issue #2026.
+function claveDeRama(rama, cfg) {
+  if (!rama) return null;
+  if (cfg.tickets.proveedor !== 'github') return String(rama).match(cfg.jira.reClave)?.[0] ?? null;
+  const prefijos = cfg.git.prefijosSlug.map(escapar).join('|');
+  const m = String(rama).match(new RegExp(`^(?:${prefijos})/(\\d+)(?:-|$)`));
+  return m ? `#${m[1]}` : null;
+}
+
+// Claves de ticket en un texto (commit, comando, respuesta), sin repetir y en orden.
+// GitHub: #N y owner/repo#N; no cuenta &#123; (entidad HTML) ni x#5 (pegado a una palabra).
+function clavesEnTexto(texto, cfg) {
+  const patron =
+    cfg.tickets.proveedor === 'github'
+      ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/g
+      : new RegExp(cfg.jira.claveFuente, 'g');
+  return [...new Set(String(texto ?? '').match(patron) || [])];
+}
+
 // Rama actual de la carpeta (o del repo que la contiene). Lee .git/HEAD directo: un spawn de
 // git en cada refresco del status line es caro. Sube por el arbol porque la sesion puede
 // estar en un subdirectorio, y contempla worktrees, donde .git es un archivo que apunta al
@@ -280,6 +288,8 @@ module.exports = {
   hook,
   partirEnTramos,
   deducirEstado,
+  claveDeRama,
+  clavesEnTexto,
   ramaDe,
   ponerTituloTerminal,
   escapar,
