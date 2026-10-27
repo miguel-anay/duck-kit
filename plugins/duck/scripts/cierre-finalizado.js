@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, escapar, claveDeRama, clavesEnTexto, TICKET_JS } = require('./config');
+const { hook, escapar, claveDeRama, clavesEnTexto, referenciaIssue, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => procesar(evento, cfg));
 
@@ -104,8 +104,8 @@ function fueMergeExitoso(respuesta) {
 
 // Orden de busqueda de la clave: el propio comando, despues la respuesta de
 // GitHub (trae titulo y rama del PR), y como ultimo recurso la rama actual
-// del repositorio en disco. Con GitHub primero la rama (en el comando, en la respuesta, la
-// actual) y despues el #N del texto; se descarta el #N que es el numero del PR, y el #N
+// del repositorio en disco. Con GitHub: la rama nombrada en el texto, una referencia explicita
+// (Refs/Closes/(#N)), la rama actual y por ultimo cualquier #N del texto; se descarta el #N que es el numero del PR, y el #N
 // suelto se completa con el repo de la carpeta del PR (owner/repo#N).
 function buscarClave(comando, respuesta, repo, numero, cfg) {
   // Carpeta del proyecto cuyo repo de GitHub se llama asi.
@@ -122,7 +122,13 @@ function buscarClave(comando, respuesta, repo, numero, cfg) {
     }
     return null;
   };
-  return rama(comando) || rama(respuesta) || buscarClaveEnRamaActual(carpeta, cfg) || en(comando) || en(respuesta);
+  // Una referencia explicita (Refs, Closes, (#N)) le gana a la rama local, que puede ser de otra tarea;
+  // un #N mencionado al pasar, no.
+  const explicita = (texto) => clavesEnTexto(texto, cfg, carpeta).find((c) => valida(c) && referenciaIssue(texto, c.split('#')[1]));
+  return (
+    rama(comando) || rama(respuesta) || explicita(comando) || explicita(respuesta) ||
+    buscarClaveEnRamaActual(carpeta, cfg) || en(comando) || en(respuesta)
+  );
 }
 
 function buscarClaveEnRamaActual(carpeta, cfg) {

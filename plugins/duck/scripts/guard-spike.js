@@ -88,7 +88,8 @@ function revisarComando(comando, evento, estado, cfg) {
     if (
       github &&
       (/\bticket\.js["']?\s+mover\b/.test(tramo) ||
-        new RegExp(`${GH}issue\\s+(create|edit|comment|close|reopen|delete|transfer|lock|unlock|pin|unpin|develop)\\b`).test(tramo) ||
+        (new RegExp(`${GH}issue\\s+(create|edit|comment|close|reopen|delete|transfer|lock|unlock|pin|unpin|develop)\\b`).test(tramo) &&
+          !new RegExp(`${GH}issue\\s+develop\\b.*\\s(?:-l|--list)\\b`).test(tramo)) || // develop --list solo lee
         new RegExp(`${GH}project\\s+item-(edit|add|delete|archive)\\b`).test(tramo) ||
         apiEscritura(tramo))
     ) {

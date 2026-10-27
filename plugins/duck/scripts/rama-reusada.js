@@ -95,11 +95,14 @@ function compararConLoExistente(clave, nueva, cfg) {
   const otras = []; // { repo, rama } con otro slug
   const enBase = [];
   let mismoNombre = false; // la misma rama ya existe (en este u otro repo)
+  // GitHub: el repo de la rama nueva, una vez. Sin origin de GitHub (null) solo cuentan las
+  // carpetas que tampoco lo tienen, donde la clave tambien queda como #N.
+  const repoNueva = github ? repoGithub(nueva.dir) : null;
 
   for (const repo of cfg.git.carpetas) {
     const cwd = path.join(cfg.raiz, repo);
     if (!fs.existsSync(cwd)) continue;
-    if (github && repoGithub(cwd) !== repoGithub(nueva.dir)) continue;
+    if (github && repoGithub(cwd) !== repoNueva) continue;
     const esDeLaClave = (rama) => (github ? claveDeRama(rama, cfg, cwd) === clave : exacta.test(rama));
 
     for (const rama of correr(cwd, ['branch', '-a', '--format=%(refname:short)', '--list', ...patrones])) {

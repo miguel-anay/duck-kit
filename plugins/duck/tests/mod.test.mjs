@@ -57,6 +57,12 @@ test('github: Backlog category comes from github.estados.backlog, not a hardcode
   assert.deepEqual(items.map((i) => i.fields.status.statusCategory.key), ['new', 'indeterminate'])
 })
 
+test('github: a closed issue is finalizado even if its Project status is stale', () => {
+  const t = { clave: 'acme/docs#1', abierto: false, estado: 'In Progress', hijas: [] }
+  const [item] = JSON.parse(textoDesdeTicket(JSON.stringify(t), 'acme/docs#1', github().estados))
+  assert.deepEqual(item.fields.status, { name: 'Done', statusCategory: { key: 'done' } })
+})
+
 const ticket = {
   clave: 'acme/docs#15',
   titulo: '[HU] Alta de clientes',

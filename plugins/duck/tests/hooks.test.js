@@ -140,7 +140,7 @@ test('guard-spike blocks GitHub ticket writes during a spike', () => {
   ]) {
     assert.ok(negado(correr('guard-spike.js', raiz, bash(c))), c);
   }
-  for (const c of ['gh issue view 12', "gh api graphql -f query='query { x }'", 'node /x/ticket.js ver #12']) {
+  for (const c of ['gh issue view 12', 'gh issue develop 12 --list', 'gh issue develop -l 12', "gh api graphql -f query='query { x }'", 'node /x/ticket.js ver #12']) {
     assert.ok(!negado(correr('guard-spike.js', raiz, bash(c))), c);
   }
 });
@@ -265,10 +265,19 @@ test('cierre-finalizado (github) prefers the branch named in the merge over a #N
   assert.match(texto, /^El PR app#28 se mergeo\. #27 tiene que pasar a Done/);
 });
 
-test('cierre-finalizado (github) prefers the current branch over a #N in the command', () => {
+test('cierre-finalizado (github) prefers an explicit reference in the command over a stale current branch', () => {
   const raiz = proyecto(GITHUB);
   repo(raiz, 'fix/27-x');
-  const cmd = 'curl -X PUT https://api.github.com/repos/org/app/pulls/28/merge -d \'{"commit_message":"Refs #5"}\'';
+  for (const ref of ['Refs #5', 'feat: x (#5)', 'Closes #5']) {
+    const cmd = `curl -X PUT https://api.github.com/repos/org/app/pulls/28/merge -d '{"commit_message":"${ref}"}'`;
+    assert.match(contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', cmd))), /se mergeo\. #5 tiene que pasar a Done/, ref);
+  }
+});
+
+test('cierre-finalizado (github) prefers the current branch over a #N merely mentioned', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const cmd = 'curl -X PUT https://api.github.com/repos/org/app/pulls/28/merge -d \'{"commit_message":"see #5"}\'';
   const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', cmd)));
   assert.match(texto, /^El PR app#28 se mergeo\. #27 tiene que pasar a Done/);
 });
