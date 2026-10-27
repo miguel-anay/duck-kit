@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, escapar, claveDeRama, referenciaIssue } = require('./config');
+const { hook, partirEnTramos, escapar, claveDeRama, referenciaIssue, repoDe: repoGithub } = require('./config');
 
 hook((evento, cfg) => {
   const aviso = revisar(evento?.tool_input?.command ?? '', evento?.cwd || cfg.raiz, cfg);
@@ -26,7 +26,7 @@ function revisar(comando, cwd, cfg) {
   for (const tramo of partirEnTramos(comando)) {
     const nueva = ramaQueSeCrea(tramo, cwd, cfg);
     if (!nueva) continue;
-    const clave = claveDeRama(nueva.rama, cfg);
+    const clave = claveDeRama(nueva.rama, cfg, nueva.dir);
     if (!clave) continue;
     const aviso = compararConLoExistente(clave, nueva, cfg);
     if (aviso) avisos.push(aviso);
@@ -66,7 +66,7 @@ function ramaQueSeCrea(tramo, cwd, cfg) {
   if (!rama && pegada) rama = pegada.slice('--create='.length);
   if (!rama) return null;
 
-  return { rama, repo: repoDe(dir, cfg) };
+  return { rama, dir, repo: repoDe(dir, cfg) };
 }
 
 // Carpeta del proyecto (una de cfg.git.carpetas) en que cae el directorio.
@@ -86,10 +86,11 @@ function compararConLoExistente(clave, nueva, cfg) {
   // GitHub: la rama no lleva el # (feat/12-slug), asi que se la reconoce por claveDeRama; en la
   // base cuenta un commit cuyo mensaje (no solo el asunto) referencia el issue como en inventario
   // (Refs #12, Fixes #12, (#12)...: referenciaIssue); mencionar #12 al pasar no cuenta.
+  // El #12 de otro repo es otro issue: solo cuentan las carpetas del mismo repo de GitHub.
   const github = cfg.tickets.proveedor === 'github';
+  const numero = github ? clave.split('#')[1] : null;
   const exacta = new RegExp(`${escapar(clave)}(?!\\d)`);
-  const esDeLaClave = (rama) => (github ? claveDeRama(rama, cfg) === clave : exacta.test(rama));
-  const patrones = github ? [`*/${clave.slice(1)}-*`, `*/${clave.slice(1)}`] : [`*${clave}*`];
+  const patrones = github ? [`*/${numero}-*`, `*/${numero}`] : [`*${clave}*`];
   const base = cfg.git.ramaBase;
   const otras = []; // { repo, rama } con otro slug
   const enBase = [];
@@ -98,6 +99,8 @@ function compararConLoExistente(clave, nueva, cfg) {
   for (const repo of cfg.git.carpetas) {
     const cwd = path.join(cfg.raiz, repo);
     if (!fs.existsSync(cwd)) continue;
+    if (github && repoGithub(cwd) !== repoGithub(nueva.dir)) continue;
+    const esDeLaClave = (rama) => (github ? claveDeRama(rama, cfg, cwd) === clave : exacta.test(rama));
 
     for (const rama of correr(cwd, ['branch', '-a', '--format=%(refname:short)', '--list', ...patrones])) {
       const limpia = rama.replace(/^origin\//, '');
@@ -110,9 +113,9 @@ function compararConLoExistente(clave, nueva, cfg) {
     }
 
     // Las ramas mergeadas se borran (paso 11), pero su rastro queda en la rama base.
-    const grep = ['log', `origin/${base}`, '--no-merges', '-E', `--grep=${escapar(clave)}([^0-9]|$)`];
+    const grep = ['log', `origin/${base}`, '--no-merges', '-E', `--grep=${escapar(github ? `#${numero}` : clave)}([^0-9]|$)`];
     const asuntos = github
-      ? correr(cwd, [...grep, '--format=%B%x00']).join('\n').split('\0').filter((m) => referenciaIssue(m, clave.slice(1)))
+      ? correr(cwd, [...grep, '--format=%B%x00']).join('\n').split('\0').filter((m) => referenciaIssue(m, numero))
       : correr(cwd, [...grep, '--format=%s']).filter((s) => exacta.test(s));
     if (asuntos.length) enBase.push(`${repo} (${asuntos.length} commits)`);
   }

@@ -7,7 +7,8 @@
 //   3. git commit con una clave de Jira en el mensaje, estando en una rama spike/
 //   4. escrituras en Jira       (las lecturas siguen permitidas)
 //   5. con tickets.proveedor = 'github': escrituras de issues y del Project (ticket.js mover,
-//      gh issue create|edit|comment|close|reopen|delete, gh project item-edit, aun con flags
+//      gh issue create|edit|comment|close|reopen|delete|transfer|lock|unlock|pin|unpin|develop,
+//      gh project item-edit|add|delete|archive, aun con flags
 //      globales antes (gh -R org/app issue ...), mutaciones por gh api graphql y escrituras REST
 //      por gh api a repos/*/issues* o projects), y el commit del punto 3 con una clave #N
 //
@@ -87,8 +88,8 @@ function revisarComando(comando, evento, estado, cfg) {
     if (
       github &&
       (/\bticket\.js["']?\s+mover\b/.test(tramo) ||
-        new RegExp(`${GH}issue\\s+(create|edit|comment|close|reopen|delete)\\b`).test(tramo) ||
-        new RegExp(`${GH}project\\s+item-edit\\b`).test(tramo) ||
+        new RegExp(`${GH}issue\\s+(create|edit|comment|close|reopen|delete|transfer|lock|unlock|pin|unpin|develop)\\b`).test(tramo) ||
+        new RegExp(`${GH}project\\s+item-(edit|add|delete|archive)\\b`).test(tramo) ||
         apiEscritura(tramo))
     ) {
       return `Escribir en GitHub (${tramo.split(/\s+/).slice(0, 3).join(' ')}). En spike no se crea, edita, `

@@ -87,11 +87,11 @@ test('github: ticket.js ver JSON maps to acli ItemJira items with statusCategory
     },
   })
   assert.deepEqual(
-    items.slice(1).map((i) => [i.key, i.fields.status.name, i.fields.status.statusCategory.key, i.fields.assignee]),
+    items.slice(1).map((i) => [i.key, i.fields.status.name, i.fields.status.statusCategory?.key, i.fields.assignee]),
     [
       ['acme/web#3', 'Ready', 'new', null],
       ['acme/web#4', 'Done', 'done', { displayName: 'ana' }],
-      ['acme/docs#16', 'Ready', 'new', null],
+      ['acme/docs#16', '', undefined, null], // open with no Project status: unknown, not an invented Ready
       ['acme/docs#17', 'Backlog', 'new', null],
       ['acme/docs#18', 'Done', 'done', null],
     ],

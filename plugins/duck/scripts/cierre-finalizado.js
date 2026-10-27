@@ -104,7 +104,8 @@ function fueMergeExitoso(respuesta) {
 
 // Orden de busqueda de la clave: el propio comando, despues la respuesta de
 // GitHub (trae titulo y rama del PR), y como ultimo recurso la rama actual
-// del repositorio en disco. Con GitHub se descarta el #N que es el numero del PR, y el #N
+// del repositorio en disco. Con GitHub primero la rama (en el comando, en la respuesta, la
+// actual) y despues el #N del texto; se descarta el #N que es el numero del PR, y el #N
 // suelto se completa con el repo de la carpeta del PR (owner/repo#N).
 function buscarClave(comando, respuesta, repo, numero, cfg) {
   // Carpeta del proyecto cuyo repo de GitHub se llama asi.
@@ -112,7 +113,16 @@ function buscarClave(comando, respuesta, repo, numero, cfg) {
   const carpeta = nombre === null ? null : path.join(cfg.raiz, nombre);
   const valida = (c) => !(cfg.tickets.proveedor === 'github' && c.split('#')[1] === numero);
   const en = (texto) => clavesEnTexto(texto, cfg, carpeta).find(valida);
-  return en(comando) || en(respuesta) || buscarClaveEnRamaActual(carpeta, cfg);
+  if (cfg.tickets.proveedor !== 'github') return en(comando) || en(respuesta) || buscarClaveEnRamaActual(carpeta, cfg);
+  // Con GitHub manda la rama (feat/N-slug): un #N suelto del comando puede ser solo un Refs.
+  const rama = (texto) => {
+    for (const m of String(texto).matchAll(/(?:^|[\s"'\/:])([\w-]+\/\d+[\w.-]*)/g)) {
+      const clave = claveDeRama(m[1], cfg, carpeta);
+      if (clave && valida(clave)) return clave;
+    }
+    return null;
+  };
+  return rama(comando) || rama(respuesta) || buscarClaveEnRamaActual(carpeta, cfg) || en(comando) || en(respuesta);
 }
 
 function buscarClaveEnRamaActual(carpeta, cfg) {

@@ -256,7 +256,7 @@ function leerArgClaves(argv) {
     if (lista !== null) {
       return lista
         .split(',')
-        .map((c) => c.trim())
+        .map((c) => (GITHUB ? c.trim().toLowerCase() : c.trim())) // GitHub: owner/repo canonico en minusculas
         .filter((c) => (GITHUB ? clavesEnTexto(c, cfg)[0] === c : cfg.jira.reClaveExacta.test(c)));
     }
   }

@@ -128,6 +128,15 @@ test('guard-spike blocks GitHub ticket writes during a spike', () => {
     'gh issue create --title x',
     'gh project item-edit --id 1',
     "gh api graphql -f query='mutation { x }'",
+    'gh issue transfer 12 org/otro',
+    'gh issue lock 12',
+    'gh issue unlock 12',
+    'gh issue pin 12',
+    'gh issue unpin 12',
+    'gh issue develop 12 --checkout',
+    'gh project item-add 5 --owner org --url x',
+    'gh project item-delete 5 --id 1',
+    'gh project item-archive 5 --id 1',
   ]) {
     assert.ok(negado(correr('guard-spike.js', raiz, bash(c))), c);
   }
@@ -249,6 +258,28 @@ test('cierre-finalizado (github) records the canonical owner/repo#N of the PR fo
   assert.equal(leerSesion(raiz, 's1').tareas['org/app#27'].estado, 'Mergeado');
 });
 
+test('cierre-finalizado (github) prefers the branch named in the merge over a #N in the command', () => {
+  const raiz = proyecto(GITHUB);
+  const cmd = 'curl -X PUT https://api.github.com/repos/org/app/pulls/28/merge -d \'{"commit_message":"Refs #5"}\'';
+  const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true, "message": "Merge pull request #28 from org/fix/27-x"}', cmd)));
+  assert.match(texto, /^El PR app#28 se mergeo\. #27 tiene que pasar a Done/);
+});
+
+test('cierre-finalizado (github) prefers the current branch over a #N in the command', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const cmd = 'curl -X PUT https://api.github.com/repos/org/app/pulls/28/merge -d \'{"commit_message":"Refs #5"}\'';
+  const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', cmd)));
+  assert.match(texto, /^El PR app#28 se mergeo\. #27 tiene que pasar a Done/);
+});
+
+test('cierre-finalizado (github) falls back to the #N in the command without a branch', () => {
+  const raiz = proyecto(GITHUB);
+  const cmd = 'curl -X PUT https://api.github.com/repos/org/app/pulls/28/merge -d \'{"commit_title":"feat: x (#5)"}\'';
+  const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', cmd)));
+  assert.match(texto, /^El PR app#28 se mergeo\. #5 tiene que pasar a Done/);
+});
+
 test('cierre-finalizado (jira) still reads the key from the command', () => {
   const raiz = proyecto(JIRA);
   const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', 'curl https://api.github.com/repos/org/app/pulls/3/merge # ABC-9')));
@@ -319,6 +350,23 @@ test('rama-reusada (github) counts base commits only when they reference the iss
   git(raiz, 'commit', '-q', '--allow-empty', '-m', 'fix: b\n\nFixes #12');
   git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
   assert.match(contexto(correr('rama-reusada.js', raiz, bash('git checkout -b feat/12-nuevo', raiz))), /Ya hay trabajo de #12 en main: \. \(1 commits\)/);
+});
+
+test('rama-reusada (github) ignores the same #N in a folder of another repo', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { api: 'api', web: 'web' } } });
+  for (const [carpeta, url] of [['api', 'https://github.com/org/api.git'], ['web', 'https://github.com/org/web.git']]) {
+    fs.mkdirSync(path.join(raiz, carpeta));
+    repo(path.join(raiz, carpeta), 'main', ['inicio', 'fix: b\n\nFixes #12']);
+    git(path.join(raiz, carpeta), 'remote', 'add', 'origin', url);
+    git(path.join(raiz, carpeta), 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  }
+  git(path.join(raiz, 'web'), 'branch', 'feat/12-viejo');
+  git(path.join(raiz, 'api'), 'commit', '-q', '--allow-empty', '-m', 'x');
+  git(path.join(raiz, 'api'), 'update-ref', 'refs/remotes/origin/main', 'HEAD~1');
+  const r = contexto(correr('rama-reusada.js', raiz, bash('git checkout -b feat/12-nuevo', path.join(raiz, 'api'))));
+  assert.match(r, /org\/api#12 ya se uso/);
+  assert.match(r, /Ya hay trabajo de org\/api#12 en main: api \(1 commits\)/);
+  assert.doesNotMatch(r, /web/);
 });
 
 test('rama-reusada (jira) still warns on a reused key', () => {
@@ -393,5 +441,14 @@ test('inventario (github) matches owner/repo#N against git.repos regardless of c
   repo(raiz, 'main', ['feat: a\n\nRefs #13']);
   git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
   const c = JSON.parse(correr('inventario.js', raiz, {}, { args: ['--claves', 'org/app#13'] }).stdout).claves;
+  assert.equal(c['org/app#13'].ubicacion, 'develop');
+});
+
+test('inventario (github) --claves takes mixed-case owner/repo#N under its canonical lowercase key', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { '.': 'app' } } });
+  repo(raiz, 'main', ['feat: a\n\nRefs #13']);
+  git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  const c = JSON.parse(correr('inventario.js', raiz, {}, { args: ['--claves', 'Org/App#13'] }).stdout).claves;
+  assert.deepEqual(Object.keys(c), ['org/app#13']);
   assert.equal(c['org/app#13'].ubicacion, 'develop');
 });
