@@ -1,11 +1,13 @@
 ---
-description: La mesa de trabajo Duck — extensiones instaladas, dónde está cada repo, y cómo va la historia en curso
+description: La mesa de trabajo Duck — extensiones instaladas, dónde está cada repo, y cómo va la historia en curso (Jira o GitHub)
 allowed-tools: Bash, Read, mcp__atlassian__searchJiraIssuesUsingJql
 ---
 
 Panel de la mesa de trabajo Duck: qué extensiones hay instaladas, dónde está parado cada repositorio, y cómo va la historia de Jira en curso. Es una vista de **solo lectura**: no transiciona nada, no crea ramas, no publica nada.
 
 > **Configuración.** Necesita `.claude/duck.json` en el proyecto: sin él, `inventario.js` responde `{"sinConfiguracion": true}` y no hay panel que dibujar (decilo en una línea y pará). Los repositorios son las carpetas de `git.repos`, la rama base es `git.ramaBase`, y los estados y el prefijo de bloqueo salen de `jira.estados` y `jira.prefijoBloqueo`. En este texto se usan los valores por defecto (`Finalizado`, `En Proceso`, `Pendiente`, `[BLOQ]`, `Diseño/Desarrollo`) como ejemplo: sustituilos por los del proyecto.
+
+> **Con GitHub.** Si `duck.json` tiene `"tickets": {"proveedor": "github"}`, el paso 2 y los colores se resuelven como dice la sección «Proveedor GitHub», antes del ejemplo. El resto no cambia.
 
 ## 1. Inventario local — una sola vez
 
@@ -145,6 +147,19 @@ Para la tarea que se está tocando ahora, mostrá únicamente hechos observables
 ## 6. Terminar ahí
 
 Es una vista. No transiciones nada en Jira, no crees ramas, no publiques comentarios ni edites nada. Mostrá el panel y parate.
+
+## Proveedor GitHub
+
+Con `"tickets": {"proveedor": "github"}` cambia solo de dónde salen los datos y cómo se llaman los estados. Sigue siendo de solo lectura: ni `ticket.js mover`, ni `gh issue comment`, ni nada que escriba en GitHub.
+
+- **La clave** sigue saliendo solo de `sesion`, y es `owner/repo#N`.
+- **Paso 2:** `node "${CLAUDE_PLUGIN_ROOT}/scripts/ticket.js" ver <clave>`. Si trae `padre`, la historia es el padre: `ticket.js ver <padre>` devuelve la HU y sus sub-issues (`hijas`) en una llamada. Sin `padre`, la clave misma es la historia (`hijas` puede venir vacía).
+- **`historia.estado`** es el `estado` de la HU (la opción del campo Status del Project). **`historia.categoria`**: `done` si está cerrada o en `github.estados.finalizado`; `new` si está en `github.estados.pendiente` o Backlog; `indeterminate` el resto. Es la misma regla con que el panel la refresca.
+- **Cada sub-tarea** es una de `hijas`: `clave`, `titulo`, `estado`, `responsable` = el primero de `asignados`. `prefijo` queda vacío: GitHub no usa prefijos en el título, el tipo va en el issue type.
+- **`inventario.js --claves`** recibe las claves tal cual (`owner/repo#N`, separadas por coma).
+- **Colores:** 🟢 Done (o cerrada) · 🔵 In Review · 🟡 In Progress · ⚪ Ready/Backlog · 🔴 Blocked. Blocked reemplaza a `[BLOQ]` en las alertas («está Blocked»), y el motivo está en el último comentario del issue. La leyenda del pie empieza con «GitHub:» en vez de «Jira:».
+- **Alerta de merge sin cerrar:** una clave `Mergeado` en `sesion` cuyo issue sigue abierto y fuera de `github.estados.finalizado`. Un `Closes #N` puede cerrarlo solo; si ya está cerrado, no hay alerta.
+- Los nombres de estado salen de `github.estados` en `duck.json`.
 
 ---
 

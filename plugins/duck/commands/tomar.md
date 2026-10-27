@@ -1,12 +1,14 @@
 ---
-description: Arranca una tarea de Jira (modo tarea) o una historia entera (modo flujo) — lee el ticket, revisa el otro carril, crea la rama y la pone En Proceso
-argument-hint: <CLAVE>-nnn [slug]
+description: Arranca una tarea de Jira o un issue de GitHub (modo tarea) o una historia entera (modo flujo) — lee el ticket, revisa el otro carril, crea la rama y la pone En Proceso
+argument-hint: <CLAVE>-nnn | #N | owner/repo#N [slug]
 allowed-tools: Bash, Read, Write, Glob, Grep, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__transitionJiraIssue, mcp__atlassian__discover, mcp__atlassian__executeRead
 ---
 
 Arranque de `$1`. Slug propuesto por quien llama: `$2` — puede venir vacío.
 
 > **Configuración.** Los valores propios del proyecto salen de `.claude/duck.json`: `<CLAVE>` es la clave de Jira (`jira.proyecto`), `<base>` la rama base (`git.ramaBase`, por defecto `<base>`), los repositorios son las carpetas de `git.repos`, y los nombres de estado, los de `jira.estados`. Lo propio de cada proyecto —qué repositorio y prefijo corresponde a cada tipo de ticket, el orden de la serie, si exige plan o spec mergeada— está en el archivo `convenciones` de `duck.json`, si lo hay: leelo antes de empezar.
+
+> **Con GitHub.** Si `duck.json` tiene `"tickets": {"proveedor": "github"}`, los pasos son los mismos pero cada operación de Jira se hace como dice la sección «Proveedor GitHub», al final.
 
 Esto es **preparación, no implementación**. Al terminar, la rama existe y el ticket está `En Proceso`. No escribas código, no edites archivos del proyecto, no abras un PR.
 
@@ -199,3 +201,27 @@ Cinco líneas, no más:
 - Lo que encontró el radar, aunque haya sido nada.
 
 Terminá ahí. No empieces a implementar sin que te lo pidan.
+
+## Proveedor GitHub
+
+Con `"tickets": {"proveedor": "github"}` se sigue la convención de GitHub (la `gestion-github.md` del proyecto, si la hay), no una traducción de Jira. Los pasos de arriba valen con estas equivalencias; lo que no aparece acá queda igual. `ticket.js` es `node "${CLAUDE_PLUGIN_ROOT}/scripts/ticket.js"`.
+
+**Antes de cada escritura, leé el estado actual.** `/tbd` mueve las mismas tarjetas: si el issue ya está donde va, no lo muevas otra vez. Este comando no crea ni cierra issues, ni toca el Project, etiquetas o campos.
+
+| Paso | Con GitHub |
+|---|---|
+| Clave | `#N` (mismo repo) o `owner/repo#N`. duck la guarda como `owner/repo#N` en minúsculas. Sin prefijos tipo `EPIC-NNN` |
+| 0. Modo | `ticket.js ver $1` → `tipo` e `hijas`. `Feature` o `Bug` **con** sub-issues → **flujo**; `Task`, o `Feature`/`Bug` sin sub-issues → **tarea**. Sin tipo u otro tipo: PARÁ y preguntá |
+| 1 y F1. Leer | `ticket.js ver <clave>`: `titulo`, `tipo`, `abierto`, `estado` (opción del campo Status del Project), `asignados`, `padre`, `hijas` con su estado. Una llamada trae la HU y sus sub-issues. Quién corre el comando: `gh api user --jq .login`. Dependencias, si la org las usa: `gh api repos/<owner>/<repo>/issues/<N>/dependencies/blocked_by` |
+| PARÁ si | `abierto: false` o estado `github.estados.finalizado`; no está asignado a quien corre; está en `github.estados.bloqueado`; lo bloquea un issue abierto. En flujo: la HU cerrada o sin sub-issues (crearlos es de `/tbd` o de una persona, con autorización) |
+| F2. Serie | Sub-issues abiertos, asignados a quien corre, en `github.estados.pendiente` (o Backlog). No hay `[ANALISIS]` ni `[BLOQ]`: lo bloqueado es el estado `Blocked`, y queda fuera con el motivo de su último comentario |
+| F3. HU | `ticket.js mover <HU> enProceso` si no está ahí. Al cerrar la serie: la HU pasa a `finalizado` **solo** con todos sus sub-issues cerrados (`ver <HU>`, `hijas[].abierto`). Cerrar el issue de la HU no lo hace el agente |
+| 2. Repo y prefijo | El repo es el del issue (`owner/repo` → la carpeta de `git.repos` con ese origin). Rama `<prefijo>/N-<slug>`, solo el número: `fix/` para un `Bug`, `feat/` para lo demás (tienen que estar en `git.prefijos`). Una HU de varios repos vive en el repo de documentación: en cada repo de código se ramifica con el número de **su** sub-issue `Task`, no con el de la HU |
+| 3. Plan | `odd.diseno` con `{historia}` = el número de la HU (`N`, sin `owner/repo#`). El *qué* está en el documento de feature que enlaza el bloque de referencia de la HU (`Change:`) |
+| 4. Radar | `git -C <repo> log origin/<base> --oneline -E --grep="#N([^0-9]\|$)"`, `git -C <repo> branch -a --list "*/N-*"`, y las hermanas con `ticket.js ver <HU>` (una `In Progress` de otra persona es la misma parada) |
+| 5 y 6. Base | `<base>` es la troncal (`main`, trunk-based) |
+| 7. En Proceso | `ticket.js mover $1 enProceso`. Imprime `Issue (owner/repo#N) movido a (In Progress)`, que es lo que leen los hooks: no lo muevas con `gh project item-edit`. No hay ids de transición: la opción se fija directo. Mover sí; comentar, no |
+| Spike | Rama `<prefijo>/N-<slug>`; el commit con la clave es `git commit -m "feat(<alcance>): …" -m "Refs #N"` |
+| 8. Reporte | «Estado en el Project: In Progress», con la línea que imprimió `ticket.js mover` |
+
+Lo que sigue después del arranque, también según la convención: el cuerpo de cada commit termina con `Refs #N`; el título del PR es un Conventional Commit terminado en el `(#N)` de la HU; `Closes #N` solo en el PR que termina el issue o su sub-issue, los parciales `Refs #N`. El resto (In Review, Done, Blocked, merge) está en la sección 8 de `METODO.md`.

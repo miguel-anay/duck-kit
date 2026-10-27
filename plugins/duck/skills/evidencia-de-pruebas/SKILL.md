@@ -1,6 +1,6 @@
 ---
 name: evidencia-de-pruebas
-description: Usar cuando se cierra una sub-tarea de Jira y hay que publicar su comentario de cierre (solo lo que otra persona tiene que saber o hacer: decisiones para validar con negocio, pendientes y cambios de alcance), o cuando se pida armar, redactar o preparar la evidencia, el comentario de pruebas o el reporte de cierre de un ticket.
+description: Usar cuando se cierra una sub-tarea de Jira (o un sub-issue de GitHub) y hay que publicar su comentario de cierre (solo lo que otra persona tiene que saber o hacer: decisiones para validar con negocio, pendientes y cambios de alcance), o cuando se pida armar, redactar o preparar la evidencia, el comentario de pruebas o el reporte de cierre de un ticket.
 ---
 
 # Comentario de cierre de una sub-tarea
@@ -68,6 +68,14 @@ Va **separada por una regla horizontal** (`---`): sin ella, el markdown de Jira 
   permiso (es la única excepción). Cualquier otro texto en Jira sigue necesitando pedido
   explícito en esa misma sesión (la regla de `METODO.md`: transicionar es automático, escribir
   texto no).
+
+## 5. Con GitHub
+
+Si `duck.json` tiene `"tickets": {"proveedor": "github"}`, el contenido y las reglas de arriba son los mismos; cambia dónde se publica:
+
+- Con `gh issue comment <N> -R <owner>/<repo> --body-file <borrador>` sobre el **sub-issue** (`Task`) que se cierra, **nunca sobre la HU** cuando tiene sub-issues. Sin sub-issues (un repo, un PR), va en el issue mismo.
+- El PR es el que cerró el issue con `Closes #N`; si la tarea tuvo PR parciales (`Refs #N`), van todos en «PR».
+- Sin checkboxes: el estado vive en el Project y en `## Tasks` del documento de feature, no en el comentario.
 
 ## Plantilla
 
