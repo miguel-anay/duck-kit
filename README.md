@@ -39,6 +39,22 @@ o GitHub Projects como respaldo), pregunta lo que no puede detectar y escribe `.
 `.claude/duck/convenciones.md` solo después de mostrarlos. Después: `/reload-plugins` y
 `/duck:tomar <clave>`.
 
+## Herramientas complementarias (opcionales)
+
+duck funciona igual sin ellas. El instalador no las instala ni las comprueba: si las querés, se instalan
+aparte, desde su sitio oficial.
+
+| Herramienta | Para qué sirve con duck | Instalación |
+|---|---|---|
+| [Obsidian](https://obsidian.md) | Leer y navegar lo que escriben duck y los agentes: las bitácoras de ODD (`odd/tasks/`), los diseños y las convenciones. Todo es Markdown; abrí la raíz del proyecto como vault. Para tus notas personales (reuniones, ideas), usá una carpeta fuera de los repos, que enlace hacia la documentación y nunca al revés. | Descargarlo de su sitio. Si lo usás sobre la documentación del equipo, desactivá *Archivos y enlaces → Usar [[Wikilinks]]* y elegí *Ruta relativa al archivo*, para que escriba Markdown estándar. |
+| [Graphify](https://github.com/Graphify-Labs/graphify) | Arma un grafo de conocimiento del código (tree-sitter y grafo de llamadas) que el agente consulta en lugar de leer archivo por archivo. Sirve en repos grandes; en uno chico no aporta. **Todavía no está integrado** con `duck:explorador`. | `uv tool install graphifyy`, después `graphify install`, y `/graphify .` en Claude Code. Ver su documentación. |
+
+Si usás Graphify, tené en cuenta dos cosas:
+
+- **El grafo se queda viejo.** Si se commitea `graphify-out/` y nadie lo regenera, el agente navega un mapa
+  que ya no es el código.
+- **Instala su propio hook** antes de las búsquedas. No se probó junto con los hooks de duck.
+
 ## Documentación
 
 - [`plugins/duck/README.md`](plugins/duck/README.md): qué trae cada pieza, instalación a mano y referencia
