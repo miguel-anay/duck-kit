@@ -239,7 +239,8 @@ function claveDeRama(rama, cfg, carpeta) {
 function clavesEnTexto(texto, cfg, carpeta) {
   const github = cfg.tickets.proveedor === 'github';
   const patron = github ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/g : new RegExp(cfg.jira.claveFuente, 'g');
-  const claves = String(texto ?? '').match(patron) || [];
+  // GitHub no distingue mayusculas en owner/repo: la clave canonica va en minusculas.
+  const claves = (String(texto ?? '').match(patron) || []).map((c) => (github ? c.toLowerCase() : c));
   const repo = github && carpeta && claves.some((c) => c.startsWith('#')) ? repoDe(carpeta) : null;
   return [...new Set(claves.map((c) => (repo && c.startsWith('#') ? repo + c : c)))];
 }
@@ -300,7 +301,7 @@ function ramaDe(carpeta) {
 // owner/repo de una URL de remoto de GitHub (https o ssh), o null.
 function repoDeRemoto(url) {
   const m = String(url || '').trim().match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
-  return m ? `${m[1]}/${m[2]}` : null;
+  return m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
 }
 
 // owner/repo de GitHub del origin de la carpeta, o null. Sin spawn, por lo mismo que ramaDe: lee

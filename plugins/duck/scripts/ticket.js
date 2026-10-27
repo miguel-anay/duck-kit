@@ -78,7 +78,7 @@ function elegirItem(items, cfg) {
   return items.length === 1 ? items[0] : null;
 }
 
-const claveDe = (nodo) => `${nodo.repository.nameWithOwner}#${nodo.number}`;
+const claveDe = (nodo) => `${nodo.repository.nameWithOwner.toLowerCase()}#${nodo.number}`;
 const logins = (nodo) => (nodo.assignees?.nodes || []).map((a) => a.login);
 const estadoEn = (nodo, cfg) => elegirItem(nodo.projectItems?.nodes || [], cfg)?.fieldValueByName?.name ?? null;
 

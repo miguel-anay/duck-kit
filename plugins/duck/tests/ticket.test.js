@@ -22,7 +22,7 @@ test('parsearClave resolves #N against the current repo and owner/repo#N as is',
 });
 
 test('repoDeRemoto reads https and ssh GitHub remotes', () => {
-  assert.equal(repoDeRemoto('https://github.com/factufacil-pe/FacturadorPro9.git'), 'factufacil-pe/FacturadorPro9');
+  assert.equal(repoDeRemoto('https://github.com/factufacil-pe/FacturadorPro9.git'), 'factufacil-pe/facturadorpro9');
   assert.equal(repoDeRemoto('git@github.com:org/repo.git'), 'org/repo');
   assert.equal(repoDeRemoto('https://github.com/org/repo'), 'org/repo');
   assert.equal(repoDeRemoto('https://gitlab.com/org/repo.git'), null);
@@ -99,6 +99,11 @@ test('resumir returns full keys, project status, parent and sub-issues', () => {
     padre: 'org/docs#1',
     hijas: [{ clave: 'org/api#22', titulo: '[ANALISIS] Labels', abierto: false, estado: 'Done', asignados: [] }],
   });
+});
+
+test('resumir lowercases owner/repo in keys', () => {
+  const r = resumir(issue({ repository: { nameWithOwner: 'Org/Docs' } }), CFG);
+  assert.equal(r.clave, 'org/docs#15');
 });
 
 test('elegirOpcion accepts a flow key or a Status option name, case-insensitive', () => {

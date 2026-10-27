@@ -138,6 +138,14 @@ test('without a GitHub origin the key stays #N', () => {
   assert.deepEqual(clavesEnTexto('Refs #12', cfg, path.join(os.tmpdir(), 'no-existe-duck')), ['#12']);
 });
 
+test('github keys lowercase owner/repo, as GitHub ignores its case', () => {
+  const cfg = cargarCon(GITHUB);
+  const dir = carpetaGit('https://github.com/Org/App.git');
+  assert.equal(repoDe(dir), 'org/app');
+  assert.equal(claveDeRama('feat/12-x', cfg, dir), 'org/app#12');
+  assert.deepEqual(clavesEnTexto('Refs Org/App#12 and #12', cfg, dir), ['org/app#12']);
+});
+
 test('jira keys ignore the folder', () => {
   const cfg = cargarCon({});
   const dir = carpetaGit('https://github.com/org/app.git');
