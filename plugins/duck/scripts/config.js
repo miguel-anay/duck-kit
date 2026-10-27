@@ -242,6 +242,28 @@ function clavesEnTexto(texto, cfg) {
   return [...new Set(String(texto ?? '').match(patron) || [])];
 }
 
+// Nombres de los estados de sub-tarea (enProceso, finalizado, pendiente) del proveedor activo:
+// lo que se anota en el estado de sesion y lo que pintan sticker y titulo.
+function estadosDe(cfg) {
+  return cfg.tickets.proveedor === 'github' ? cfg.github.estados : cfg.jira.estados;
+}
+
+// Ruta del adaptador de GitHub para las instrucciones que se le inyectan al agente.
+const TICKET_JS = path.join(__dirname, 'ticket.js').replace(/\\/g, '/');
+
+// Movidas de GitHub que prueba un Bash: `ticket.js mover` y su linea de exito, una por issue.
+// Como con acli, lo que cuenta es la linea impresa, no el comando: intentado no es movido.
+// Devuelve [{clave, estado}] con la clave owner/repo#N y la opcion tal cual la imprimio ticket.js.
+function movidasDeGithub(evento, cfg) {
+  if (cfg.tickets.proveedor !== 'github' || evento?.tool_name !== 'Bash') return [];
+  if (!/\bticket\.js["']?\s+mover\b/.test(evento?.tool_input?.command || '')) return [];
+  const r = evento?.tool_response;
+  const salida = typeof r === 'string' ? r : [r?.stdout, r?.output].filter((t) => typeof t === 'string').join('\n');
+  return [...salida.matchAll(/^Issue \(([\w.-]+\/[\w.-]+#\d+)\) movido a \(([^)\r\n]+)\)\r?$/gm)].map(
+    ([, clave, estado]) => ({ clave, estado })
+  );
+}
+
 // Rama actual de la carpeta (o del repo que la contiene). Lee .git/HEAD directo: un spawn de
 // git en cada refresco del status line es caro. Sube por el arbol porque la sesion puede
 // estar en un subdirectorio, y contempla worktrees, donde .git es un archivo que apunta al
@@ -301,6 +323,9 @@ module.exports = {
   deducirEstado,
   claveDeRama,
   clavesEnTexto,
+  estadosDe,
+  movidasDeGithub,
+  TICKET_JS,
   ramaDe,
   ponerTituloTerminal,
   escapar,

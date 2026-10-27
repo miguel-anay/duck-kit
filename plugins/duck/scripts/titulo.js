@@ -13,7 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { hook, ramaDe, ponerTituloTerminal } = require('./config');
+const { hook, ramaDe, ponerTituloTerminal, estadosDe, claveDeRama } = require('./config');
 
 hook((contexto, cfg, entrada) => {
   const volcado = path.join(cfg.raiz, '.claude', 'estado', 'ultimo-contexto-stop.json');
@@ -60,7 +60,7 @@ function leerVista(sesion, cfg) {
 }
 
 function tareasDe(sesion, carpeta, cfg) {
-  const e = cfg.jira.estados;
+  const e = estadosDe(cfg);
   const marca = { [e.enProceso]: '*', [e.finalizado]: 'v', [e.pendiente]: '.' };
   const etiquetas = [];
   const puestos = new Set();
@@ -79,8 +79,7 @@ function tareasDe(sesion, carpeta, cfg) {
     /* sin estado de sesion queda el respaldo de la rama */
   }
 
-  const rama = ramaDe(carpeta);
-  const deRama = rama && rama.match(cfg.jira.reClave);
-  if (deRama && !puestos.has(deRama[0])) etiquetas.push(`${deRama[0]} ~`);
+  const deRama = claveDeRama(ramaDe(carpeta), cfg);
+  if (deRama && !puestos.has(deRama)) etiquetas.push(`${deRama} ~`);
   return etiquetas;
 }

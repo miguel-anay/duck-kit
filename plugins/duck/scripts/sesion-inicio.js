@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook } = require('./config');
+const { hook, claveDeRama, TICKET_JS } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -35,6 +35,11 @@ function procesar(cfg) {
   for (const { repo, rama, clave } of ramas) {
     lineas.push(`${repo}: ${rama} -> ${clave}`);
   }
+  if (cfg.tickets.proveedor === 'github') {
+    lineas.push(...instruccionGithub(cfg, pendientes));
+    escribir(lineas);
+    return;
+  }
   if (pendientes.length) {
     lineas.push(
       `Mergeado segun esta maquina pero sin transicionar en Jira todavia: ${pendientes.join(', ')}.`
@@ -48,6 +53,23 @@ function procesar(cfg) {
   );
 
   escribir(lineas);
+}
+
+// Lo mismo con GitHub: la lista sale de gh y el estado (campo del Project) de ticket.js ver.
+function instruccionGithub(cfg, pendientes) {
+  const owner = cfg.github.proyecto.owner || cfg.git.orgGithub;
+  const listar = owner
+    ? `\`gh search issues --owner ${owner} --assignee @me --state open\``
+    : '`gh issue list --assignee @me --state open` en cada repo';
+  return [
+    ...(pendientes.length
+      ? [`Mergeado segun esta maquina pero sin mover en el Project de GitHub todavia: ${pendientes.join(', ')}.`]
+      : []),
+    `Lista tus issues abiertos con ${listar}, lee el estado de cada uno con ` +
+      `\`node "${TICKET_JS}" ver <clave>\` y reporta en una linea cuales estan en ` +
+      `${cfg.github.estados.enProceso}, senalando cualquier issue abierto que no tenga rama local ` +
+      '(puede estar abandonado).',
+  ];
 }
 
 function escribir(lineas) {
@@ -104,8 +126,8 @@ function ramasAbiertas(cfg) {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
       }).trim();
-      const clave = rama.match(cfg.jira.reClave);
-      if (clave) resultado.push({ repo, rama, clave: clave[0] });
+      const clave = claveDeRama(rama, cfg);
+      if (clave) resultado.push({ repo, rama, clave });
     } catch {
       // repo ausente o no es un checkout de git: no es trabajo abierto
     }

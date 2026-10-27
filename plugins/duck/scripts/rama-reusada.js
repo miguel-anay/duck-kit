@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, escapar } = require('./config');
+const { hook, partirEnTramos, escapar, claveDeRama } = require('./config');
 
 hook((evento, cfg) => {
   const aviso = revisar(evento?.tool_input?.command ?? '', evento?.cwd || cfg.raiz, cfg);
@@ -26,7 +26,7 @@ function revisar(comando, cwd, cfg) {
   for (const tramo of partirEnTramos(comando)) {
     const nueva = ramaQueSeCrea(tramo, cwd, cfg);
     if (!nueva) continue;
-    const clave = (nueva.rama.match(cfg.jira.reClave) || [])[0];
+    const clave = claveDeRama(nueva.rama, cfg);
     if (!clave) continue;
     const aviso = compararConLoExistente(clave, nueva, cfg);
     if (aviso) avisos.push(aviso);
@@ -83,7 +83,12 @@ function slug(rama, cfg) {
 }
 
 function compararConLoExistente(clave, nueva, cfg) {
+  // GitHub: la rama no lleva el # (feat/12-slug), asi que se la reconoce por claveDeRama; en la
+  // base, #12 aparece en el mensaje (Refs #12, Closes #12, (#12)), no solo en el asunto.
+  const github = cfg.tickets.proveedor === 'github';
   const exacta = new RegExp(`${escapar(clave)}(?!\\d)`);
+  const esDeLaClave = (rama) => (github ? claveDeRama(rama, cfg) === clave : exacta.test(rama));
+  const patrones = github ? [`*/${clave.slice(1)}-*`, `*/${clave.slice(1)}`] : [`*${clave}*`];
   const base = cfg.git.ramaBase;
   const otras = []; // { repo, rama } con otro slug
   const enBase = [];
@@ -93,9 +98,9 @@ function compararConLoExistente(clave, nueva, cfg) {
     const cwd = path.join(cfg.raiz, repo);
     if (!fs.existsSync(cwd)) continue;
 
-    for (const rama of correr(cwd, ['branch', '-a', '--format=%(refname:short)', '--list', `*${clave}*`])) {
+    for (const rama of correr(cwd, ['branch', '-a', '--format=%(refname:short)', '--list', ...patrones])) {
       const limpia = rama.replace(/^origin\//, '');
-      if (!exacta.test(limpia) || limpia === 'HEAD') continue;
+      if (!esDeLaClave(limpia) || limpia === 'HEAD') continue;
       if (slug(limpia, cfg) === slug(nueva.rama, cfg)) {
         mismoNombre = true; // mismo nombre en otro repo: lo que pide la convencion
         continue;
@@ -105,7 +110,7 @@ function compararConLoExistente(clave, nueva, cfg) {
 
     // Las ramas mergeadas se borran (paso 11), pero su rastro queda en la rama base.
     const asuntos = correr(cwd, ['log', `origin/${base}`, '--no-merges', '-E', `--grep=${escapar(clave)}([^0-9]|$)`, '--format=%s'])
-      .filter((s) => exacta.test(s));
+      .filter((s) => github || exacta.test(s));
     if (asuntos.length) enBase.push(`${repo} (${asuntos.length} commits)`);
   }
 

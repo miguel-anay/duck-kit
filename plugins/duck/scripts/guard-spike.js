@@ -6,6 +6,9 @@
 //   2. crear o mergear un PR   (gh pr, API de GitHub .../pulls, mergear-pr.js)
 //   3. git commit con una clave de Jira en el mensaje, estando en una rama spike/
 //   4. escrituras en Jira       (las lecturas siguen permitidas)
+//   5. con tickets.proveedor = 'github': escrituras de issues y del Project (ticket.js mover,
+//      gh issue create|edit|comment|close|reopen|delete, gh project item-edit, mutaciones por
+//      gh api graphql), y el commit del punto 3 con una clave #N
 //
 // Fuera de spike, o sin estado legible, no hace nada: nunca frena el trabajo normal.
 // Igual que guard-git.js: lee el JSON del hook por stdin, no usa jq, y compara texto
@@ -16,7 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { hook, partirEnTramos, ramaDe } = require('./config');
+const { hook, partirEnTramos, ramaDe, clavesEnTexto } = require('./config');
 
 const SALIDA = 'Para salir: /duck:tomar <clave> desde-spike (cuando la persona diga «es lo que quiero»), '
   + 'o descartar el spike.';
@@ -61,7 +64,21 @@ function leerEstado(sesiones, sesion) {
 }
 
 function revisarComando(comando, evento, estado, cfg) {
+  const github = cfg.tickets.proveedor === 'github';
+  // La consulta de graphql puede ocupar varias lineas: se mira el comando entero.
+  if (github && /\bgh\s+api\s+graphql\b/.test(comando) && /\bmutation\b/.test(comando)) {
+    return 'Mutacion por gh api graphql. En spike no se escribe nada en GitHub. ' + SALIDA;
+  }
   for (const tramo of partirEnTramos(comando)) {
+    if (
+      github &&
+      (/\bticket\.js["']?\s+mover\b/.test(tramo) ||
+        /\bgh\s+issue\s+(create|edit|comment|close|reopen|delete)\b/.test(tramo) ||
+        /\bgh\s+project\s+item-edit\b/.test(tramo))
+    ) {
+      return `Escribir en GitHub (${tramo.split(/\s+/).slice(0, 3).join(' ')}). En spike no se crea, edita, `
+        + 'mueve ni comenta ningun issue. ' + SALIDA;
+    }
     if (/\bgit(\s+-[Cc]\s+\S+)*\s+push\b/.test(tramo)) {
       return 'git push. En spike no sale nada al remoto. ' + SALIDA;
     }
@@ -75,9 +92,10 @@ function revisarComando(comando, evento, estado, cfg) {
 
   // El mensaje puede traer ; o | adentro, y un heredoc ocupa varias lineas:
   // por eso la clave se busca en el comando entero, no por tramo.
-  if (/\bgit(\s+-[Cc]\s+\S+)*\s+commit\b/.test(comando) && /\b[A-Z]{2,}-\d+\b/.test(comando)) {
+  const conClave = github ? clavesEnTexto(comando, cfg).length > 0 : /\b[A-Z]{2,}-\d+\b/.test(comando);
+  if (/\bgit(\s+-[Cc]\s+\S+)*\s+commit\b/.test(comando) && conClave) {
     if (hayRamaSpike(comando, evento, estado, cfg)) {
-      return 'git commit con clave de Jira. En spike ni la rama ni los commits llevan clave: una clave '
+      return `git commit con clave de ${github ? 'GitHub' : 'Jira'}. En spike ni la rama ni los commits llevan clave: una clave `
         + 'inventada choca despues con la real. Reescribi el mensaje sin la clave. ' + SALIDA;
     }
   }
