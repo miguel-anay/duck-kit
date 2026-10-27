@@ -136,6 +136,24 @@ test('guard-spike blocks GitHub ticket writes during a spike', () => {
   }
 });
 
+test('guard-spike (github) blocks gh with global flags and gh api REST writes, not reads', () => {
+  const raiz = spike(GITHUB);
+  for (const c of [
+    'gh -R org/app issue comment 12 --body x',
+    'gh --repo=org/app issue edit 12 --add-label x',
+    'gh api -X POST repos/org/app/issues/12/comments -f body=x',
+    'gh api --method PATCH /repos/org/app/issues/12 -f state=closed',
+    'gh api repos/org/app/issues -f title=x',
+    'gh api -XDELETE repos/org/app/issues/comments/9',
+    'gh api -X POST orgs/org/projectsV2/5/items -F x=1',
+  ]) {
+    assert.ok(negado(correr('guard-spike.js', raiz, bash(c))), c);
+  }
+  for (const c of ['gh api repos/org/app/issues/12', 'gh -R org/app issue view 12', 'gh api -X GET repos/org/app/issues -f state=open']) {
+    assert.ok(!negado(correr('guard-spike.js', raiz, bash(c))), c);
+  }
+});
+
 test('guard-spike blocks a commit with a #N key on a spike branch (github)', () => {
   const raiz = spike(GITHUB);
   fs.mkdirSync(path.join(raiz, '.git'));
@@ -148,6 +166,8 @@ test('guard-spike (jira) still blocks Jira MCP writes and lets gh issue through'
   const raiz = spike(JIRA);
   assert.ok(negado(correr('guard-spike.js', raiz, { session_id: 's1', tool_name: 'mcp__atlassian__editJiraIssue' })));
   assert.ok(!negado(correr('guard-spike.js', raiz, bash('gh issue comment 12 --body x'))));
+  assert.ok(!negado(correr('guard-spike.js', raiz, bash('gh -R org/app issue comment 12 --body x'))));
+  assert.ok(!negado(correr('guard-spike.js', raiz, bash('gh api -X POST repos/org/app/issues -f title=x'))));
 });
 
 // --- sesion-inicio ---
@@ -291,6 +311,16 @@ test('rama-reusada (github) warns when issue #12 already has another branch', ()
   assert.equal(correr('rama-reusada.js', raiz, bash('git checkout -b feat/13-otro', raiz)).stdout, '');
 });
 
+test('rama-reusada (github) counts base commits only when they reference the issue like inventario', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'main', ['chore: a\n\nmenciona #12 al pasar']);
+  git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  assert.equal(correr('rama-reusada.js', raiz, bash('git checkout -b feat/12-nuevo', raiz)).stdout, '');
+  git(raiz, 'commit', '-q', '--allow-empty', '-m', 'fix: b\n\nFixes #12');
+  git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  assert.match(contexto(correr('rama-reusada.js', raiz, bash('git checkout -b feat/12-nuevo', raiz))), /Ya hay trabajo de #12 en main: \. \(1 commits\)/);
+});
+
 test('rama-reusada (jira) still warns on a reused key', () => {
   const raiz = proyecto(JIRA);
   repo(raiz, 'main');
@@ -324,6 +354,16 @@ test('inventario (github) maps #N keys to branches and to Refs/Closes/(#N) or me
   const todo = JSON.parse(correr('inventario.js', raiz, {}).stdout);
   assert.equal(todo.repos['.'].clave, '#12');
   assert.deepEqual(Object.keys(todo.ramasPorClave), ['#12']);
+});
+
+test('inventario (github) recognizes every GitHub closing keyword, case-insensitively', () => {
+  const raiz = proyecto(GITHUB);
+  const palabras = ['close', 'closed', 'fix', 'FIXES', 'fixed', 'resolve', 'Resolves', 'resolved'];
+  repo(raiz, 'main', palabras.map((p, i) => `feat: x\n\n${p} #${20 + i}`));
+  git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  const claves = palabras.map((_, i) => `#${20 + i}`);
+  const c = JSON.parse(correr('inventario.js', raiz, {}, { args: ['--claves', claves.join(',')] }).stdout).claves;
+  for (const k of claves) assert.equal(c[k].ubicacion, 'develop', k);
 });
 
 test('inventario (jira) still maps keys by scope and merge subject', () => {

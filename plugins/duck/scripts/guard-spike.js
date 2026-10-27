@@ -7,8 +7,9 @@
 //   3. git commit con una clave de Jira en el mensaje, estando en una rama spike/
 //   4. escrituras en Jira       (las lecturas siguen permitidas)
 //   5. con tickets.proveedor = 'github': escrituras de issues y del Project (ticket.js mover,
-//      gh issue create|edit|comment|close|reopen|delete, gh project item-edit, mutaciones por
-//      gh api graphql), y el commit del punto 3 con una clave #N
+//      gh issue create|edit|comment|close|reopen|delete, gh project item-edit, aun con flags
+//      globales antes (gh -R org/app issue ...), mutaciones por gh api graphql y escrituras REST
+//      por gh api a repos/*/issues* o projects), y el commit del punto 3 con una clave #N
 //
 // Fuera de spike, o sin estado legible, no hace nada: nunca frena el trabajo normal.
 // Igual que guard-git.js: lee el JSON del hook por stdin, no usa jq, y compara texto
@@ -63,18 +64,32 @@ function leerEstado(sesiones, sesion) {
   }
 }
 
+// gh con flags globales antes del subcomando: gh -R org/app issue ..., gh --repo=x issue ...
+const GH = String.raw`\bgh(?:\s+(?:-R|--repo)(?:=|\s+)\S+|\s+--?[\w-]+(?:=\S+)?)*\s+`;
+
+// gh api REST que escribe en issues o en un Project: -X/--method POST|PATCH|PUT|DELETE, o campos
+// (-f/-F) sin -X, que gh manda como POST. Un GET (sin -X ni campos, o -X GET) pasa.
+function apiEscritura(tramo) {
+  if (!new RegExp(`${GH}api\\s`).test(tramo) || /\bapi\s+graphql\b/.test(tramo)) return false;
+  if (!/\brepos\/\S*\/issues\b|\bprojects/i.test(tramo)) return false;
+  const metodo = tramo.match(/(?:\s-X\s*|\s--method(?:=|\s+))['"]?(\w+)/)?.[1];
+  if (metodo) return /^(POST|PATCH|PUT|DELETE)$/i.test(metodo);
+  return /\s(?:-[fF]|--field|--raw-field|--input)(?:\s|=)/.test(tramo);
+}
+
 function revisarComando(comando, evento, estado, cfg) {
   const github = cfg.tickets.proveedor === 'github';
   // La consulta de graphql puede ocupar varias lineas: se mira el comando entero.
-  if (github && /\bgh\s+api\s+graphql\b/.test(comando) && /\bmutation\b/.test(comando)) {
+  if (github && new RegExp(`${GH}api\\s+graphql\\b`).test(comando) && /\bmutation\b/.test(comando)) {
     return 'Mutacion por gh api graphql. En spike no se escribe nada en GitHub. ' + SALIDA;
   }
   for (const tramo of partirEnTramos(comando)) {
     if (
       github &&
       (/\bticket\.js["']?\s+mover\b/.test(tramo) ||
-        /\bgh\s+issue\s+(create|edit|comment|close|reopen|delete)\b/.test(tramo) ||
-        /\bgh\s+project\s+item-edit\b/.test(tramo))
+        new RegExp(`${GH}issue\\s+(create|edit|comment|close|reopen|delete)\\b`).test(tramo) ||
+        new RegExp(`${GH}project\\s+item-edit\\b`).test(tramo) ||
+        apiEscritura(tramo))
     ) {
       return `Escribir en GitHub (${tramo.split(/\s+/).slice(0, 3).join(' ')}). En spike no se crea, edita, `
         + 'mueve ni comenta ningun issue. ' + SALIDA;

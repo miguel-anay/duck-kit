@@ -142,14 +142,14 @@ function esTicketGithub(valor: unknown): valor is TicketGithub {
 // Pasa la salida de `ticket.js ver <claveHistoria>` a lo que devolveria acli (la historia y sus
 // hijas como ItemJira), para que fusionarConJira no distinga proveedores. Sin opcion de estado
 // en el Project, el estado sale de abierto/cerrado. La categoria: finalizado o cerrado -> done;
-// pendiente o Backlog -> new; el resto -> indeterminate. ticket.js da claves completas
-// (owner/repo#N); si el archivo trae la historia como #N (estado anterior), la historia conserva
-// esa clave y las hijas del mismo repo tambien quedan cortas. Salida rota o vacia -> '' (la
-// historia queda como estaba).
+// pendiente o backlog (github.estados) -> new; el resto -> indeterminate. ticket.js da claves
+// completas (owner/repo#N); si el archivo trae la historia como #N (repo sin origin de GitHub),
+// la historia conserva esa clave y las hijas del mismo repo tambien quedan cortas. Salida rota
+// o vacia -> '' (la historia queda como estaba).
 export function textoDesdeTicket(
   salida: string,
   claveHistoria: string,
-  estados: { finalizado: string; pendiente: string },
+  estados: { finalizado: string; pendiente: string; backlog?: string },
 ): string {
   let datos: unknown
   try {
@@ -165,7 +165,7 @@ export function textoDesdeTicket(
     const cerrado = t.abierto === false
     const nombre = t.estado ?? (cerrado ? estados.finalizado : estados.pendiente)
     const categoria =
-      cerrado || nombre === estados.finalizado ? 'done' : nombre === estados.pendiente || nombre === 'Backlog' ? 'new' : 'indeterminate'
+      cerrado || nombre === estados.finalizado ? 'done' : nombre === estados.pendiente || nombre === estados.backlog ? 'new' : 'indeterminate'
     return {
       key,
       fields: {

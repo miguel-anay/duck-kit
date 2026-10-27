@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, escapar, claveDeRama } = require('./config');
+const { hook, partirEnTramos, escapar, claveDeRama, referenciaIssue } = require('./config');
 
 hook((evento, cfg) => {
   const aviso = revisar(evento?.tool_input?.command ?? '', evento?.cwd || cfg.raiz, cfg);
@@ -84,7 +84,8 @@ function slug(rama, cfg) {
 
 function compararConLoExistente(clave, nueva, cfg) {
   // GitHub: la rama no lleva el # (feat/12-slug), asi que se la reconoce por claveDeRama; en la
-  // base, #12 aparece en el mensaje (Refs #12, Closes #12, (#12)), no solo en el asunto.
+  // base cuenta un commit cuyo mensaje (no solo el asunto) referencia el issue como en inventario
+  // (Refs #12, Fixes #12, (#12)...: referenciaIssue); mencionar #12 al pasar no cuenta.
   const github = cfg.tickets.proveedor === 'github';
   const exacta = new RegExp(`${escapar(clave)}(?!\\d)`);
   const esDeLaClave = (rama) => (github ? claveDeRama(rama, cfg) === clave : exacta.test(rama));
@@ -109,8 +110,10 @@ function compararConLoExistente(clave, nueva, cfg) {
     }
 
     // Las ramas mergeadas se borran (paso 11), pero su rastro queda en la rama base.
-    const asuntos = correr(cwd, ['log', `origin/${base}`, '--no-merges', '-E', `--grep=${escapar(clave)}([^0-9]|$)`, '--format=%s'])
-      .filter((s) => github || exacta.test(s));
+    const grep = ['log', `origin/${base}`, '--no-merges', '-E', `--grep=${escapar(clave)}([^0-9]|$)`];
+    const asuntos = github
+      ? correr(cwd, [...grep, '--format=%B%x00']).join('\n').split('\0').filter((m) => referenciaIssue(m, clave.slice(1)))
+      : correr(cwd, [...grep, '--format=%s']).filter((s) => exacta.test(s));
     if (asuntos.length) enBase.push(`${repo} (${asuntos.length} commits)`);
   }
 

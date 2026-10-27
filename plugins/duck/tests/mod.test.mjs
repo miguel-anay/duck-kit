@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { argvJira, claveValida, parsearConfig } from '../mod/nombres.ts'
-import { construirHechosRepo } from '../mod/hechos.ts'
+import { construirHechosRepo, repoDeConfigGit, resolverRuta } from '../mod/hechos.ts'
 import { fusionarConJira, textoDesdeTicket } from '../mod/historia.ts'
 
 const github = (extra = {}) => parsearConfig(JSON.stringify({ tickets: { proveedor: 'GitHub' }, ...extra }))
@@ -19,7 +19,7 @@ test('github: provider is case-insensitive and keys are #N or owner/repo#N', () 
   assert.equal(claveValida('ABC-12', config), false)
   assert.equal(claveValida('#x', config), false)
   assert.equal(claveValida('acme#3', config), false)
-  assert.deepEqual(config.estados, { enProceso: 'In Progress', finalizado: 'Done', pendiente: 'Ready' })
+  assert.deepEqual(config.estados, { enProceso: 'In Progress', finalizado: 'Done', pendiente: 'Ready', backlog: 'Backlog' })
 })
 
 test('github: branch key comes from <prefix>/N-slug with prefijos and prefijosLegados', () => {
@@ -28,6 +28,33 @@ test('github: branch key comes from <prefix>/N-slug with prefijos and prefijosLe
   assert.equal(rama('feat/5', config), '#5')
   assert.equal(rama('release/2026-10', config), null)
   assert.equal(rama('feature/ABC-12-x', config), null)
+})
+
+test('github: the branch key is the canonical owner/repo#N of the folder origin, like config.js', () => {
+  const config = github()
+  const clave = (origen) =>
+    construirHechosRepo({ repo: 'web', rama: 'feature/27-x', estado: '', leftRight: '0 0', propios: '0', origen }, config).clave
+  assert.equal(clave('acme/web'), 'acme/web#27')
+  assert.equal(clave(''), '#27')
+  assert.equal(repoDeConfigGit('[core]\n\tbare = false\n[remote "origin"]\n\turl = git@github.com:Acme/Web.App.git\n'), 'acme/web.app')
+  assert.equal(repoDeConfigGit('[remote "origin"]\n\turl = https://github.com/acme/web\n[remote "fork"]\n\turl = x'), 'acme/web')
+  assert.equal(repoDeConfigGit('[remote "origin"]\n\turl = https://gitlab.com/acme/web.git\n'), null)
+  assert.equal(repoDeConfigGit('[remote "fork"]\n\turl = https://github.com/acme/web.git\n'), null)
+  assert.equal(resolverRuta('/p/web', '../main/.git/worktrees/w\n'), '/p/web/../main/.git/worktrees/w')
+  assert.equal(resolverRuta('/p/web', '/abs/.git'), '/abs/.git')
+  assert.equal(resolverRuta('C:/p/web', 'D:\\r\\.git'), 'D:\\r\\.git')
+  // Same text pattern as clavesEnTexto: no HTML entity, no key glued to a word.
+  assert.equal(config.patronClave.test('a &#123; b'), false)
+  assert.equal(config.patronClave.test('x#5'), false)
+  assert.equal(config.patronClave.test('ver #5'), true)
+})
+
+test('github: Backlog category comes from github.estados.backlog, not a hardcoded name', () => {
+  const config = github({ github: { estados: { backlog: 'Icebox' } } })
+  assert.equal(github().estados.backlog, 'Backlog')
+  const t = { clave: 'acme/docs#1', abierto: true, estado: 'Icebox', hijas: [{ clave: 'acme/docs#2', abierto: true, estado: 'Backlog' }] }
+  const items = JSON.parse(textoDesdeTicket(JSON.stringify(t), 'acme/docs#1', config.estados))
+  assert.deepEqual(items.map((i) => i.fields.status.statusCategory.key), ['new', 'indeterminate'])
 })
 
 const ticket = {

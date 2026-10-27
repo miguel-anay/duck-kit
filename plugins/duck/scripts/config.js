@@ -28,11 +28,13 @@ const DEFECTOS = {
   // Solo con proveedor 'github', que sigue la convencion de GitHub y no la de Jira: la clave es
   // #N (u owner/repo#N si el issue vive en otro repo) y la rama es <prefijo>/N-slug.
   // proyecto: el Project v2 cuyo campo campoEstado guarda el estado. estados: que opcion de ese
-  // campo es cada momento del flujo (los de gestion-github.md por defecto).
+  // campo es cada momento del flujo (los de gestion-github.md por defecto). backlog: la otra
+  // opcion «sin empezar» (el panel la pinta como pendiente); mismo defecto que mod/nombres.ts.
   github: {
     proyecto: { owner: null, numero: null },
     campoEstado: 'Status',
     estados: {
+      backlog: 'Backlog',
       pendiente: 'Ready',
       enProceso: 'In Progress',
       enRevision: 'In Review',
@@ -245,6 +247,14 @@ function clavesEnTexto(texto, cfg, carpeta) {
   return [...new Set(claves.map((c) => (repo && c.startsWith('#') ? repo + c : c)))];
 }
 
+// Si un mensaje de commit referencia el issue N como lo hace GitHub: una palabra de cierre
+// (close, fix, resolve en todas sus formas) o Refs antes de #N u owner/repo#N, o (#N). Sin
+// distinguir mayusculas. Mencionar #N al pasar no cuenta. Lo comparten inventario y rama-reusada.
+function referenciaIssue(mensaje, n) {
+  const ref = `(?:[\\w.-]+/[\\w.-]+)?#${n}(?!\\d)`;
+  return new RegExp(`\\b(?:refs|close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\\s+${ref}|\\(${ref}\\)`, 'i').test(mensaje);
+}
+
 // Nombres de los estados de sub-tarea (enProceso, finalizado, pendiente) del proveedor activo:
 // lo que se anota en el estado de sesion y lo que pintan sticker y titulo.
 function estadosDe(cfg) {
@@ -356,6 +366,7 @@ module.exports = {
   deducirEstado,
   claveDeRama,
   clavesEnTexto,
+  referenciaIssue,
   estadosDe,
   movidasDeGithub,
   TICKET_JS,

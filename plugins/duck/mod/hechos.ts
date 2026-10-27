@@ -37,6 +37,23 @@ export type SalidaGitRepo = {
   estado: string
   leftRight: string
   propios: string
+  // owner/repo de GitHub del origin del repo (repoDeConfigGit), o '' si no se sabe.
+  origen?: string
+}
+
+// owner/repo de GitHub del remoto origin en el texto de un .git/config, en minusculas, o null.
+// Mismo criterio que repoDe y repoDeRemoto de scripts/config.js, que son la fuente de verdad.
+export function repoDeConfigGit(config: string): string | null {
+  const origin = config.match(/^\s*\[remote\s+"origin"\]([^[]*)/m)?.[1]
+  const url = origin?.match(/^\s*url\s*=\s*(.+)$/m)?.[1] ?? ''
+  const m = url.trim().match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/)
+  return m ? `${m[1]}/${m[2]}`.toLowerCase() : null
+}
+
+// Ruta de un archivo .git (gitdir: ...) o de commondir, resuelta contra la carpeta base.
+export function resolverRuta(base: string, relativa: string): string {
+  const r = relativa.trim()
+  return /^([\\/]|[A-Za-z]:)/.test(r) ? r : `${base}/${r}`
 }
 
 // "0\t0" (o "0 0") significa al dia en los dos sentidos; cualquier otra cosa
@@ -64,9 +81,14 @@ export function construirHechosRepo(salida: SalidaGitRepo, config: ConfigDuck): 
     }
   }
 
-  // GitHub: feature/27-slug -> #27 (la convencion de la rama no lleva el #).
+  // GitHub: feature/27-slug -> owner/repo#27 con el origin del repo, como claveDeRama de
+  // config.js; sin origin de GitHub queda #27 (la convencion de la rama no lleva el #).
   const claveMatch = salida.rama.match(config.patronRama)
-  const clave = claveMatch ? (config.proveedor === 'github' ? `#${claveMatch[1]}` : claveMatch[0]) : null
+  const clave = claveMatch
+    ? config.proveedor === 'github'
+      ? `${salida.origen ?? ''}#${claveMatch[1]}`
+      : claveMatch[0]
+    : null
 
   return {
     repo: salida.repo,

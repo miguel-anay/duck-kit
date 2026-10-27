@@ -43,8 +43,9 @@ export type ConfigDuck = {
   repos: string[]
   // «acli» a secas, o una ruta (con %VARIABLES% de Windows) que se resuelve via PowerShell.
   acli: string
-  // Los del proveedor activo: jira.estados o github.estados.
-  estados: { enProceso: string; finalizado: string; pendiente: string }
+  // Los del proveedor activo: jira.estados o github.estados. backlog solo con github: la otra
+  // opcion del Project que cuenta como «sin empezar».
+  estados: { enProceso: string; finalizado: string; pendiente: string; backlog?: string }
   prefijoBloqueo: string
   // Rutas que no cuentan como «sucio» en el panel de spike.
   ignorarEnStatus: string[]
@@ -89,6 +90,8 @@ export function parsearConfig(contenido: string): ConfigDuck | null {
 
   const proyecto = typeof jira.proyecto === 'string' && jira.proyecto !== '' ? jira.proyecto : null
   const patronJira = new RegExp(proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+')
+  // Patrones y prefijos por defecto copiados de claveDeRama y clavesEnTexto de scripts/config.js
+  // (la fuente de verdad): si se cambia alla, se cambia aca.
   const prefijos = [...lista(git.prefijos, ['feature', 'bugfix', 'hotfix', 'spec']), ...lista(git.prefijosLegados, [])]
   const carpetas = Object.keys(objeto(git.repos))
   const ignorar = Array.isArray(git.ignorarEnStatus)
@@ -98,7 +101,7 @@ export function parsearConfig(contenido: string): ConfigDuck | null {
   return {
     proveedor,
     proyecto,
-    patronClave: proveedor === 'github' ? /(?:[\w.-]+\/[\w.-]+)?#\d+/ : patronJira,
+    patronClave: proveedor === 'github' ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/ : patronJira,
     patronRama:
       proveedor === 'github' ? new RegExp(`^(?:${prefijos.map(escapar).join('|')})/(\\d+)(?:-|$)`) : patronJira,
     ramaBase: texto(git.ramaBase, 'develop'),
@@ -108,6 +111,7 @@ export function parsearConfig(contenido: string): ConfigDuck | null {
       enProceso: texto(estados.enProceso, defectos.enProceso),
       finalizado: texto(estados.finalizado, defectos.finalizado),
       pendiente: texto(estados.pendiente, defectos.pendiente),
+      ...(proveedor === 'github' ? { backlog: texto(estados.backlog, 'Backlog') } : {}),
     },
     prefijoBloqueo: texto(jira.prefijoBloqueo, '[BLOQ]'),
     ignorarEnStatus: ignorar,

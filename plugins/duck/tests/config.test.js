@@ -63,6 +63,7 @@ test('github provider exposes its section with defaults', () => {
   assert.equal(cfg.tickets.proveedor, 'github');
   assert.equal(cfg.github.campoEstado, 'Status');
   assert.deepEqual(cfg.github.proyecto, { owner: null, numero: null });
+  assert.equal(cfg.github.estados.backlog, 'Backlog'); // same default as the mod loader
 });
 
 test('the provider name is case-insensitive', () => {

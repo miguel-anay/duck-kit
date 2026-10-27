@@ -18,7 +18,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { cargar, escapar, claveDeRama, clavesEnTexto } = require('./config');
+const { cargar, escapar, claveDeRama, clavesEnTexto, referenciaIssue } = require('./config');
 
 const RAIZ_PLUGIN = path.resolve(__dirname, '..');
 const cfg = cargar();
@@ -326,20 +326,19 @@ function mergeadaEnBase(cwd, clave, repo) {
   return salida.split('\n').some((asunto) => reScope.test(asunto) || reMerge.test(asunto));
 }
 
-// GitHub: el issue se referencia en el mensaje (Refs #N, Closes #N, o (#N) en el asunto), y el
-// merge commit de un PR trae el numero del PR, no el del issue: ahi lo que cuenta es la rama de
-// origen (Merge pull request #28 from org/fix/27-x es el #27).
+// GitHub: el issue se referencia en el mensaje (Refs #N, Fixes #N y demas palabras de cierre, o
+// (#N) en el asunto; ver referenciaIssue), y el merge commit de un PR trae el numero del PR, no
+// el del issue: ahi lo que cuenta es la rama de origen (Merge pull request #28 from
+// org/fix/27-x es el #27).
 function mergeadaEnBaseGithub(cwd, clave, repo) {
   const n = numeroEnRepo(clave, repo);
   if (n === null) return false;
   const salida = git(cwd, ['log', `origin/${BASE}`, '-E', `--grep=#${n}([^0-9]|$)`, `--grep=/${n}(-|$)`, '--format=%B%x00']);
-  const ref = `(?:[\\w.-]+/[\\w.-]+)?#${n}(?!\\d)`;
-  const reMensaje = new RegExp(`\\b(?:Refs|Closes)\\s+${ref}|\\(${ref}\\)`, 'i');
   const prefijos = cfg.git.prefijosSlug.map(escapar).join('|');
   const reMerge = new RegExp(`^Merge pull request #\\d+ from \\S+?/(?:${prefijos})/${n}(?:-|$)`, 'm');
   return salida.split('\0').some((m) => {
     const mensaje = m.trim();
-    return mensaje.startsWith('Merge pull request') ? reMerge.test(mensaje) : reMensaje.test(mensaje);
+    return mensaje.startsWith('Merge pull request') ? reMerge.test(mensaje) : referenciaIssue(mensaje, n);
   });
 }
 
