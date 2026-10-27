@@ -379,3 +379,19 @@ test('inventario (jira) still maps keys by scope and merge subject', () => {
   assert.equal(c['ABC-1'].ubicacion, 'rama');
   assert.equal(c['ABC-3'].ubicacion, 'develop');
 });
+
+test('historia-sigue-subtareas (github) is switched by github.historiaSigueSubtareas, not the jira flag', () => {
+  const evento = mover('Issue (org/app#12) movido a (In Progress)\n');
+  const conJira = proyecto({ ...GITHUB, jira: { historiaSigueSubtareas: false } });
+  assert.match(contexto(correr('historia-sigue-subtareas.js', conJira, evento)), /org\/app#12 paso a In Progress/);
+  const apagado = proyecto({ ...GITHUB, github: { historiaSigueSubtareas: false } });
+  assert.equal(correr('historia-sigue-subtareas.js', apagado, evento).stdout, '');
+});
+
+test('inventario (github) matches owner/repo#N against git.repos regardless of case', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { '.': 'App' } } });
+  repo(raiz, 'main', ['feat: a\n\nRefs #13']);
+  git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  const c = JSON.parse(correr('inventario.js', raiz, {}, { args: ['--claves', 'org/app#13'] }).stdout).claves;
+  assert.equal(c['org/app#13'].ubicacion, 'develop');
+});

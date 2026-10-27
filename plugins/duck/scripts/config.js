@@ -33,6 +33,7 @@ const DEFECTOS = {
   github: {
     proyecto: { owner: null, numero: null },
     campoEstado: 'Status',
+    historiaSigueSubtareas: true, // el recordatorio de mover la HU con sus sub-issues
     estados: {
       backlog: 'Backlog',
       pendiente: 'Ready',

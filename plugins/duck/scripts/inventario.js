@@ -310,7 +310,7 @@ function numeroEnRepo(clave, repo) {
   const [, nombre, n] = clave.match(/^(?:[\w.-]+\/([\w.-]+))?#(\d+)$/) || [];
   if (!n) return null;
   const deCarpeta = cfg.git.repos[repo];
-  return nombre && deCarpeta && deCarpeta !== nombre ? null : n;
+  return nombre && deCarpeta && String(deCarpeta).toLowerCase() !== nombre ? null : n;
 }
 
 // Mergeada = la clave aparece en el ASUNTO de un commit de origin/<base>, como

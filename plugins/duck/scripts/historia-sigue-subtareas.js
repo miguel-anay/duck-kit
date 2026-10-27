@@ -25,12 +25,14 @@
 const { hook, deducirEstado, movidasDeGithub, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
-  if (cfg.jira.historiaSigueSubtareas === false) return;
   if (cfg.tickets.proveedor === 'github') {
+    if (cfg.github.historiaSigueSubtareas === false) return;
     const textos = movidasDeGithub(evento, cfg).map((m) => textoGithub(m, cfg)).filter(Boolean);
     if (textos.length) emitir(textos.join('\n\n'));
     return;
   }
+  if (cfg.jira.historiaSigueSubtareas === false) return;
+
   const clave = (evento?.tool_input?.issueIdOrKey || '').toUpperCase();
   if (!cfg.jira.reClaveExacta.test(clave)) return;
 
