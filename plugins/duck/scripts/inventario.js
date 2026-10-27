@@ -18,13 +18,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { cargar, escapar } = require('./config');
+const { cargar, escapar, claveDeRama, clavesEnTexto, referenciaIssue } = require('./config');
 
 const RAIZ_PLUGIN = path.resolve(__dirname, '..');
 const cfg = cargar();
 const BASE = cfg ? cfg.git.ramaBase : 'develop';
 const REPOS = cfg ? cfg.git.carpetas : [];
 const RAIZ = cfg ? cfg.raiz : process.cwd();
+const GITHUB = cfg?.tickets.proveedor === 'github';
 
 function main() {
   if (!cfg) {
@@ -188,12 +189,10 @@ function leerSkills() {
 function leerRepo(repo) {
   const cwd = path.join(RAIZ, repo);
   const rama = intentar(() => git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']), null);
-  const claveMatch = rama ? rama.match(cfg.jira.reClave) : null;
-
   return {
     repo,
     rama,
-    clave: claveMatch ? claveMatch[0] : null,
+    clave: claveDeRama(rama, cfg, cwd),
     limpio: intentar(() => git(cwd, ['status', '--porcelain']) === '', null),
     alDia: intentar(() => calcularAlDia(cwd), null),
     commitsPropios: intentar(() => calcularCommitsPropios(cwd), null),
@@ -257,8 +256,8 @@ function leerArgClaves(argv) {
     if (lista !== null) {
       return lista
         .split(',')
-        .map((c) => c.trim())
-        .filter((c) => cfg.jira.reClaveExacta.test(c));
+        .map((c) => (GITHUB ? c.trim().toLowerCase() : c.trim())) // GitHub: owner/repo canonico en minusculas
+        .filter((c) => (GITHUB ? clavesEnTexto(c, cfg)[0] === c : cfg.jira.reClaveExacta.test(c)));
     }
   }
   return null;
@@ -277,9 +276,9 @@ function gitPorClave(claves) {
     const ramas = [];
     for (const repo of REPOS) {
       const cwd = path.join(RAIZ, repo);
-      if (intentar(() => mergeadaEnBase(cwd, clave), false)) repoEnBase.push(repo);
+      if (intentar(() => mergeadaEnBase(cwd, clave, repo), false)) repoEnBase.push(repo);
       for (const rama of ramasPorRepo[repo]) {
-        if (contieneClave(rama, clave) && !ramas.some((r) => r.repo === repo && r.rama === rama)) {
+        if (ramaDeLaClave(rama, clave, repo) &&!ramas.some((r) => r.repo === repo && r.rama === rama)) {
           ramas.push({ repo, rama });
         }
       }
@@ -299,16 +298,48 @@ function contieneClave(texto, clave) {
   return new RegExp(escapar(clave) + '(?!\\d)').test(texto);
 }
 
+function ramaDeLaClave(rama, clave, repo) {
+  if (!GITHUB) return contieneClave(rama, clave);
+  const n = numeroEnRepo(clave, repo);
+  return n !== null && claveDeRama(rama, cfg) === `#${n}`;
+}
+
+// GitHub: el numero del issue si la clave puede vivir en esa carpeta. owner/repo#N solo vale en
+// la carpeta de ese repo (git.repos); #N, en cualquiera. Sin git.repos no hay con que comparar.
+function numeroEnRepo(clave, repo) {
+  const [, nombre, n] = clave.match(/^(?:[\w.-]+\/([\w.-]+))?#(\d+)$/) || [];
+  if (!n) return null;
+  const deCarpeta = cfg.git.repos[repo];
+  return nombre && deCarpeta && String(deCarpeta).toLowerCase() !== nombre ? null : n;
+}
+
 // Mergeada = la clave aparece en el ASUNTO de un commit de origin/<base>, como
 // scope convencional tipo(CLAVE): o en el asunto de un merge commit de PR
 // (Merge pull request #n from org/<prefijo>/CLAVE-...). --grep a secas da
 // falsos positivos: un commit puede mencionar otra clave en el cuerpo
 // («alias de PROY-672»), y eso no es entregar esa tarea.
-function mergeadaEnBase(cwd, clave) {
+function mergeadaEnBase(cwd, clave, repo) {
+  if (GITHUB) return mergeadaEnBaseGithub(cwd, clave, repo);
   const salida = git(cwd, ['log', `origin/${BASE}`, `--grep=${clave}`, '--format=%s']);
   const reScope = new RegExp('\\(' + escapar(clave) + '\\)');
   const reMerge = new RegExp('^Merge pull request #\\d+ from \\S+/' + escapar(clave) + '(?!\\d)');
   return salida.split('\n').some((asunto) => reScope.test(asunto) || reMerge.test(asunto));
+}
+
+// GitHub: el issue se referencia en el mensaje (Refs #N, Fixes #N y demas palabras de cierre, o
+// (#N) en el asunto; ver referenciaIssue), y el merge commit de un PR trae el numero del PR, no
+// el del issue: ahi lo que cuenta es la rama de origen (Merge pull request #28 from
+// org/fix/27-x es el #27).
+function mergeadaEnBaseGithub(cwd, clave, repo) {
+  const n = numeroEnRepo(clave, repo);
+  if (n === null) return false;
+  const salida = git(cwd, ['log', `origin/${BASE}`, '-E', `--grep=#${n}([^0-9]|$)`, `--grep=/${n}(-|$)`, '--format=%B%x00']);
+  const prefijos = cfg.git.prefijosSlug.map(escapar).join('|');
+  const reMerge = new RegExp(`^Merge pull request #\\d+ from \\S+?/(?:${prefijos})/${n}(?:-|$)`, 'm');
+  return salida.split('\0').some((m) => {
+    const mensaje = m.trim();
+    return mensaje.startsWith('Merge pull request') ? reMerge.test(mensaje) : referenciaIssue(mensaje, n);
+  });
 }
 
 // Ramas VIVAS: locales o remotas aun sin mergear a origin/<base>. Una rama
@@ -322,7 +353,6 @@ function listarRamasCompletas(cwd) {
 
 function agruparRamasPorClave(sinMergear = false) {
   const agrupado = {};
-  const reGlobal = new RegExp(cfg.jira.claveFuente);
 
   for (const repo of REPOS) {
     const cwd = path.join(RAIZ, repo);
@@ -334,9 +364,8 @@ function agruparRamasPorClave(sinMergear = false) {
     }
 
     for (const rama of ramas) {
-      const claveMatch = rama.match(reGlobal);
-      if (!claveMatch) continue;
-      const clave = claveMatch[0];
+      const clave = claveDeRama(rama, cfg, cwd);
+      if (!clave) continue;
       if (!agrupado[clave]) agrupado[clave] = [];
       const yaEsta = agrupado[clave].some((e) => e.repo === repo && e.rama === rama);
       if (!yaEsta) agrupado[clave].push({ repo, rama });

@@ -17,11 +17,22 @@
 // Convive con estado-tarea.js (anota el hecho) y panel-al-cerrar.js (pide la
 // vista) en el mismo evento. Un hook, un trabajo. Se apaga con
 // jira.historiaSigueSubtareas = false en duck.json.
+//
+// Con tickets.proveedor = 'github' el hecho es un Bash con `ticket.js mover` y la historia es el
+// issue padre (sub-issues): pasa a En Proceso con su primera hija, y a Done solo cuando todas sus
+// hijas estan cerradas.
 
-const { hook, deducirEstado } = require('./config');
+const { hook, deducirEstado, movidasDeGithub, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
+  if (cfg.tickets.proveedor === 'github') {
+    if (cfg.github.historiaSigueSubtareas === false) return;
+    const textos = movidasDeGithub(evento, cfg).map((m) => textoGithub(m, cfg)).filter(Boolean);
+    if (textos.length) emitir(textos.join('\n\n'));
+    return;
+  }
   if (cfg.jira.historiaSigueSubtareas === false) return;
+
   const clave = (evento?.tool_input?.issueIdOrKey || '').toUpperCase();
   if (!cfg.jira.reClaveExacta.test(clave)) return;
 
@@ -51,7 +62,33 @@ hook((evento, cfg) => {
   }
 
   if (!texto) return;
+  emitir(texto);
+});
 
+function textoGithub({ clave, estado }, cfg) {
+  const g = cfg.github.estados;
+  const es = (nombre) => estado.toLowerCase() === String(nombre).toLowerCase();
+  const ver = `\`node "${TICKET_JS}" ver`;
+  if (es(g.enProceso)) {
+    return (
+      `${clave} paso a ${g.enProceso}. Si tiene padre (${ver} ${clave}\`, campo padre) y el padre no ` +
+      `esta en ${g.enProceso}, movelo con \`node "${TICKET_JS}" mover <padre> enProceso\`. Si no ` +
+      'tiene padre, no hagas nada.'
+    );
+  }
+  if (es(g.finalizado)) {
+    return (
+      `${clave} paso a ${g.finalizado}. Si tiene padre, lee el padre con ${ver} <padre>\`: solo si ` +
+      `todas sus hijas estan cerradas (abierto: false), movelo con \`node "${TICKET_JS}" mover <padre> ` +
+      `finalizado\`; si queda alguna abierta, el padre sigue en ${g.enProceso}. Un Closes #N al ` +
+      'mergear puede haberlo movido ya por el workflow del Project: relee antes de mover. Si no ' +
+      'tiene padre, no hagas nada.'
+    );
+  }
+  return null;
+}
+
+function emitir(texto) {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
@@ -60,4 +97,4 @@ hook((evento, cfg) => {
       },
     })
   );
-});
+}

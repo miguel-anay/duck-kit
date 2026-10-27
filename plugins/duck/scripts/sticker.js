@@ -23,7 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { cargar, ramaDe, ponerTituloTerminal, tareasVigentes } = require('./config');
+const { cargar, ramaDe, ponerTituloTerminal, tareasVigentes, estadosDe, claveDeRama, clavesEnTexto } = require('./config');
 
 let entrada = '';
 process.stdin.on('data', (c) => (entrada += c));
@@ -38,7 +38,7 @@ process.stdin.on('end', () => {
     /* sin contexto se dibuja igual */
   }
 
-  const e = cfg.jira.estados;
+  const e = estadosDe(cfg);
   const COLOR = {
     [e.enProceso]: { fondo: 214, texto: 232, marca: '*' },
     [e.finalizado]: { fondo: 35, texto: 232, marca: 'v' },
@@ -81,7 +81,8 @@ function reunir(contexto, cfg, COLOR) {
     if (COLOR[dato.estado]) sumar(clave, dato.estado);
   }
 
-  for (const clave of ticketsDelNombre(contexto.session_name, cfg)) sumar(clave, 'nombre');
+  const desde = contexto?.workspace?.current_dir || contexto?.cwd;
+  for (const clave of ticketsDelNombre(contexto.session_name, cfg, desde)) sumar(clave, 'nombre');
   sumar(ticketDeLaRama(contexto, cfg), 'rama');
 
   return { modo: almacen.modo, fichas, spike: almacen.spike };
@@ -137,8 +138,10 @@ function leerEstado(sesion, cfg) {
 // Tambien acepta la clave escrita entera. Pide 3 o 4 digitos para no confundir
 // un numero suelto de otra cosa con un ticket. Sin jira.proyecto no hay prefijo con el
 // que completar un numero suelto: solo se reconocen las claves enteras.
-function ticketsDelNombre(nombre, cfg) {
+// GitHub: solo #N y owner/repo#N escritos enteros; el numero suelto queda para Jira.
+function ticketsDelNombre(nombre, cfg, desde) {
   if (!nombre) return [];
+  if (cfg.tickets.proveedor === 'github') return clavesEnTexto(nombre, cfg, desde);
   const claves = [];
   for (const m of String(nombre).matchAll(/\b([A-Z][A-Z0-9]+)-(\d+)\b/gi)) {
     claves.push(`${m[1].toUpperCase()}-${m[2]}`);
@@ -155,7 +158,5 @@ function ticketsDelNombre(nombre, cfg) {
 function ticketDeLaRama(contexto, cfg) {
   const desde = contexto?.workspace?.current_dir || contexto?.cwd;
   if (!desde) return null;
-  const rama = ramaDe(desde);
-  const encontrada = rama && rama.match(cfg.jira.reClave);
-  return encontrada ? encontrada[0] : null;
+  return claveDeRama(ramaDe(desde), cfg, desde);
 }

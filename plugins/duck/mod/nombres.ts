@@ -29,15 +29,23 @@ export const INTERVALO_JIRA_MS = 60000
 export const RUTA_CONFIG = '.claude/duck.json'
 
 export type ConfigDuck = {
+  // De donde salen los tickets (tickets.proveedor, sin distinguir mayusculas).
+  proveedor: 'jira' | 'github'
   // null = cualquier clave tipo ABC-123
   proyecto: string | null
+  // Busca una clave en un texto. Jira: ABC-123. GitHub: #N u owner/repo#N.
   patronClave: RegExp
+  // La clave en un nombre de rama. Jira: la clave donde aparezca. GitHub: <prefijo>/N-slug,
+  // con el numero en el grupo 1 (igual que claveDeRama de config.js).
+  patronRama: RegExp
   ramaBase: string
   // Carpetas del proyecto que son repositorios, en el orden en que se muestran.
   repos: string[]
   // «acli» a secas, o una ruta (con %VARIABLES% de Windows) que se resuelve via PowerShell.
   acli: string
-  estados: { enProceso: string; finalizado: string; pendiente: string }
+  // Los del proveedor activo: jira.estados o github.estados. backlog solo con github: la otra
+  // opcion del Project que cuenta como «sin empezar».
+  estados: { enProceso: string; finalizado: string; pendiente: string; backlog?: string }
   prefijoBloqueo: string
   // Rutas que no cuentan como «sucio» en el panel de spike.
   ignorarEnStatus: string[]
@@ -55,6 +63,10 @@ function objeto(valor: unknown): Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {}
 }
 
+function lista(valor: unknown, porDefecto: string[]): string[] {
+  return Array.isArray(valor) ? valor.filter((v): v is string => typeof v === 'string') : porDefecto
+}
+
 // Un duck.json ilegible o que no es un objeto devuelve null: se trata como «no hay» y el mod
 // se queda quieto, igual que los hooks.
 export function parsearConfig(contenido: string): ConfigDuck | null {
@@ -67,30 +79,50 @@ export function parsearConfig(contenido: string): ConfigDuck | null {
   if (typeof crudo !== 'object' || crudo === null || Array.isArray(crudo)) return null
 
   const raiz = crudo as Record<string, unknown>
+  const proveedor = String(objeto(raiz.tickets).proveedor).toLowerCase() === 'github' ? 'github' : 'jira'
   const jira = objeto(raiz.jira)
   const git = objeto(raiz.git)
-  const estados = objeto(jira.estados)
+  const estados = objeto(proveedor === 'github' ? objeto(raiz.github).estados : jira.estados)
+  const defectos =
+    proveedor === 'github'
+      ? { enProceso: 'In Progress', finalizado: 'Done', pendiente: 'Ready' }
+      : { enProceso: 'En Proceso', finalizado: 'Finalizado', pendiente: 'Pendiente' }
 
   const proyecto = typeof jira.proyecto === 'string' && jira.proyecto !== '' ? jira.proyecto : null
+  const patronJira = new RegExp(proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+')
+  // Patrones y prefijos por defecto copiados de claveDeRama y clavesEnTexto de scripts/config.js
+  // (la fuente de verdad): si se cambia alla, se cambia aca.
+  const prefijos = [...lista(git.prefijos, ['feature', 'bugfix', 'hotfix', 'spec']), ...lista(git.prefijosLegados, [])]
   const carpetas = Object.keys(objeto(git.repos))
   const ignorar = Array.isArray(git.ignorarEnStatus)
     ? git.ignorarEnStatus.filter((r): r is string => typeof r === 'string')
     : []
 
   return {
+    proveedor,
     proyecto,
-    patronClave: new RegExp(proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+'),
+    patronClave: proveedor === 'github' ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/ : patronJira,
+    patronRama:
+      proveedor === 'github' ? new RegExp(`^(?:${prefijos.map(escapar).join('|')})/(\\d+)(?:-|$)`) : patronJira,
     ramaBase: texto(git.ramaBase, 'develop'),
     repos: carpetas.length > 0 ? carpetas : ['.'],
     acli: texto(raiz.acli, 'acli'),
     estados: {
-      enProceso: texto(estados.enProceso, 'En Proceso'),
-      finalizado: texto(estados.finalizado, 'Finalizado'),
-      pendiente: texto(estados.pendiente, 'Pendiente'),
+      enProceso: texto(estados.enProceso, defectos.enProceso),
+      finalizado: texto(estados.finalizado, defectos.finalizado),
+      pendiente: texto(estados.pendiente, defectos.pendiente),
+      ...(proveedor === 'github' ? { backlog: texto(estados.backlog, 'Backlog') } : {}),
     },
     prefijoBloqueo: texto(jira.prefijoBloqueo, '[BLOQ]'),
     ignorarEnStatus: ignorar,
   }
+}
+
+// Si la clave de una historia se puede consultar: entra a un argv, se valida antes.
+// Jira: la misma expresion de siempre. GitHub: #N u owner/repo#N, completa.
+export function claveValida(clave: string, config: ConfigDuck): boolean {
+  if (config.proveedor !== 'github') return /^[A-Z][A-Z0-9]*-\d+$/.test(clave)
+  return new RegExp(`^${config.patronClave.source}$`).test(clave)
 }
 
 // La consulta de acli, a traves de PowerShell cuando la ruta lleva variables de Windows:

@@ -11,14 +11,21 @@
 // que se usa cuando el MCP no esta autenticado. El de acli llega como un Bash, y lo que
 // prueba la transicion es la linea de exito que imprime, no el comando: un comando
 // intentado no es un ticket movido.
+//
+// Con tickets.proveedor = 'github' el hecho es `ticket.js mover` y su linea de exito
+// («Issue (owner/repo#N) movido a (In Progress)»): GitHub no tiene transiciones, el estado se pone.
 
 const fs = require('fs');
 const path = require('path');
-const { hook, deducirEstado, VIGENCIA_HORAS, tareasVigentes } = require('./config');
+const { hook, deducirEstado, estadosDe, movidasDeGithub, VIGENCIA_HORAS, tareasVigentes } = require('./config');
 
 hook((evento, cfg) => {
   const transiciones =
-    evento?.tool_name === 'Bash' ? transicionesDeAcli(evento, cfg) : transicionDelMcp(evento, cfg);
+    cfg.tickets.proveedor === 'github'
+      ? movidasDeSubtarea(evento, cfg)
+      : evento?.tool_name === 'Bash'
+        ? transicionesDeAcli(evento, cfg)
+        : transicionDelMcp(evento, cfg);
   for (const { clave, estado } of transiciones) anotar(evento, cfg, clave, estado);
 });
 
@@ -45,6 +52,16 @@ function transicionesDeAcli(evento, cfg) {
     if (estado && cfg.jira.reClaveExacta.test(clave)) transiciones.push({ clave, estado });
   }
   return transiciones;
+}
+
+// Igual que con acli, solo los estados de sub-tarea, con el nombre de la configuracion.
+function movidasDeSubtarea(evento, cfg) {
+  const e = estadosDe(cfg);
+  const deSubtarea = [e.finalizado, e.enProceso, e.pendiente].filter(Boolean);
+  return movidasDeGithub(evento, cfg).flatMap(({ clave, estado }) => {
+    const nombre = deSubtarea.find((n) => n.toLowerCase() === estado.trim().toLowerCase());
+    return nombre ? [{ clave, estado: nombre }] : [];
+  });
 }
 
 // La respuesta de un Bash llega como { stdout, stderr }. Se leen los textos tal cual: pasada por

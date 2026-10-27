@@ -9,6 +9,7 @@
 // Sin transiciones: en un Project el estado se escribe directo.
 
 const { execFileSync } = require('child_process');
+const { repoDeRemoto } = require('./config');
 
 const CONSULTA = `query($owner: String!, $repo: String!, $n: Int!, $campo: String!) {
   repository(owner: $owner, name: $repo) {
@@ -44,20 +45,14 @@ const MUTACION = `mutation($p: ID!, $i: ID!, $f: ID!, $o: String!) {
 }`;
 
 // '#12' o '12' contra el repo actual (owner/repo); 'owner/repo#12' tal cual.
-function parsearClave(clave, repoActual) {
+function parsearClave(clave, repoPorDefecto) {
   // Con owner/repo el # es obligatorio: sin el, owner/repo12 se leeria como repo1#2.
   const m = String(clave).trim().match(/^(?:([\w.-]+)\/([\w.-]+)#|#?)(\d+)$/);
   if (!m) throw new Error(`clave invalida: ${clave} (se espera #N u owner/repo#N)`);
   if (m[1]) return { owner: m[1], repo: m[2], numero: Number(m[3]) };
-  if (!repoActual) throw new Error(`sin repositorio de GitHub para resolver ${clave}: usa owner/repo#N`);
-  const [owner, repo] = repoActual.split('/');
+  if (!repoPorDefecto) throw new Error(`sin repositorio de GitHub para resolver ${clave}: usa owner/repo#N`);
+  const [owner, repo] = repoPorDefecto.split('/');
   return { owner, repo, numero: Number(m[3]) };
-}
-
-// owner/repo de una URL de remoto de GitHub (https o ssh), o null.
-function repoDeRemoto(url) {
-  const m = String(url || '').trim().match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
-  return m ? `${m[1]}/${m[2]}` : null;
 }
 
 function repoActual() {
@@ -83,7 +78,7 @@ function elegirItem(items, cfg) {
   return items.length === 1 ? items[0] : null;
 }
 
-const claveDe = (nodo) => `${nodo.repository.nameWithOwner}#${nodo.number}`;
+const claveDe = (nodo) => `${nodo.repository.nameWithOwner.toLowerCase()}#${nodo.number}`;
 const logins = (nodo) => (nodo.assignees?.nodes || []).map((a) => a.login);
 const estadoEn = (nodo, cfg) => elegirItem(nodo.projectItems?.nodes || [], cfg)?.fieldValueByName?.name ?? null;
 
@@ -109,10 +104,14 @@ function resumir(issue, cfg) {
 
 // Opcion del campo de estado: por clave del flujo (github.estados) o por nombre de la opcion.
 function elegirOpcion(campo, estado, cfg) {
-  const nombre = (cfg.github.estados?.[estado] ?? estado).toLowerCase();
-  const opcion = (campo?.options || []).find((o) => o.name.toLowerCase() === nombre);
+  if (!campo?.options) {
+    throw new Error(`el Project no tiene un campo de seleccion unica "${cfg.github.campoEstado}" (github.campoEstado)`);
+  }
+  const estados = cfg.github.estados || {};
+  const nombre = String(Object.hasOwn(estados, estado) ? estados[estado] : estado).toLowerCase();
+  const opcion = campo.options.find((o) => o.name.toLowerCase() === nombre);
   if (!opcion) {
-    const hay = (campo?.options || []).map((o) => o.name).join(', ');
+    const hay = campo.options.map((o) => o.name).join(', ');
     throw new Error(`el campo de estado no tiene la opcion "${estado}". Opciones: ${hay}`);
   }
   return opcion;
@@ -122,7 +121,7 @@ function elegirOpcion(campo, estado, cfg) {
 // Un error de gh se reduce a su stderr: el mensaje de execFileSync repite la consulta entera.
 function ghReal(args) {
   try {
-    return JSON.parse(execFileSync('gh', ['api', 'graphql', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    return JSON.parse(execFileSync('gh', ['api', 'graphql', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 }));
   } catch (e) {
     throw new Error(String(e.stderr || e.message).trim());
   }

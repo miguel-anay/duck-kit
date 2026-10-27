@@ -7,11 +7,15 @@
 // agente. Por eso el hook solo inyecta un additionalContext con el
 // recordatorio; la transicion de verdad la ejecuta el agente despues, con
 // listJiraIssueTransitions + transitionJiraIssue.
+//
+// Con tickets.proveedor = 'github' la clave es #N y la instruccion es mover el issue con
+// ticket.js. El #N del PR (Merge pull request #28 from org/fix/27-x) NO es el issue: ese sale
+// de la rama (#27).
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, escapar } = require('./config');
+const { hook, escapar, claveDeRama, clavesEnTexto, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => procesar(evento, cfg));
 
@@ -30,10 +34,11 @@ function procesar(evento, cfg) {
   // Intentado no es lo mismo que logrado: un merge fallido no es un cierre.
   if (!fueMergeExitoso(respuesta)) return;
 
-  const clave = buscarClaveJira(comando, respuesta, repo, cfg);
+  const clave = buscarClave(comando, respuesta, repo, numero, cfg);
   if (!clave) return; // sin clave no se inventa una, se sale en silencio
 
   anotarEstadoSesion(evento?.session_id, clave, cfg);
+  if (cfg.tickets.proveedor === 'github') return emitir(textoGithub(repo, numero, clave, cfg));
 
   const e = cfg.jira.estados;
   const ids = cfg.jira.transiciones.finalizado;
@@ -49,6 +54,22 @@ function procesar(evento, cfg) {
     `clave de la historia), NO pasa a ${e.finalizado}: la historia sigue a sus ` +
     `sub-tareas (${e.historiaDesarrollo}, y ${e.historiaPruebas} cuando solo quedan ${cfg.jira.prefijoAnalisis}).`;
 
+  emitir(texto);
+}
+
+function textoGithub(repo, numero, clave, cfg) {
+  const fin = cfg.github.estados.finalizado;
+  return (
+    `El PR ${repo}#${numero} se mergeo. ${clave} tiene que pasar a ${fin}. Un Closes ${clave} en el PR ` +
+    `puede haberlo movido ya por el workflow del Project: relee con \`node "${TICKET_JS}" ver ${clave}\` ` +
+    `y, si no esta en ${fin}, movelo con \`node "${TICKET_JS}" mover ${clave} finalizado\`. Si el ` +
+    'cambio toca varios repositorios, mover recien cuando entro el ultimo. Excepcion: si ' +
+    `${clave} es la historia (el issue padre), solo pasa a ${fin} cuando todas sus sub-issues ` +
+    'estan cerradas.'
+  );
+}
+
+function emitir(texto) {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
@@ -83,28 +104,35 @@ function fueMergeExitoso(respuesta) {
 
 // Orden de busqueda de la clave: el propio comando, despues la respuesta de
 // GitHub (trae titulo y rama del PR), y como ultimo recurso la rama actual
-// del repositorio en disco.
-function buscarClaveJira(comando, respuesta, repo, cfg) {
-  const enComando = comando.match(cfg.jira.reClave);
-  if (enComando) return enComando[0];
-
-  const enRespuesta = respuesta.match(cfg.jira.reClave);
-  if (enRespuesta) return enRespuesta[0];
-
-  return buscarClaveEnRamaActual(repo, cfg);
+// del repositorio en disco. Con GitHub primero la rama (en el comando, en la respuesta, la
+// actual) y despues el #N del texto; se descarta el #N que es el numero del PR, y el #N
+// suelto se completa con el repo de la carpeta del PR (owner/repo#N).
+function buscarClave(comando, respuesta, repo, numero, cfg) {
+  // Carpeta del proyecto cuyo repo de GitHub se llama asi.
+  const nombre = Object.keys(cfg.git.repos).find((c) => cfg.git.repos[c] === repo) ?? (cfg.git.carpetas.includes('.') ? '.' : null);
+  const carpeta = nombre === null ? null : path.join(cfg.raiz, nombre);
+  const valida = (c) => !(cfg.tickets.proveedor === 'github' && c.split('#')[1] === numero);
+  const en = (texto) => clavesEnTexto(texto, cfg, carpeta).find(valida);
+  if (cfg.tickets.proveedor !== 'github') return en(comando) || en(respuesta) || buscarClaveEnRamaActual(carpeta, cfg);
+  // Con GitHub manda la rama (feat/N-slug): un #N suelto del comando puede ser solo un Refs.
+  const rama = (texto) => {
+    for (const m of String(texto).matchAll(/(?:^|[\s"'\/:])([\w-]+\/\d+[\w.-]*)/g)) {
+      const clave = claveDeRama(m[1], cfg, carpeta);
+      if (clave && valida(clave)) return clave;
+    }
+    return null;
+  };
+  return rama(comando) || rama(respuesta) || buscarClaveEnRamaActual(carpeta, cfg) || en(comando) || en(respuesta);
 }
 
-function buscarClaveEnRamaActual(repo, cfg) {
-  // Carpeta del proyecto cuyo repo de GitHub se llama asi.
-  const carpeta = Object.keys(cfg.git.repos).find((c) => cfg.git.repos[c] === repo) ?? (cfg.git.carpetas.includes('.') ? '.' : null);
+function buscarClaveEnRamaActual(carpeta, cfg) {
   if (!carpeta) return null;
   try {
     const rama = execSync('git rev-parse --abbrev-ref HEAD', {
-      cwd: path.join(cfg.raiz, carpeta),
+      cwd: carpeta,
       encoding: 'utf8',
     }).trim();
-    const encontrada = rama.match(cfg.jira.reClave);
-    return encontrada ? encontrada[0] : null;
+    return claveDeRama(rama, cfg, carpeta);
   } catch {
     return null; // sin repo local o sin git, no es motivo para fallar
   }
