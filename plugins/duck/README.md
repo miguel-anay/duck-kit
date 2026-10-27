@@ -21,7 +21,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
-| Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira, sin clave en commits. |
+| Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
 | Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira (para el sticker y el panel). |
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
 | Hook `historia-sigue-subtareas` | `scripts/historia-sigue-subtareas.js` | Recuerda mover la historia con sus sub-tareas. |
@@ -100,7 +100,9 @@ Solo con `"proveedor": "github"`.
 |---|---|---|
 | `proyecto.owner` / `numero` | `null` / `null` | El Project v2 donde vive el estado (`mi-org`, `1`). |
 | `campoEstado` | `Status` | Campo de selección única del Project que guarda el estado. |
+| `historiaSigueSubtareas` | `true` | `false` apaga el recordatorio de mover la HU con sus sub-issues (el de `jira` no aplica con GitHub). |
 | `estados.pendiente` / `enProceso` / `enRevision` / `finalizado` / `bloqueado` | `Ready` / `In Progress` / `In Review` / `Done` / `Blocked` | Qué opción de ese campo es cada momento del flujo. |
+| `estados.backlog` | `Backlog` | Opción que el panel cuenta como «sin empezar», igual que `pendiente`. Un issue abierto sin opción en el Project se muestra sin estado; uno cerrado, como `finalizado`. |
 
 Con GitHub, `git.prefijos` son los de `<prefijo>/N-slug` (`feat`, `fix`…) y `git.ramaBase` suele ser `main`.
 Ejemplo completo: [`plantillas/duck.github.ejemplo.json`](plantillas/duck.github.ejemplo.json).
@@ -221,3 +223,12 @@ sobre sus ejemplos. Sin convenciones, el método funciona igual con valores gen�
   y el panel lo invoca con `node`, que tiene que estar en el PATH.
 - Los nombres de estado se reconocen por el texto de la respuesta de Jira, con el nombre configurado
   (`En Proceso` también reconoce `EnProceso`). Un estado cuyo nombre contenga el de otro se podría confundir.
+
+## Tests
+
+Sin dependencias, con `node:test`:
+
+```bash
+node --test plugins/duck/tests/*.test.js                                  # scripts y hooks
+node --experimental-strip-types --test plugins/duck/tests/mod.test.mjs    # mod (TypeScript)
+```
