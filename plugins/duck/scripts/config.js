@@ -23,6 +23,23 @@ const RELATIVA = path.join('.claude', 'duck.json');
 // Lo que vale cuando el archivo existe pero no dice nada. Genericos a proposito: la clave
 // de Jira, la organizacion de GitHub y los repositorios no tienen un valor «razonable».
 const DEFECTOS = {
+  // De donde salen los tickets: 'jira' (MCP de Atlassian y acli) o 'github' (Issues + Projects v2).
+  tickets: { proveedor: 'jira' },
+  // Solo con proveedor 'github', que sigue la convencion de GitHub y no la de Jira: la clave es
+  // #N (u owner/repo#N si el issue vive en otro repo) y la rama es <prefijo>/N-slug.
+  // proyecto: el Project v2 cuyo campo campoEstado guarda el estado. estados: que opcion de ese
+  // campo es cada momento del flujo (los de gestion-github.md por defecto).
+  github: {
+    proyecto: { owner: null, numero: null },
+    campoEstado: 'Status',
+    estados: {
+      pendiente: 'Ready',
+      enProceso: 'In Progress',
+      enRevision: 'In Review',
+      finalizado: 'Done',
+      bloqueado: 'Blocked',
+    },
+  },
   jira: {
     proyecto: null, // null = cualquier clave tipo ABC-123
     transiciones: { enProceso: [], finalizado: [], pendiente: [] }, // ids; solo sirven para reconocer
@@ -114,6 +131,7 @@ function cargar() {
   }
 
   const cfg = mezclar(DEFECTOS, crudo);
+  const proveedor = cfg.tickets.proveedor === 'github' ? 'github' : 'jira';
   const proyecto = cfg.jira.proyecto ? String(cfg.jira.proyecto) : null;
   const fuente = proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+';
   const carpetas = Object.keys(cfg.git.repos);
@@ -121,6 +139,7 @@ function cargar() {
   return {
     ...cfg,
     raiz,
+    tickets: { ...cfg.tickets, proveedor },
     jira: {
       ...cfg.jira,
       proyecto,
@@ -202,6 +221,27 @@ function deducirEstado(evento, cfg, { soloSubtareas = false } = {}) {
   return null;
 }
 
+// Clave del ticket de una rama, o null. Jira: la clave donde aparezca (feature/ABC-12-slug).
+// GitHub: el numero que sigue a un prefijo conocido (feat/12-slug -> #12); exigir el prefijo
+// evita leer release/2026-10 como el issue #2026.
+function claveDeRama(rama, cfg) {
+  if (!rama) return null;
+  if (cfg.tickets.proveedor !== 'github') return String(rama).match(cfg.jira.reClave)?.[0] ?? null;
+  const prefijos = cfg.git.prefijosSlug.map(escapar).join('|');
+  const m = String(rama).match(new RegExp(`^(?:${prefijos})/(\\d+)(?:-|$)`));
+  return m ? `#${m[1]}` : null;
+}
+
+// Claves de ticket en un texto (commit, comando, respuesta), sin repetir y en orden.
+// GitHub: #N y owner/repo#N; no cuenta &#123; (entidad HTML) ni x#5 (pegado a una palabra).
+function clavesEnTexto(texto, cfg) {
+  const patron =
+    cfg.tickets.proveedor === 'github'
+      ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/g
+      : new RegExp(cfg.jira.claveFuente, 'g');
+  return [...new Set(String(texto ?? '').match(patron) || [])];
+}
+
 // Rama actual de la carpeta (o del repo que la contiene). Lee .git/HEAD directo: un spawn de
 // git en cada refresco del status line es caro. Sube por el arbol porque la sesion puede
 // estar en un subdirectorio, y contempla worktrees, donde .git es un archivo que apunta al
@@ -259,6 +299,8 @@ module.exports = {
   hook,
   partirEnTramos,
   deducirEstado,
+  claveDeRama,
+  clavesEnTexto,
   ramaDe,
   ponerTituloTerminal,
   escapar,
