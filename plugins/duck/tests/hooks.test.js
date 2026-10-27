@@ -134,6 +134,8 @@ test('guard-spike blocks GitHub ticket writes during a spike', () => {
     'gh issue pin 12',
     'gh issue unpin 12',
     'gh issue develop 12 --checkout',
+    'gh issue develop 12 --name "x -l"',
+    "gh issue develop 12 --base 'a --list'",
     'gh project item-add 5 --owner org --url x',
     'gh project item-delete 5 --id 1',
     'gh project item-archive 5 --id 1',
