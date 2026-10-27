@@ -220,6 +220,15 @@ test('cierre-finalizado (github) takes the issue from the branch, never the PR #
   assert.equal(leerSesion(raiz, 's1').tareas['#27'].estado, 'Mergeado');
 });
 
+test('cierre-finalizado (github) records the canonical owner/repo#N of the PR folder', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  git(raiz, 'remote', 'add', 'origin', 'https://github.com/org/app.git');
+  const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}')));
+  assert.match(texto, /ticket\.js" mover org\/app#27 finalizado/);
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#27'].estado, 'Mergeado');
+});
+
 test('cierre-finalizado (jira) still reads the key from the command', () => {
   const raiz = proyecto(JIRA);
   const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', 'curl https://api.github.com/repos/org/app/pulls/3/merge # ABC-9')));
@@ -252,6 +261,16 @@ test('sticker (github) paints #N from the name, the branch and GitHub states', (
   const r = correr('sticker.js', raiz, { session_id: 's1', session_name: '#9 detalle 618', cwd: raiz });
   for (const clave of ['org/app#7 v', '#9 #', '#12 ~']) assert.ok(r.stdout.includes(clave), clave);
   assert.ok(!r.stdout.includes('618'));
+});
+
+test('sticker (github) shows an issue once when state, name and branch name it differently', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'feat/12-login');
+  git(raiz, 'remote', 'add', 'origin', 'git@github.com:org/app.git');
+  escribirSesion(raiz, 's1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: new Date().toISOString() } } });
+  const r = correr('sticker.js', raiz, { session_id: 's1', session_name: '#12 login', cwd: raiz });
+  assert.ok(r.stdout.includes('org/app#12 *'));
+  assert.equal(r.stdout.split('#12').length - 1, 1, r.stdout);
 });
 
 test('sticker (jira) still completes bare numbers with jira.proyecto', () => {

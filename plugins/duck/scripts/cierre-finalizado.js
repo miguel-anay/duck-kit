@@ -104,23 +104,25 @@ function fueMergeExitoso(respuesta) {
 
 // Orden de busqueda de la clave: el propio comando, despues la respuesta de
 // GitHub (trae titulo y rama del PR), y como ultimo recurso la rama actual
-// del repositorio en disco. Con GitHub se descarta el #N que es el numero del PR.
+// del repositorio en disco. Con GitHub se descarta el #N que es el numero del PR, y el #N
+// suelto se completa con el repo de la carpeta del PR (owner/repo#N).
 function buscarClave(comando, respuesta, repo, numero, cfg) {
+  // Carpeta del proyecto cuyo repo de GitHub se llama asi.
+  const nombre = Object.keys(cfg.git.repos).find((c) => cfg.git.repos[c] === repo) ?? (cfg.git.carpetas.includes('.') ? '.' : null);
+  const carpeta = nombre === null ? null : path.join(cfg.raiz, nombre);
   const valida = (c) => !(cfg.tickets.proveedor === 'github' && c.split('#')[1] === numero);
-  const en = (texto) => clavesEnTexto(texto, cfg).find(valida);
-  return en(comando) || en(respuesta) || buscarClaveEnRamaActual(repo, cfg);
+  const en = (texto) => clavesEnTexto(texto, cfg, carpeta).find(valida);
+  return en(comando) || en(respuesta) || buscarClaveEnRamaActual(carpeta, cfg);
 }
 
-function buscarClaveEnRamaActual(repo, cfg) {
-  // Carpeta del proyecto cuyo repo de GitHub se llama asi.
-  const carpeta = Object.keys(cfg.git.repos).find((c) => cfg.git.repos[c] === repo) ?? (cfg.git.carpetas.includes('.') ? '.' : null);
+function buscarClaveEnRamaActual(carpeta, cfg) {
   if (!carpeta) return null;
   try {
     const rama = execSync('git rev-parse --abbrev-ref HEAD', {
-      cwd: path.join(cfg.raiz, carpeta),
+      cwd: carpeta,
       encoding: 'utf8',
     }).trim();
-    return claveDeRama(rama, cfg);
+    return claveDeRama(rama, cfg, carpeta);
   } catch {
     return null; // sin repo local o sin git, no es motivo para fallar
   }

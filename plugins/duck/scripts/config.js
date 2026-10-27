@@ -223,23 +223,25 @@ function deducirEstado(evento, cfg, { soloSubtareas = false } = {}) {
 
 // Clave del ticket de una rama, o null. Jira: la clave donde aparezca (feature/ABC-12-slug).
 // GitHub: el numero que sigue a un prefijo conocido (feat/12-slug -> #12); exigir el prefijo
-// evita leer release/2026-10 como el issue #2026.
-function claveDeRama(rama, cfg) {
+// evita leer release/2026-10 como el issue #2026. Con carpeta, la clave es la canonica
+// owner/repo#N del repo de esa carpeta; si no se sabe el repo queda #N.
+function claveDeRama(rama, cfg, carpeta) {
   if (!rama) return null;
   if (cfg.tickets.proveedor !== 'github') return String(rama).match(cfg.jira.reClave)?.[0] ?? null;
   const prefijos = cfg.git.prefijosSlug.map(escapar).join('|');
   const m = String(rama).match(new RegExp(`^(?:${prefijos})/(\\d+)(?:-|$)`));
-  return m ? `#${m[1]}` : null;
+  return m ? `${(carpeta && repoDe(carpeta)) || ''}#${m[1]}` : null;
 }
 
 // Claves de ticket en un texto (commit, comando, respuesta), sin repetir y en orden.
 // GitHub: #N y owner/repo#N; no cuenta &#123; (entidad HTML) ni x#5 (pegado a una palabra).
-function clavesEnTexto(texto, cfg) {
-  const patron =
-    cfg.tickets.proveedor === 'github'
-      ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/g
-      : new RegExp(cfg.jira.claveFuente, 'g');
-  return [...new Set(String(texto ?? '').match(patron) || [])];
+// Con carpeta, el #N suelto se completa con el repo de esa carpeta, como en claveDeRama.
+function clavesEnTexto(texto, cfg, carpeta) {
+  const github = cfg.tickets.proveedor === 'github';
+  const patron = github ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/g : new RegExp(cfg.jira.claveFuente, 'g');
+  const claves = String(texto ?? '').match(patron) || [];
+  const repo = github && carpeta && claves.some((c) => c.startsWith('#')) ? repoDe(carpeta) : null;
+  return [...new Set(claves.map((c) => (repo && c.startsWith('#') ? repo + c : c)))];
 }
 
 // Nombres de los estados de sub-tarea (enProceso, finalizado, pendiente) del proveedor activo:
@@ -264,23 +266,17 @@ function movidasDeGithub(evento, cfg) {
   );
 }
 
-// Rama actual de la carpeta (o del repo que la contiene). Lee .git/HEAD directo: un spawn de
-// git en cada refresco del status line es caro. Sube por el arbol porque la sesion puede
-// estar en un subdirectorio, y contempla worktrees, donde .git es un archivo que apunta al
-// directorio real.
-function ramaDe(carpeta) {
+// Directorio de git de la carpeta (o del repo que la contiene), o null. Sube por el arbol porque
+// la sesion puede estar en un subdirectorio, y contempla worktrees, donde .git es un archivo que
+// apunta al directorio real.
+function dirGit(carpeta) {
   let actual = path.resolve(carpeta);
   for (let saltos = 0; saltos < 8; saltos++) {
+    const gitDir = path.join(actual, '.git');
     try {
-      let gitDir = path.join(actual, '.git');
-      if (fs.statSync(gitDir).isFile()) {
-        const apunta = fs.readFileSync(gitDir, 'utf8').match(/gitdir:\s*(.+)/);
-        if (!apunta) return null;
-        gitDir = path.resolve(actual, apunta[1].trim());
-      }
-      const head = fs.readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim();
-      const ref = head.match(/^ref:\s*refs\/heads\/(.+)$/);
-      return ref ? ref[1] : null;
+      if (!fs.statSync(gitDir).isFile()) return gitDir;
+      const apunta = fs.readFileSync(gitDir, 'utf8').match(/gitdir:\s*(.+)/);
+      return apunta ? path.resolve(actual, apunta[1].trim()) : null;
     } catch {
       const padre = path.dirname(actual);
       if (padre === actual) return null;
@@ -288,6 +284,42 @@ function ramaDe(carpeta) {
     }
   }
   return null;
+}
+
+// Rama actual de la carpeta. Lee .git/HEAD directo: un spawn de git en cada refresco del status
+// line es caro.
+function ramaDe(carpeta) {
+  try {
+    const head = fs.readFileSync(path.join(dirGit(carpeta), 'HEAD'), 'utf8').trim();
+    return head.match(/^ref:\s*refs\/heads\/(.+)$/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// owner/repo de una URL de remoto de GitHub (https o ssh), o null.
+function repoDeRemoto(url) {
+  const m = String(url || '').trim().match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
+  return m ? `${m[1]}/${m[2]}` : null;
+}
+
+// owner/repo de GitHub del origin de la carpeta, o null. Sin spawn, por lo mismo que ramaDe: lee
+// el config de git; un worktree lo comparte con el repo principal (commondir).
+function repoDe(carpeta) {
+  try {
+    const gitDir = dirGit(carpeta);
+    let comun = gitDir;
+    try {
+      comun = path.resolve(gitDir, fs.readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim());
+    } catch {
+      /* no es un worktree: el config esta en el mismo directorio */
+    }
+    const config = fs.readFileSync(path.join(comun, 'config'), 'utf8');
+    const origin = config.match(/^\s*\[remote\s+"origin"\]([^[]*)/m)?.[1];
+    return repoDeRemoto(origin?.match(/^\s*url\s*=\s*(.+)$/m)?.[1]);
+  } catch {
+    return null;
+  }
 }
 
 // Escribe el titulo de la terminal (OSC 0). El stdout de un hook o del status line se lo queda
@@ -327,6 +359,8 @@ module.exports = {
   movidasDeGithub,
   TICKET_JS,
   ramaDe,
+  repoDe,
+  repoDeRemoto,
   ponerTituloTerminal,
   escapar,
   VIGENCIA_HORAS,

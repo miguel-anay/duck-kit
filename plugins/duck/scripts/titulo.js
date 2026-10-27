@@ -79,7 +79,7 @@ function tareasDe(sesion, carpeta, cfg) {
     /* sin estado de sesion queda el respaldo de la rama */
   }
 
-  const deRama = claveDeRama(ramaDe(carpeta), cfg);
+  const deRama = claveDeRama(ramaDe(carpeta), cfg, carpeta);
   if (deRama && !puestos.has(deRama)) etiquetas.push(`${deRama} ~`);
   return etiquetas;
 }

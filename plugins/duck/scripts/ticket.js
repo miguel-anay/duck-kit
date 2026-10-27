@@ -9,6 +9,7 @@
 // Sin transiciones: en un Project el estado se escribe directo.
 
 const { execFileSync } = require('child_process');
+const { repoDeRemoto } = require('./config');
 
 const CONSULTA = `query($owner: String!, $repo: String!, $n: Int!, $campo: String!) {
   repository(owner: $owner, name: $repo) {
@@ -52,12 +53,6 @@ function parsearClave(clave, repoPorDefecto) {
   if (!repoPorDefecto) throw new Error(`sin repositorio de GitHub para resolver ${clave}: usa owner/repo#N`);
   const [owner, repo] = repoPorDefecto.split('/');
   return { owner, repo, numero: Number(m[3]) };
-}
-
-// owner/repo de una URL de remoto de GitHub (https o ssh), o null.
-function repoDeRemoto(url) {
-  const m = String(url || '').trim().match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
-  return m ? `${m[1]}/${m[2]}` : null;
 }
 
 function repoActual() {

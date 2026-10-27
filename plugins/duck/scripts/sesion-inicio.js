@@ -120,13 +120,14 @@ function reglaOdd(cfg) {
 function ramasAbiertas(cfg) {
   const resultado = [];
   for (const repo of cfg.git.carpetas) {
+    const cwd = path.join(cfg.raiz, repo);
     try {
       const rama = execSync('git rev-parse --abbrev-ref HEAD', {
-        cwd: path.join(cfg.raiz, repo),
+        cwd,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
       }).trim();
-      const clave = claveDeRama(rama, cfg);
+      const clave = claveDeRama(rama, cfg, cwd);
       if (clave) resultado.push({ repo, rama, clave });
     } catch {
       // repo ausente o no es un checkout de git: no es trabajo abierto

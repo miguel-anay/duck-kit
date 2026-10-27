@@ -192,7 +192,7 @@ function leerRepo(repo) {
   return {
     repo,
     rama,
-    clave: claveDeRama(rama, cfg),
+    clave: claveDeRama(rama, cfg, cwd),
     limpio: intentar(() => git(cwd, ['status', '--porcelain']) === '', null),
     alDia: intentar(() => calcularAlDia(cwd), null),
     commitsPropios: intentar(() => calcularCommitsPropios(cwd), null),
@@ -365,7 +365,7 @@ function agruparRamasPorClave(sinMergear = false) {
     }
 
     for (const rama of ramas) {
-      const clave = claveDeRama(rama, cfg);
+      const clave = claveDeRama(rama, cfg, cwd);
       if (!clave) continue;
       if (!agrupado[clave]) agrupado[clave] = [];
       const yaEsta = agrupado[clave].some((e) => e.repo === repo && e.rama === rama);
