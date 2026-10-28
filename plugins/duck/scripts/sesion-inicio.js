@@ -89,24 +89,37 @@ function escribir(lineas) {
 //
 // La ruta se da ABSOLUTA a proposito: ODD resuelve odd/tasks/ desde el cwd de la sesion, y una sesion
 // abierta dentro de un repo lo crearia ahi, versionado.
+//
+// odd.versionado: el proyecto tiene UN documento de feature versionado (en su repo de docs, con nombre
+// propio y archivo al cerrar) en vez de bitacora local + diseno. Entonces no se dice "sin versionar",
+// el nombre lo fijan sus convenciones y la entrega (PR encadenados o no) la decide el proyecto.
 function reglaOdd(cfg) {
   const tareas = cfg.odd && cfg.odd.tareas;
   if (!tareas) return [];
   const carpeta = path.join(cfg.raiz, tareas);
-  const diseno = cfg.odd.diseno;
+  const { diseno, versionado } = cfg.odd;
   return [
     'ODD con duck (METODO.md §7). Prevalece sobre las rutas por defecto de ODD:',
-    `- El documento de feature de ODD va SIEMPRE en ${carpeta}${path.sep}<feature>.md, sin importar ` +
-      'el cwd: nunca dentro de un repositorio. Es la bitacora de ejecucion, local y sin versionar. ' +
-      'Con historia de Jira, <feature> es su clave; en un spike, spike-<tema>.',
+    versionado
+      ? `- El documento de feature de ODD va SIEMPRE en ${carpeta}${path.sep}<feature>.md, sin importar ` +
+        'el cwd: nunca dentro de un repositorio de codigo. Es el plan de la historia, versionado en el ' +
+        'repositorio que contiene esa carpeta; <feature> sigue el nombre que fijan las convenciones del ' +
+        'proyecto, y al cerrar se archiva, no se descarta.'
+      : `- El documento de feature de ODD va SIEMPRE en ${carpeta}${path.sep}<feature>.md, sin importar ` +
+        'el cwd: nunca dentro de un repositorio. Es la bitacora de ejecucion, local y sin versionar. ' +
+        'Con historia de Jira, <feature> es su clave; en un spike, spike-<tema>.',
     ...(diseno
       ? [
           `- No reemplaza al diseño de la historia (${diseno}): las decisiones que cambian el plan se ` +
             'escriben TAMBIEN en su Bitacora de decisiones, que es lo que ve el otro carril.',
         ]
       : []),
-    '- Estrategia de entrega de ODD: single-pr por rama de tarea. No se encadenan PR: la rama y el PR ' +
-      'los define el modo activo (tarea, flujo, spike o historia).',
+    ...(versionado
+      ? []
+      : [
+          '- Estrategia de entrega de ODD: single-pr por rama de tarea. No se encadenan PR: la rama y el PR ' +
+            'los define el modo activo (tarea, flujo, spike o historia).',
+        ]),
     '- ODD decide CUANDO delegar; duck decide A QUIEN: mapear -> duck:explorador, escribir -> ' +
       'duck:escritor, verificador independiente -> duck:verificador, decidir enfoque o escribir el ' +
       'diseño -> duck:analista.',
