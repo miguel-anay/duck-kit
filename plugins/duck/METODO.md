@@ -268,8 +268,16 @@ documento de ODD, el otro carril no la ve.
 | Delegar a explorador / writer / verificador | ODD decide **cuándo**; duck, **a quién**: `duck:explorador`, `duck:escritor`, `duck:verificador`, y `duck:analista` para decidir el enfoque. |
 | Test-first si hay un test que corre | Igual. Lo aplica también `duck:escritor`. |
 
+**Variante de un solo documento (`odd.versionado: true`):** hay proyectos que no separan los dos
+roles: su documento de feature *es* el plan, vive versionado en el repo de docs con un nombre propio
+(por slug, no por clave) y se archiva al cerrar. Ahí `odd.tareas` apunta a esa carpeta (`doc/odd/tasks`),
+`odd.diseno` queda en `null`, y el hook dice «versionado, nombre según las convenciones, se archiva»
+en lugar de «local y sin versionar», sin imponer `single-pr`: la entrega la decide el proyecto. La
+delegación en los agentes de duck y la rama de `/duck:tomar` no cambian.
+
 **Red local:** si el proyecto tiene varios repos, agregar `odd/` al `.git/info/exclude` de cada uno
-(local, no versionado) por si el documento cae dentro de uno.
+(local, no versionado) por si el documento cae dentro de uno. Con `odd.versionado`, nunca en el repo de
+docs que contiene `odd.tareas`: ahí el documento se versiona.
 
 **Por qué un hook y no el `CLAUDE.md` global:** gentle-ai reescribe sus bloques del `CLAUDE.md` global
 en cada sync. `sesion-inicio.js` inyecta esta regla en cada sesión mientras `odd.tareas` esté definido.

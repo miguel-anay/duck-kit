@@ -74,8 +74,9 @@ const DEFECTOS = {
   convenciones: null,
   // Convivencia con ODD de gentle-ai (METODO.md §7). tareas: carpeta del documento de feature de
   // ODD, relativa a la raiz y fuera de todo repo (null = ODD corre tal cual). diseno: el plan
-  // versionado de la historia, que ODD no reemplaza ({historia} = la clave).
-  odd: { tareas: null, diseno: null },
+  // versionado de la historia, que ODD no reemplaza ({historia} = la clave). versionado: true cuando
+  // tareas ES el plan versionado (un solo documento, nombre propio, se archiva) en vez de bitacora local.
+  odd: { tareas: null, diseno: null, versionado: false },
 };
 
 function existe(ruta) {

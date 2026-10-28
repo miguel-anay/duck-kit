@@ -463,3 +463,23 @@ test('inventario (github) --claves takes mixed-case owner/repo#N under its canon
   assert.deepEqual(Object.keys(c), ['org/app#13']);
   assert.equal(c['org/app#13'].ubicacion, 'develop');
 });
+
+test('sesion-inicio (odd) default keeps the local, unversioned execution log', () => {
+  const raiz = proyecto({ ...JIRA, odd: { tareas: 'odd/tasks' } });
+  const texto = contexto(correr('sesion-inicio.js', raiz, {}));
+  assert.match(texto, /local y sin versionar/);
+  assert.match(texto, /<feature> es su clave/);
+  assert.match(texto, /single-pr/);
+  assert.match(texto, /duck:escritor/);
+});
+
+test('sesion-inicio (odd.versionado) treats the feature document as versioned and archived', () => {
+  const raiz = proyecto({ ...JIRA, odd: { tareas: 'doc/odd/tasks', versionado: true } });
+  const texto = contexto(correr('sesion-inicio.js', raiz, {}));
+  assert.match(texto, /versionado en el repositorio que contiene esa carpeta/);
+  assert.match(texto, /se archiva, no se descarta/);
+  assert.doesNotMatch(texto, /sin versionar/);
+  assert.doesNotMatch(texto, /<feature> es su clave/);
+  assert.doesNotMatch(texto, /single-pr/);
+  assert.match(texto, /duck:escritor/);
+});
