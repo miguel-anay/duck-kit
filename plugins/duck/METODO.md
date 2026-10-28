@@ -228,6 +228,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 | Primer push con la base atrasada: rebase antes | `push-sobre-develop-al-dia.js` (deniega; avisa si ya estaba publicada) |
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |
 | Spike sin remoto, sin Jira, sin clave | `guard-spike.js` (deniega mientras la sesión está en spike) |
+| Toda rama de trabajo pasa por `/duck:tomar`, que pregunta tarea o flujo | `guard-sin-clave.js` (deniega la rama sin clave o sin `DUCK_MODO`) |
 | El estado de Jira es un hecho, no una promesa | `estado-tarea.js`, `cierre-finalizado.js` |
 | La historia sigue a sus sub-tareas | `historia-sigue-subtareas.js` (recuerda) |
 | El panel se pide solo al cerrar una tarea | `panel-al-cerrar.js` |

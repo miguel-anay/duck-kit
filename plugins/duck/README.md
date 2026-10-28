@@ -22,6 +22,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
+| Hook `guard-sin-clave` | `scripts/guard-sin-clave.js` | Ninguna rama de trabajo nace sin `/duck:tomar`: deniega crear una rama en `git.repos` sin clave en el nombre o sin la marca `DUCK_MODO=tarea\|flujo`, que pone `/duck:tomar` después de preguntar el modo. Pasan las `spike/`. |
 | Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira (para el sticker y el panel). |
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
 | Hook `historia-sigue-subtareas` | `scripts/historia-sigue-subtareas.js` | Recuerda mover la historia con sus sub-tareas. |
