@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, escapar, claveDeRama, referenciaIssue, repoDe: repoGithub } = require('./config');
+const { hook, partirEnTramos, escapar, claveDeRama, ramaQueSeCrea, referenciaIssue, repoDe: repoGithub } = require('./config');
 
 hook((evento, cfg) => {
   const aviso = revisar(evento?.tool_input?.command ?? '', evento?.cwd || cfg.raiz, cfg);
@@ -32,48 +32,6 @@ function revisar(comando, cwd, cfg) {
     if (aviso) avisos.push(aviso);
   }
   return avisos.join('\n\n');
-}
-
-// Reconoce las formas de crear una rama y en que repositorio:
-//   git [-C dir] switch -c|-C|--create <rama>
-//   git [-C dir] checkout -b|-B <rama>
-//   git [-C dir] worktree add ... -b|-B <rama> ...
-// `git branch <rama>` a secas se deja fuera: es raro y choca con sus
-// muchos otros usos (listar, -d, --list).
-function ramaQueSeCrea(tramo, cwd, cfg) {
-  const partes = tramo.split(/\s+/).map((p) => p.replace(/^["']|["']$/g, ''));
-  const iGit = partes.findIndex((p) => p === 'git' || /[\\/]git(\.exe)?$/.test(p));
-  if (iGit < 0) return null;
-
-  let dir = cwd;
-  let i = iGit + 1;
-  while (partes[i] === '-C' && partes[i + 1]) {
-    dir = path.resolve(dir, partes[i + 1]);
-    i += 2;
-  }
-
-  const sub = partes[i];
-  const resto = partes.slice(i + 1);
-  let banderas;
-  if (sub === 'switch') banderas = ['-c', '-C', '--create'];
-  else if (sub === 'checkout') banderas = ['-b', '-B'];
-  else if (sub === 'worktree' && resto[0] === 'add') banderas = ['-b', '-B'];
-  else return null;
-
-  const iBandera = resto.findIndex((p) => banderas.includes(p));
-  let rama = iBandera >= 0 ? resto[iBandera + 1] : null;
-  const pegada = resto.find((p) => p.startsWith('--create='));
-  if (!rama && pegada) rama = pegada.slice('--create='.length);
-  if (!rama) return null;
-
-  return { rama, dir, repo: repoDe(dir, cfg) };
-}
-
-// Carpeta del proyecto (una de cfg.git.carpetas) en que cae el directorio.
-function repoDe(dir, cfg) {
-  const relativo = path.relative(path.resolve(cfg.raiz), path.resolve(dir)).split(path.sep)[0];
-  if (cfg.git.carpetas.includes(relativo)) return relativo;
-  return cfg.git.carpetas.includes('.') ? '.' : null;
 }
 
 function slug(rama, cfg) {

@@ -23,6 +23,11 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-spike.js\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-sin-clave.js\"",
+            "timeout": 10
           }
         ]
       },

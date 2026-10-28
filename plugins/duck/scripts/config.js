@@ -361,12 +361,58 @@ function tareasVigentes(tareas, ahora = Date.now()) {
   );
 }
 
+// Rama que crea un tramo de comando, o null. La usan rama-reusada y guard-sin-clave.
+// Reconoce las formas de crear una rama y en que repositorio:
+//   git [-C dir] switch -c|-C|--create <rama>
+//   git [-C dir] checkout -b|-B <rama>
+//   git [-C dir] worktree add ... -b|-B <rama> ...
+// `git branch <rama>` a secas se deja fuera: es raro y choca con sus
+// muchos otros usos (listar, -d, --list).
+function ramaQueSeCrea(tramo, cwd, cfg) {
+  const partes = tramo.split(/\s+/).map((p) => p.replace(/^["']|["']$/g, ''));
+  const iGit = partes.findIndex((p) => p === 'git' || /[\\/]git(\.exe)?$/.test(p));
+  if (iGit < 0) return null;
+
+  let dir = cwd;
+  let i = iGit + 1;
+  while (partes[i] === '-C' && partes[i + 1]) {
+    dir = path.resolve(dir, partes[i + 1]);
+    i += 2;
+  }
+
+  const sub = partes[i];
+  const resto = partes.slice(i + 1);
+  let banderas;
+  if (sub === 'switch') banderas = ['-c', '-C', '--create'];
+  else if (sub === 'checkout') banderas = ['-b', '-B'];
+  else if (sub === 'worktree' && resto[0] === 'add') banderas = ['-b', '-B'];
+  else return null;
+
+  const iBandera = resto.findIndex((p) => banderas.includes(p));
+  let rama = iBandera >= 0 ? resto[iBandera + 1] : null;
+  const pegada = resto.find((p) => p.startsWith('--create='));
+  if (!rama && pegada) rama = pegada.slice('--create='.length);
+  if (!rama) return null;
+
+  return { rama, dir, repo: carpetaDe(dir, cfg) };
+}
+
+// Carpeta del proyecto (una de cfg.git.carpetas) en que cae el directorio.
+function carpetaDe(dir, cfg) {
+  const relativo = path.relative(path.resolve(cfg.raiz), path.resolve(dir)).split(path.sep)[0];
+  if (cfg.git.carpetas.includes(relativo)) return relativo;
+  // Fuera de la raiz (../otro, /otro/repo) no es el proyecto, aunque el proyecto sea '.'.
+  if (relativo === '..' || path.isAbsolute(relativo)) return null;
+  return cfg.git.carpetas.includes('.') ? '.' : null;
+}
+
 module.exports = {
   cargar,
   hook,
   partirEnTramos,
   deducirEstado,
   claveDeRama,
+  ramaQueSeCrea,
   clavesEnTexto,
   referenciaIssue,
   estadosDe,
