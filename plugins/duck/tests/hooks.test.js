@@ -525,3 +525,17 @@ test('guard-sin-clave (jira) needs the key and the mode marker too', () => {
   assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, 'git switch -c feature/ABC-5-x'))));
   assert.ok(!negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, 'DUCK_MODO=tarea git switch -c feature/ABC-5-x'))));
 });
+
+test('guard-sin-clave (single-repo project) ignores repos outside the root and checks the marker itself', () => {
+  const raiz = proyecto(GITHUB);
+  const fuera = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-fuera-'));
+  temporales.push(fuera);
+  assert.ok(!negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, `git -C ${fuera} switch -c cualquier-cosa`))));
+  for (const c of [
+    'DUCK_MODO=otro git switch -c feat/11-x',
+    'DUCK_MODO=tarea true && git switch -c feat/11-x',
+    'git switch --create=feat/11-x',
+  ]) {
+    assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, c))), c);
+  }
+});

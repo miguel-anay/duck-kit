@@ -401,6 +401,8 @@ function ramaQueSeCrea(tramo, cwd, cfg) {
 function carpetaDe(dir, cfg) {
   const relativo = path.relative(path.resolve(cfg.raiz), path.resolve(dir)).split(path.sep)[0];
   if (cfg.git.carpetas.includes(relativo)) return relativo;
+  // Fuera de la raiz (../otro, /otro/repo) no es el proyecto, aunque el proyecto sea '.'.
+  if (relativo === '..' || path.isAbsolute(relativo)) return null;
   return cfg.git.carpetas.includes('.') ? '.' : null;
 }
 

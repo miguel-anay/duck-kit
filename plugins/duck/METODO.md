@@ -113,7 +113,7 @@ cada una, encadena, y recién reporta al final o al primer tropiezo.
   esa activación: nombrar la historia nombra la serie.)
 - **Cada tarea corre la secuencia entera**, sin recortes: rebase sobre `<base>`, suite completa en verde,
   y la verificación de UI cuando toca pantalla. El flujo quita la puerta, no los pasos.
-- **Entre una tarea y la siguiente:** `git fetch origin`, rama nueva desde `<base>` al día, y revisar qué
+- **Entre una tarea y la siguiente:** `git fetch origin`, rama nueva desde `<base>` al día (con `DUCK_MODO=flujo` delante del `git switch -c`: la serie ya fue elegida), y revisar qué
   entregó el otro carril. Encadenar sobre una base vieja es la forma más barata de romper dos tareas en
   vez de una.
 
