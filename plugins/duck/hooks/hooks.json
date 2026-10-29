@@ -112,6 +112,24 @@
           }
         ]
       }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/estado-tarea.js\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/historia-sigue-subtareas.js\"",
+            "if": "Bash(*ticket.js*mover*)",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "modules": [

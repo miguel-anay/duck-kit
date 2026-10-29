@@ -93,6 +93,21 @@ test('estado-tarea records a GitHub move from the ticket.js success line', () =>
   assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Progress');
 });
 
+test('estado-tarea records a GitHub move when the Bash command failed after ticket.js succeeded', () => {
+  // PostToolUseFailure: no tool_response, the output travels in `error`.
+  const raiz = proyecto(GITHUB);
+  const evento = { ...mover(''), tool_response: undefined, hook_event_name: 'PostToolUseFailure',
+    error: 'Exit code 1\nIssue (org/app#12) movido a (In Progress)\n' };
+  correr('estado-tarea.js', raiz, evento);
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Progress');
+});
+
+test('hooks.json runs estado-tarea on PostToolUseFailure for Bash', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(SCRIPTS, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = (hooks.PostToolUseFailure || []).find((m) => m.matcher === 'Bash');
+  assert.ok(bash && bash.hooks.some((h) => h.command.includes('estado-tarea.js')));
+});
+
 test('estado-tarea ignores a ticket.js mover that printed no success line', () => {
   const raiz = proyecto(GITHUB);
   correr('estado-tarea.js', raiz, mover(''));

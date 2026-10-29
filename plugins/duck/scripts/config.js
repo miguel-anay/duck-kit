@@ -272,7 +272,9 @@ const TICKET_JS = path.join(__dirname, 'ticket.js').replace(/\\/g, '/');
 function movidasDeGithub(evento, cfg) {
   if (cfg.tickets.proveedor !== 'github' || evento?.tool_name !== 'Bash') return [];
   if (!/\bticket\.js["']?\s+mover\b/.test(evento?.tool_input?.command || '')) return [];
-  const r = evento?.tool_response;
+  // On PostToolUseFailure (the Bash ended non-zero after ticket.js succeeded, e.g. a later
+  // command in the same line) there is no tool_response: the output comes in `error`.
+  const r = evento?.tool_response ?? evento?.error;
   const salida = typeof r === 'string' ? r : [r?.stdout, r?.output].filter((t) => typeof t === 'string').join('\n');
   return [...salida.matchAll(/^Issue \(([\w.-]+\/[\w.-]+#\d+)\) movido a \(([^)\r\n]+)\)\r?$/gm)].map(
     ([, clave, estado]) => ({ clave, estado })
