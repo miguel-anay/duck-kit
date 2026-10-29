@@ -92,6 +92,10 @@ justo antes del primer push de la rama, y bloquea si `origin/<base>` se movió.
     literalmente en la historia de `<base>` y `-d` puede comprobarlo. Si el proyecto cambia a squash
     merge, `-d` pasará a rechazar siempre y este paso hay que repensarlo — **no** convertirlo en `-D`.
 
+    La rama **remota** no se borra a mano: la borra GitHub al mergear, si el repo tiene prendida la opción
+    *Automatically delete head branches* (`delete_branch_on_merge`). `/duck:iniciar` avisa en qué repos
+    está apagada.
+
     Si la rama está abierta en otro `git worktree`, git se niega a borrarla. Es correcto: se elimina el
     worktree primero.
 
