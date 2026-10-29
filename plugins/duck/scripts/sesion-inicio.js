@@ -13,11 +13,15 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
-hook((_evento, cfg) => procesar(cfg));
+hook((evento, cfg) => {
+  // Antes que nada: una sesion continuada recupera las tareas de la anterior (ver config.js).
+  heredarSesionAnterior(cfg, evento?.session_id, evento?.transcript_path);
+  procesar(cfg);
+});
 
 function procesar(cfg) {
   const ramas = ramasAbiertas(cfg);

@@ -73,6 +73,12 @@
           },
           {
             "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/tarea-por-commit.js\"",
+            "if": "Bash(*git*commit*)",
+            "timeout": 10
+          },
+          {
+            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/panel-al-cerrar.js\"",
             "if": "Bash(*ticket.js*mover*)",
             "timeout": 10

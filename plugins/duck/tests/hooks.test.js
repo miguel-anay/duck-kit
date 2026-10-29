@@ -498,3 +498,120 @@ test('sesion-inicio (odd.versionado) treats the feature document as versioned an
   assert.doesNotMatch(texto, /single-pr/);
   assert.match(texto, /duck:escritor/);
 });
+
+// --- tarea-por-commit: a commit on a task branch records the task in the session ---
+
+const commit = (salida, comando = 'git commit -m "feat: x"', extra = {}) => ({
+  session_id: 's1',
+  tool_name: 'Bash',
+  tool_input: { command: comando },
+  tool_response: { stdout: salida, stderr: '' },
+  ...extra,
+});
+
+function repoGithub(raiz, rama) {
+  repo(raiz, rama);
+  git(raiz, 'remote', 'add', 'origin', 'https://github.com/org/app.git');
+}
+
+test('tarea-por-commit (github) records the branch issue of a successful commit as in progress', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/12-algo');
+  const r = correr('tarea-por-commit.js', raiz, commit('[feat/12-algo 1a2b3c4] feat: x\n 1 file changed\n', undefined, { cwd: raiz }));
+  assert.equal(r.status, 0);
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Progress');
+});
+
+test('tarea-por-commit keeps a recorded state and only refreshes when it was worked on', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/12-algo');
+  escribirSesion(raiz, 's1', { tareas: { 'org/app#12': { estado: 'In Review', desde: new Date(Date.now() - 3600e3).toISOString() } }, modo: 'flujo' });
+  correr('tarea-por-commit.js', raiz, commit('[feat/12-algo 1a2b3c4] fix: y\n', undefined, { cwd: raiz }));
+  const sesion = leerSesion(raiz, 's1');
+  assert.equal(sesion.tareas['org/app#12'].estado, 'In Review');
+  assert.ok(Date.parse(sesion.tareas['org/app#12'].desde) > Date.now() - 60e3);
+  assert.equal(sesion.modo, 'flujo');
+});
+
+test('tarea-por-commit ignores a failed commit, a non-commit command and a branch without a key', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/12-algo');
+  correr('tarea-por-commit.js', raiz, commit('nothing to commit, working tree clean\n', undefined, { cwd: raiz }));
+  correr('tarea-por-commit.js', raiz, commit('[feat/12-algo 1a2b3c4] x\n', 'git log -1', { cwd: raiz }));
+  correr('tarea-por-commit.js', raiz, commit('[main 1a2b3c4] chore: x\n', undefined, { cwd: raiz }));
+  assert.equal(fs.existsSync(path.join(raiz, '.claude', 'estado', 'sesiones', 's1.json')), false);
+});
+
+test('tarea-por-commit reads the repo of a cd or git -C folder, not the session folder', () => {
+  const raiz = proyecto(GITHUB);
+  const otro = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-otro-'));
+  temporales.push(otro);
+  repoGithub(otro, 'feat/7-x');
+  git(otro, 'remote', 'set-url', 'origin', 'git@github.com:org/api.git');
+  correr('tarea-por-commit.js', raiz, commit('[feat/7-x 1a2b3c4] feat: x\n', `cd ${otro} && git add -A && git commit -m "feat: x"`, { cwd: raiz }));
+  correr('tarea-por-commit.js', raiz, commit('[feat/7-x 9f8e7d6] feat: y\n', `git -C ${otro} commit -m "feat: y"`, { cwd: raiz }));
+  assert.deepEqual(Object.keys(leerSesion(raiz, 's1').tareas), ['org/api#7']);
+});
+
+test('tarea-por-commit (jira) records the key of the branch', () => {
+  const raiz = proyecto({ ...JIRA, jira: { proyecto: 'ABC' } });
+  repo(raiz, 'feature/ABC-5-algo');
+  correr('tarea-por-commit.js', raiz, commit('[feature/ABC-5-algo 1a2b3c4] feat(ABC-5): x\n', undefined, { cwd: raiz }));
+  assert.equal(leerSesion(raiz, 's1').tareas['ABC-5'].estado, 'En Proceso');
+});
+
+test('hooks.json runs tarea-por-commit after Bash commits', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => h.command.includes('tarea-por-commit.js')));
+});
+
+// --- continued sessions inherit the previous session's tasks ---
+
+function transcript(raiz, anterior) {
+  const ruta = path.join(raiz, 'transcript.jsonl');
+  fs.writeFileSync(ruta, JSON.stringify({ type: 'user', message: { content:
+    `If you need specific details from before compaction, read the full transcript at: /home/u/.claude/projects/p/${anterior}.jsonl\nContinue the conversation` } }) + '\n');
+  return ruta;
+}
+
+test('sesion-inicio copies tasks and mode of the session it continues', () => {
+  const raiz = proyecto(GITHUB);
+  const reciente = new Date().toISOString();
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: reciente } }, modo: 'flujo' });
+  correr('sesion-inicio.js', raiz, { session_id: 'nueva-2', source: 'startup', transcript_path: transcript(raiz, 'vieja-1') });
+  const nueva = leerSesion(raiz, 'nueva-2');
+  assert.deepEqual(nueva.tareas, { 'org/app#12': { estado: 'In Progress', desde: reciente } });
+  assert.equal(nueva.modo, 'flujo');
+});
+
+test('a continued session never overwrites its own tasks with the previous ones', () => {
+  const raiz = proyecto(GITHUB);
+  const reciente = new Date().toISOString();
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: reciente } } });
+  escribirSesion(raiz, 'nueva-2', { tareas: { 'org/app#30': { estado: 'In Review', desde: reciente } }, modo: 'tarea' });
+  correr('sesion-inicio.js', raiz, { session_id: 'nueva-2', transcript_path: transcript(raiz, 'vieja-1') });
+  assert.deepEqual(Object.keys(leerSesion(raiz, 'nueva-2').tareas), ['org/app#30']);
+});
+
+test('tarea-por-commit inherits the previous session first when the summary arrived after the start', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/30-x');
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: new Date().toISOString() } } });
+  correr('tarea-por-commit.js', raiz, commit('[feat/30-x 1a2b3c4] feat: x\n', undefined,
+    { session_id: 'nueva-2', cwd: raiz, transcript_path: transcript(raiz, 'vieja-1') }));
+  assert.deepEqual(Object.keys(leerSesion(raiz, 'nueva-2').tareas).sort(), ['org/app#12', 'org/app#30']);
+});
+
+test('inventario inherits the previous session from the transcript Claude Code keeps for the project', () => {
+  const raiz = proyecto(GITHUB);
+  const config = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-config-'));
+  temporales.push(config);
+  const dir = path.join(config, 'projects', fs.realpathSync(raiz).replace(/[^A-Za-z0-9]/g, '-'));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.copyFileSync(transcript(raiz, 'vieja-1'), path.join(dir, 'nueva-2.jsonl'));
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: new Date().toISOString() } } });
+  const r = spawnSync('node', [path.join(SCRIPTS, 'inventario.js'), 'nueva-2'], {
+    cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz, CLAUDE_CONFIG_DIR: config }, encoding: 'utf8' });
+  assert.deepEqual(Object.keys(JSON.parse(r.stdout).sesion), ['org/app#12']);
+});

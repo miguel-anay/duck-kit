@@ -183,6 +183,10 @@ El ticket refleja dónde está el trabajo de verdad, y lo mueve el agente solo, 
 El hook `estado-tarea.js` no le cree al agente cuando dice «ya la puse en proceso»: escucha la llamada real
 a `transitionJiraIssue` y anota el estado en que aterrizó. `cierre-finalizado.js` ve el merge real de un
 PR y deja el recordatorio de transicionar; `historia-sigue-subtareas.js` recuerda mover la historia.
+`tarea-por-commit.js` anota la tarea de la rama en cada commit exitoso (con su estado si ya estaba
+anotada, En Proceso si no): quien retoma trabajo que ya estaba En Proceso no mueve el ticket, y sin esto
+la sesión no sabría en qué trabaja. Una sesión continuada arranca con otro `session_id`: hereda las
+tareas, el modo y la historia de la anterior, que se lee del resumen al principio del transcript.
 
 ### Transicionar es automático; escribir texto, no
 

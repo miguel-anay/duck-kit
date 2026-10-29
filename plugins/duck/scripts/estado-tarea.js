@@ -17,7 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { hook, deducirEstado, estadosDe, movidasDeGithub, VIGENCIA_HORAS, tareasVigentes } = require('./config');
+const { hook, deducirEstado, estadosDe, movidasDeGithub, leerSesion, guardarSesion, heredarSesionAnterior } = require('./config');
 
 hook((evento, cfg) => {
   const transiciones =
@@ -83,13 +83,10 @@ function anotar(evento, cfg, clave, estado) {
     return;
   }
 
-  const ruta = path.join(cfg.dirEstado, `${sesion}.json`);
-  const almacen = leer(ruta);
+  heredarSesionAnterior(cfg, sesion, evento?.transcript_path);
+  const almacen = leerSesion(cfg, sesion);
   almacen.tareas[clave] = { estado, desde: new Date().toISOString() };
-
-  fs.mkdirSync(cfg.dirEstado, { recursive: true });
-  fs.writeFileSync(ruta, JSON.stringify(almacen, null, 2) + '\n');
-  barrerSesionesViejas(cfg.dirEstado);
+  guardarSesion(cfg, sesion, almacen);
   actualizarHistoria(clave, estado, evento, cfg);
 }
 
@@ -172,27 +169,4 @@ function buscarStatus(valor, profundidad = 0) {
     if (hallado) return hallado;
   }
   return null;
-}
-
-function leer(ruta) {
-  let almacen = { tareas: {}, modo: 'tarea' };
-  try {
-    almacen = { ...almacen, ...JSON.parse(fs.readFileSync(ruta, 'utf8')) };
-  } catch {
-    /* primera vez en esta sesion */
-  }
-  return { ...almacen, tareas: tareasVigentes(almacen.tareas) };
-}
-
-// Las sesiones no avisan cuando terminan: sin esto la carpeta crece sola.
-function barrerSesionesViejas(carpeta) {
-  const limite = Date.now() - VIGENCIA_HORAS * 3600 * 1000;
-  try {
-    for (const archivo of fs.readdirSync(carpeta)) {
-      const ruta = path.join(carpeta, archivo);
-      if (fs.statSync(ruta).mtimeMs < limite) fs.unlinkSync(ruta);
-    }
-  } catch {
-    /* si no se puede barrer, no es grave */
-  }
 }
