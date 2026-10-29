@@ -96,15 +96,29 @@ function esBloqueValido(valor: unknown): valor is BloqueHistoria {
 // historia ({ historia, subtareas }), que se envuelve en un arreglo de un
 // elemento: un archivo viejo sigue andando. La validacion es estricta por
 // elemento: uno solo roto invalida el archivo entero.
+// A sub-task nobody is assigned to may come with `responsable` null or missing (an unassigned
+// GitHub issue). That is a fact, not a broken file: it becomes '' instead of discarding every story.
+function conResponsable(bloque: unknown): unknown {
+  if (typeof bloque !== 'object' || bloque === null) return bloque
+  const b = bloque as Record<string, unknown>
+  if (!Array.isArray(b.subtareas)) return bloque
+  const subtareas = b.subtareas.map((s) =>
+    typeof s === 'object' && s !== null && (s as Record<string, unknown>).responsable == null
+      ? { ...(s as Record<string, unknown>), responsable: '' }
+      : s
+  )
+  return { ...b, subtareas }
+}
+
 function normalizar(valor: unknown): Historia | null {
   if (typeof valor !== 'object' || valor === null) return null
   const v = valor as Record<string, unknown>
   if (typeof v.actualizado !== 'string') return null
   if (!Array.isArray(v.alertas) || !v.alertas.every((a) => typeof a === 'string')) return null
 
-  const historias: unknown[] = Array.isArray(v.historias)
-    ? v.historias
-    : [{ historia: v.historia, subtareas: v.subtareas }]
+  const historias: unknown[] = (
+    Array.isArray(v.historias) ? v.historias : [{ historia: v.historia, subtareas: v.subtareas }]
+  ).map(conResponsable)
   if (!historias.every(esBloqueValido)) return null
 
   return { actualizado: v.actualizado, historias: historias as BloqueHistoria[], alertas: v.alertas }
