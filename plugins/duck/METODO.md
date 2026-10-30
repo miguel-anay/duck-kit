@@ -232,7 +232,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 
 | Regla | Pieza |
 |---|---|
-| No `push` a `<base>`, no `merge` local, no `git branch -D` | `guard-git.js` (deniega) |
+| No `push` a `<base>` (salvo el primero, con el remoto sin `<base>`), no `merge` local, no `git branch -D` | `guard-git.js` (deniega) |
 | Primer push con la base atrasada: rebase antes | `push-sobre-develop-al-dia.js` (deniega; avisa si ya estaba publicada) |
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |
 | Spike sin remoto, sin Jira, sin clave | `guard-spike.js` (deniega mientras la sesión está en spike) |
