@@ -1,13 +1,16 @@
 // Hook PreToolUse: bloquea las tres prohibiciones absolutas del cierre de tarea
 // que METODO.md declara "sin excepcion" pero que la lista de permisos deja pasar.
 //
-//   1. push directo a la rama base   (METODO.md, paso 10)
+//   1. push directo a la rama base   (METODO.md, paso 10), salvo el primero: con el remoto
+//      sin rama base no hay contra que abrir un PR
 //   2. merge local hacia la rama base (METODO.md, paso 10)
 //   3. git branch -D                  (METODO.md, paso 11: "-d, nunca -D")
 //
 // Lee el JSON del hook por stdin y responde con una decision de permiso.
 // No usa jq. Sin .claude/duck.json no hace nada (ver config.js).
 
+const path = require('path');
+const { spawnSync } = require('child_process');
 const { hook, partirEnTramos } = require('./config');
 
 hook((evento, cfg) => {
@@ -15,7 +18,7 @@ hook((evento, cfg) => {
   if (!comando) return;
 
   for (const tramo of partirEnTramos(comando)) {
-    const motivo = revisar(tramo, cfg.git.ramaBase);
+    const motivo = revisar(tramo, cfg.git.ramaBase, evento.cwd ?? process.cwd());
     if (motivo) return denegar(motivo);
   }
 });
@@ -26,14 +29,14 @@ hook((evento, cfg) => {
 // para trabajar sobre otro repositorio del workspace.
 const OPCIONES_GLOBALES = /\bgit((?:\s+(?:-C|-c|--git-dir|--work-tree|--namespace)\s+(?:"[^"]*"|'[^']*'|\S+)|\s+--?[\w-]+(?:=\S+)?)*)\s+(?=\w)/g;
 
-function revisar(tramoOriginal, base) {
+function revisar(tramoOriginal, base, cwd) {
   const tramo = tramoOriginal.replace(OPCIONES_GLOBALES, 'git ');
   const argumentos = tramo.split(/\s+/);
   const tiene = (re) => re.test(tramo);
 
   if (tiene(/\bgit\s+push\b/)) {
     const aBase = argumentos.some((a) => a === base || a.endsWith(`:${base}`));
-    if (aBase) {
+    if (aBase && !baseVaciaEnRemoto(tramoOriginal, argumentos, base, cwd)) {
       return `push directo a ${base}. El merge se hace SOBRE el PR (API de GitHub o boton), `
         + 'nunca con push local — METODO.md, paso 10, "eso no tiene excepcion".';
     }
@@ -60,6 +63,24 @@ function revisar(tramoOriginal, base) {
   }
 
   return null;
+}
+
+// El primer push de la rama base a un remoto recien creado: no hay PR posible porque no hay
+// base. Se pregunta al remoto (ls-remote) y no a la ref local origin/<base>, que falta tambien
+// cuando solo no se hizo fetch. Ante cualquier duda (sin red, remoto ilegible) responde false
+// y el guardia bloquea, como antes.
+function baseVaciaEnRemoto(tramoOriginal, argumentos, base, cwd) {
+  const dirC = tramoOriginal.match(/\bgit\s+(?:.*?\s)?-C\s+("[^"]*"|'[^']*'|\S+)/)?.[1]?.replace(/^["']|["']$/g, '');
+  const dir = dirC ? path.resolve(cwd, dirC) : cwd;
+  const posicionales = argumentos.slice(argumentos.indexOf('push') + 1).filter((a) => !a.startsWith('-'));
+  const remoto = posicionales.length > 1 ? posicionales[0] : 'origin';
+  const r = spawnSync('git', ['-C', dir, 'ls-remote', '--exit-code', '--heads', remoto, `refs/heads/${base}`], {
+    encoding: 'utf8',
+    timeout: 15000,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  // --exit-code: 2 = el remoto respondio y no tiene esa rama.
+  return r.status === 2;
 }
 
 function denegar(motivo) {

@@ -615,3 +615,33 @@ test('inventario inherits the previous session from the transcript Claude Code k
     cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz, CLAUDE_CONFIG_DIR: config }, encoding: 'utf8' });
   assert.deepEqual(Object.keys(JSON.parse(r.stdout).sesion), ['org/app#12']);
 });
+
+// --- guard-git: first push of the base branch ---
+
+test('guard-git allows the first push of the base branch to an empty remote, and only that one', () => {
+  const raiz = proyecto(GITHUB);
+  const app = path.join(raiz, 'app');
+  const remoto = path.join(raiz, 'remoto.git');
+  fs.mkdirSync(app);
+  repo(app, 'main');
+  git(raiz, 'init', '-q', '--bare', remoto);
+  git(app, 'remote', 'add', 'origin', remoto);
+
+  // Empty remote: there is no base to open a PR against, so the first push must pass.
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('git -C app push -u origin main', raiz))));
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('git push -u origin main', app))));
+
+  // Once the base exists on the remote, pushing to it is blocked again.
+  git(app, 'push', '-q', 'origin', 'main');
+  assert.ok(negado(correr('guard-git.js', raiz, bash('git -C app push -u origin main', raiz))));
+  assert.ok(negado(correr('guard-git.js', raiz, bash('git push origin HEAD:main', app))));
+  // Pushing a task branch is still allowed.
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('git push -u origin feat/1-x', app))));
+});
+
+test('guard-git blocks a push to the base when the remote cannot be read', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'main');
+  git(raiz, 'remote', 'add', 'origin', path.join(raiz, 'no-existe.git'));
+  assert.ok(negado(correr('guard-git.js', raiz, bash('git push -u origin main', raiz))));
+});
