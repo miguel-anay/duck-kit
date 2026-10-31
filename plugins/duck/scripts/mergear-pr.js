@@ -68,7 +68,8 @@ async function main() {
   });
   const res = await r.json();
   if (!res.merged) fallar(`GitHub no mergeó #${numArg}: ${res.message}`);
-  console.log(`${repo} #${numArg} mergeado: ${res.sha}`);
+  // La rama va en la salida: cierre-finalizado.js saca de ahi el issue, aunque el checkout ya este en la base.
+  console.log(`${repo} #${numArg} mergeado: ${res.sha} (${pr.head.ref})`);
 }
 
 main().catch((e) => fallar(e.message));

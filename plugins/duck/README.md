@@ -26,7 +26,8 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `tarea-por-commit` | `scripts/tarea-por-commit.js` | Un commit en la rama de una tarea la anota en la sesión: retomar trabajo ya En Proceso también llega al panel. |
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
 | Hook `historia-sigue-subtareas` | `scripts/historia-sigue-subtareas.js` | Recuerda mover la historia con sus sub-tareas. |
-| Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR y recuerda transicionar. |
+| Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR (curl a la API, `mergear-pr.js` o `gh pr merge`) y recuerda transicionar. |
+| Hook `issue-al-project` | `scripts/issue-al-project.js` | Con GitHub: un issue creado con `gh issue create` entra al Project de `github.proyecto`. |
 | Hook `issue-padre` | `scripts/issue-padre.js` | Con GitHub: cuando `gh issue create` crea un issue con `Part of: <HU>` en el cuerpo, lo cuelga como sub-issue de esa HU. |
 | Hook `pr-a-revision` | `scripts/pr-a-revision.js` | Con GitHub: cuando `gh pr create` abre el PR, mueve el issue de la rama a In Review y lo anota en la sesión. |
 | Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. Una sesión continuada (compactada o retomada) hereda las tareas, el modo y la historia de la anterior. |

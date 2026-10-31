@@ -22,17 +22,10 @@ hook((evento, cfg) => procesar(evento, cfg));
 function procesar(evento, cfg) {
   const comando = evento?.tool_input?.command || '';
 
-  // El merge se hace con curl contra la API de GitHub: ese patron de URL es
-  // la unica forma confiable de reconocer el hecho desde un proceso de shell.
-  const org = cfg.git.orgGithub ? escapar(cfg.git.orgGithub) : '[\\w.-]+';
-  const match = comando.match(new RegExp(`https://api\\.github\\.com/repos/${org}/([\\w.-]+)/pulls/(\\d+)/merge`));
-  if (!match) return; // no es un merge de PR, no hay nada que anotar
-
-  const [, repo, numero] = match;
   const respuesta = aTexto(evento?.tool_response);
-
-  // Intentado no es lo mismo que logrado: un merge fallido no es un cierre.
-  if (!fueMergeExitoso(respuesta)) return;
+  const merge = mergeHecho(comando, respuesta, evento?.tool_response, cfg);
+  if (!merge) return; // no es un merge de PR, o no salio: intentado no es lo mismo que logrado
+  const [repo, numero] = merge;
 
   const clave = buscarClave(comando, respuesta, repo, numero, cfg);
   if (!clave) return; // sin clave no se inventa una, se sale en silencio
@@ -94,6 +87,26 @@ function aTexto(toolResponse) {
   }
 }
 
+// [repo, numero] del PR que este Bash mergeo de verdad, o null. Tres caminos: curl contra la API
+// (la URL en el comando y \"merged\": true en la respuesta), el mergear-pr.js del propio duck
+// («<repo> #N mergeado: <sha>») y `gh pr merge` («Merged pull request owner/repo#N», en stderr).
+// Sin los dos ultimos, un merge hecho con la herramienta de duck no cerraba nada (visto 2026-10-30).
+function mergeHecho(comando, respuesta, toolResponse, cfg) {
+  const org = cfg.git.orgGithub ? escapar(cfg.git.orgGithub) : '[\\w.-]+';
+  const curl = comando.match(new RegExp(`https://api\\.github\\.com/repos/${org}/([\\w.-]+)/pulls/(\\d+)/merge`));
+  if (curl) return fueMergeExitoso(respuesta) ? [curl[1], curl[2]] : null;
+  const salida = [toolResponse?.stdout, toolResponse?.stderr].filter((t) => typeof t === 'string').join('\n') || respuesta;
+  if (/\bmergear-pr\.js\b/.test(comando)) {
+    const m = salida.match(/^([\w.-]+) #(\d+) mergeado: [0-9a-f]{40}\b/m);
+    return m ? [m[1], m[2]] : null;
+  }
+  if (/\bgh\s+pr\s+merge\b/.test(comando)) {
+    const m = salida.match(/Merged pull request [\w.-]+\/([\w.-]+)#(\d+)/);
+    return m ? [m[1], m[2]] : null;
+  }
+  return null;
+}
+
 // La senal de exito viene de GitHub, no de que el comando haya salido en 0:
 // curl puede devolver 0 y traer igual un cuerpo de error.
 function fueMergeExitoso(respuesta) {
@@ -117,7 +130,7 @@ function buscarClave(comando, respuesta, repo, numero, cfg) {
   if (cfg.tickets.proveedor !== 'github') return en(comando) || en(respuesta) || buscarClaveEnRamaActual(carpeta, cfg);
   // Con GitHub manda la rama (feat/N-slug): un #N suelto del comando puede ser solo un Refs.
   const rama = (texto) => {
-    for (const m of String(texto).matchAll(/(?:^|[\s"'\/:])([\w-]+\/\d+[\w.-]*)/g)) {
+    for (const m of String(texto).matchAll(/(?:^|[\s"'\/:(])([\w-]+\/\d+[\w.-]*)/g)) {
       const clave = claveDeRama(m[1], cfg, carpeta);
       if (clave && valida(clave)) return clave;
     }
