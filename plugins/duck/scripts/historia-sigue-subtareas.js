@@ -19,8 +19,8 @@
 // jira.historiaSigueSubtareas = false en duck.json.
 //
 // Con tickets.proveedor = 'github' el hecho es un Bash con `ticket.js mover` y la historia es el
-// issue padre (sub-issues): pasa a En Proceso con su primera hija, y a Done solo cuando todas sus
-// hijas estan cerradas.
+// issue padre (sub-issues): pasa a En Proceso con su primera hija, y a Testing cuando todas sus
+// hijas estan cerradas, como la historia pasa a Pruebas en Jira. Done lo decide una persona.
 
 const { hook, deducirEstado, movidasDeGithub, TICKET_JS } = require('./config');
 
@@ -80,7 +80,8 @@ function textoGithub({ clave, estado }, cfg) {
     return (
       `${clave} paso a ${g.finalizado}. Si tiene padre, lee el padre con ${ver} <padre>\`: solo si ` +
       `todas sus hijas estan cerradas (abierto: false), movelo con \`node "${TICKET_JS}" mover <padre> ` +
-      `finalizado\`; si queda alguna abierta, el padre sigue en ${g.enProceso}. Un Closes #N al ` +
+      `pruebas\` (${g.pruebas}): ${g.finalizado} lo decide una persona cuando lo prueba, no lo muevas ahi. ` +
+      `Si queda alguna abierta, el padre sigue en ${g.enProceso}. Un Closes #N al ` +
       'mergear puede haberlo movido ya por el workflow del Project: relee antes de mover. Si no ' +
       'tiene padre, no hagas nada.'
     );

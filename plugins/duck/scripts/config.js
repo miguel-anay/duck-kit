@@ -39,6 +39,7 @@ const DEFECTOS = {
       pendiente: 'Ready',
       enProceso: 'In Progress',
       enRevision: 'In Review',
+      pruebas: 'Testing', // la HU con todos sus sub-issues cerrados, como la historia en Pruebas de Jira
       finalizado: 'Done',
       bloqueado: 'Blocked',
     },

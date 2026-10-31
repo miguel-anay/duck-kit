@@ -331,7 +331,7 @@ transición que consultar. Siempre por ahí, nunca con `gh project item-edit`: l
 | Al abrir el PR | `enRevision` (In Review). Lo mueve `pr-a-revision.js` cuando el agente corre `gh pr create`. Para un PR abierto por una persona, el workflow «Pull request linked to issue» del Project, con Status en In Review, mueve el issue que el PR cierra (`Closes #N`) |
 | Al mergear | `finalizado` (Done). **Releé antes** con `ticket.js ver`: `Closes #N` y el workflow del Project pueden haberlo movido ya |
 | Lo frena algo externo | `bloqueado` (Blocked), que reemplaza al prefijo `[BLOQ]`. El motivo va en un comentario, que es texto: borrador, mostrarlo y esperar el OK |
-| La HU | `enProceso` con su primer sub-issue; `finalizado` **solo** con todos sus sub-issues cerrados. Cerrar el issue de la HU no lo decide el agente |
+| La HU | `enProceso` con su primer sub-issue; `pruebas` (Testing) cuando todos sus sub-issues están cerrados, como la historia en Pruebas de Jira; `finalizado` (Done) lo pone una persona cuando la prueba, nunca el agente. Un issue sin sub-issues pasa a Done al mergear, como una sub-tarea |
 
 **Convivencia con `/tbd`.** `/tbd` mueve las mismas tarjetas y crea los issues. Antes de cada escritura se
 lee el estado actual, y lo que ya está donde va no se mueve otra vez. duck no crea ni cierra issues, ni
