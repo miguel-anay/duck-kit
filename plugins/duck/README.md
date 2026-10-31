@@ -18,16 +18,20 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | `/duck:spike <tema> [repos]` | `commands/spike.md` | Arranca un spike: rama `spike/<tema>` local, sin Jira ni remoto. |
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
-| Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. |
+| Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`. |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
 | Hook `guard-sin-clave` | `scripts/guard-sin-clave.js` | Ninguna rama de trabajo nace sin `/duck:tomar`: deniega crear una rama en `git.repos` sin clave en el nombre o sin la marca `DUCK_MODO=tarea\|flujo`, que pone `/duck:tomar` después de preguntar el modo. Pasan las `spike/`. |
-| Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira (para el sticker y el panel). |
+| Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira o movida de GitHub, In Review incluido (para el sticker y el panel). Con GitHub, al tomar un issue crea el archivo de historia de la sesión, así el panel lo muestra sin correr `/duck:estado`. |
+| Hook `tarea-por-commit` | `scripts/tarea-por-commit.js` | Un commit en la rama de una tarea la anota en la sesión: retomar trabajo ya En Proceso también llega al panel. |
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
 | Hook `historia-sigue-subtareas` | `scripts/historia-sigue-subtareas.js` | Recuerda mover la historia con sus sub-tareas. |
-| Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR y recuerda transicionar. |
-| Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. |
+| Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR (curl a la API, `mergear-pr.js` o `gh pr merge`) y recuerda transicionar. |
+| Hook `issue-al-project` | `scripts/issue-al-project.js` | Con GitHub: un issue creado con `gh issue create` entra al Project de `github.proyecto`. |
+| Hook `issue-padre` | `scripts/issue-padre.js` | Con GitHub: cuando `gh issue create` crea un issue con `Part of: <HU>` en el cuerpo, lo cuelga como sub-issue de esa HU. |
+| Hook `pr-a-revision` | `scripts/pr-a-revision.js` | Con GitHub: cuando `gh pr create` abre el PR, mueve a In Review los issues que el PR cierra (`Closes #N`) y lo anota en la sesión. Un PR parcial (`Refs #N`) no mueve nada. |
+| Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. Una sesión continuada (compactada o retomada) hereda las tareas, el modo y la historia de la anterior. |
 | Status line | `scripts/sticker.js` | El sticker de la tarea de esta sesión. **No lo puede declarar un plugin**: lo instala `instalar.ps1`. |
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |
 | Utilidades | `scripts/inventario.js`, `scripts/mergear-pr.js`, `scripts/config.js` | Inventario local para `/duck:estado`; merge de PR por la API; el cargador único de `duck.json`. |
@@ -102,7 +106,7 @@ Solo con `"proveedor": "github"`.
 | `proyecto.owner` / `numero` | `null` / `null` | El Project v2 donde vive el estado (`mi-org`, `1`). |
 | `campoEstado` | `Status` | Campo de selección única del Project que guarda el estado. |
 | `historiaSigueSubtareas` | `true` | `false` apaga el recordatorio de mover la HU con sus sub-issues (el de `jira` no aplica con GitHub). |
-| `estados.pendiente` / `enProceso` / `enRevision` / `finalizado` / `bloqueado` | `Ready` / `In Progress` / `In Review` / `Done` / `Blocked` | Qué opción de ese campo es cada momento del flujo. |
+| `estados.pendiente` / `enProceso` / `enRevision` / `pruebas` / `finalizado` / `bloqueado` | `Ready` / `In Progress` / `In Review` / `Testing` / `Done` / `Blocked` | Qué opción de ese campo es cada momento del flujo. `pruebas` es la HU con todos sus sub-issues cerrados, esperando que una persona la pruebe. |
 | `estados.backlog` | `Backlog` | Opción que el panel cuenta como «sin empezar», igual que `pendiente`. Un issue abierto sin opción en el Project se muestra sin estado; uno cerrado, como `finalizado`. |
 
 Con GitHub, `git.prefijos` son los de `<prefijo>/N-slug` (`feat`, `fix`…) y `git.ramaBase` suele ser `main`.

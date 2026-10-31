@@ -84,7 +84,9 @@ que ya se corrió `/duck:estado` y no hay historia que mostrar, en vez de quedar
 un archivo viejo de una tarea anterior.
 
 **Este archivo es lo que el panel (el mod del plugin duck, carpeta `mod/`) dibuja de Jira**, y
-`/duck:estado` es quien lo crea: decide **qué historia** se sigue. Después lo mantienen
+`/duck:estado` es quien lo crea: decide **qué historia** se sigue. Con GitHub, si la sesión todavía no
+lo tiene, `estado-tarea.js` lo crea al pasar un issue a In Progress (`/duck:tomar`), con la HU (el padre
+del issue, o el issue mismo) y nada más, y el panel lo completa. Después lo mantienen
 al día otros dos: el hook `estado-tarea.js`, que parchea cada transición hecha en esta
 máquina, y el propio panel, que con el panel abierto consulta Jira cada 60 s con `acli`
 (el CLI oficial de Atlassian, con login por `acli jira auth login --web`), con **una consulta por

@@ -68,7 +68,9 @@ justo antes del primer push de la rama, y bloquea si `origin/<base>` se movió.
 10. **Merge sobre el PR** —API de GitHub o botón—, con merge commit. **Nunca `git merge` local y nunca
     `git push origin <base>`:** el merge local necesitaría justo ese push, así que no hay excepción.
     (`guard-git.js` lo hace cumplir; `mergear-pr.js` es la vía por la API, y se niega si la base del PR
-    no es `<base>`, si el head cambió desde que se verificó o si algún check no terminó en éxito.)
+    no es `<base>`, si el head cambió desde que se verificó o si algún check no terminó en éxito.
+    El agente lo corre solo en modo flujo; en modo tarea, con `--a-pedido` y solo después del
+    «mergealo» del dueño para ese PR. `guard-git.js` niega el resto.)
 11. **Borrar la rama local**, que ya cumplió:
 
     ```bash
@@ -91,6 +93,10 @@ justo antes del primer push de la rama, y bloquea si `origin/<base>` se movió.
     Esto vale **porque los PR se mergean con merge commit**, no con squash: los commits de la rama quedan
     literalmente en la historia de `<base>` y `-d` puede comprobarlo. Si el proyecto cambia a squash
     merge, `-d` pasará a rechazar siempre y este paso hay que repensarlo — **no** convertirlo en `-D`.
+
+    La rama **remota** no se borra a mano: la borra GitHub al mergear, si el repo tiene prendida la opción
+    *Automatically delete head branches* (`delete_branch_on_merge`). `/duck:iniciar` avisa en qué repos
+    está apagada.
 
     Si la rama está abierta en otro `git worktree`, git se niega a borrarla. Es correcto: se elimina el
     worktree primero.
@@ -183,6 +189,10 @@ El ticket refleja dónde está el trabajo de verdad, y lo mueve el agente solo, 
 El hook `estado-tarea.js` no le cree al agente cuando dice «ya la puse en proceso»: escucha la llamada real
 a `transitionJiraIssue` y anota el estado en que aterrizó. `cierre-finalizado.js` ve el merge real de un
 PR y deja el recordatorio de transicionar; `historia-sigue-subtareas.js` recuerda mover la historia.
+`tarea-por-commit.js` anota la tarea de la rama en cada commit exitoso (con su estado si ya estaba
+anotada, En Proceso si no): quien retoma trabajo que ya estaba En Proceso no mueve el ticket, y sin esto
+la sesión no sabría en qué trabaja. Una sesión continuada arranca con otro `session_id`: hereda las
+tareas, el modo y la historia de la anterior, que se lee del resumen al principio del transcript.
 
 ### Transicionar es automático; escribir texto, no
 
@@ -224,7 +234,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 
 | Regla | Pieza |
 |---|---|
-| No `push` a `<base>`, no `merge` local, no `git branch -D` | `guard-git.js` (deniega) |
+| No `push` a `<base>` (salvo el primero, con el remoto sin `<base>`), no `merge` local, no `git branch -D`, no `mergear-pr.js` fuera del modo flujo sin `--a-pedido` | `guard-git.js` (deniega) |
 | Primer push con la base atrasada: rebase antes | `push-sobre-develop-al-dia.js` (deniega; avisa si ya estaba publicada) |
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |
 | Spike sin remoto, sin Jira, sin clave | `guard-spike.js` (deniega mientras la sesión está en spike) |
@@ -295,6 +305,9 @@ proyecto, si la hay), no una traducción de Jira. Lo que no aparece acá queda i
 cuando una tiene su propio PR, otro repo u otra persona. Una HU de varios repos vive en el repo de
 documentación, con un sub-issue por repo destino. La clave es `#N` (u `owner/repo#N` fuera del repo);
 duck la guarda como `owner/repo#N` en minúsculas. El tipo va en el issue type, no en etiquetas.
+Un issue que pertenece a una HU (una `Task` por repo, o un `Bug` con su propio PR hallado al trabajarla)
+lleva en su cuerpo la línea `Part of: <owner/repo#N de la HU>`: `issue-padre.js` lo cuelga como sub-issue
+al crearlo. `Related:` es solo texto y no enlaza: relacionado no es hijo.
 
 **Ramas, commits y PR (secciones 1 y 2).** Trunk-based: `<base>` es `main`. La rama es
 `<prefijo>/N-<slug>` —`feat/`, `fix/`, que tienen que estar en `git.prefijos` para que los hooks
@@ -318,10 +331,10 @@ transición que consultar. Siempre por ahí, nunca con `gh project item-edit`: l
 | Momento | Estado |
 |---|---|
 | Al tomar la tarea | `enProceso` (In Progress) |
-| Al abrir el PR | `enRevision` (In Review) |
+| Al abrir el PR | `enRevision` (In Review). Lo mueve `pr-a-revision.js` cuando el agente corre `gh pr create`, solo para los issues que el PR cierra (`Closes #N`); un PR parcial (`Refs #N`) no mueve nada. Para un PR abierto por una persona, el workflow «Pull request linked to issue» del Project, con Status en In Review, mueve el issue que el PR cierra (`Closes #N`) |
 | Al mergear | `finalizado` (Done). **Releé antes** con `ticket.js ver`: `Closes #N` y el workflow del Project pueden haberlo movido ya |
 | Lo frena algo externo | `bloqueado` (Blocked), que reemplaza al prefijo `[BLOQ]`. El motivo va en un comentario, que es texto: borrador, mostrarlo y esperar el OK |
-| La HU | `enProceso` con su primer sub-issue; `finalizado` **solo** con todos sus sub-issues cerrados. Cerrar el issue de la HU no lo decide el agente |
+| La HU | `enProceso` con su primer sub-issue; `pruebas` (Testing) cuando todos sus sub-issues están cerrados, como la historia en Pruebas de Jira; `finalizado` (Done) lo pone una persona cuando la prueba, nunca el agente. Un issue sin sub-issues pasa a Done al mergear, como una sub-tarea |
 
 **Convivencia con `/tbd`.** `/tbd` mueve las mismas tarjetas y crea los issues. Antes de cada escritura se
 lee el estado actual, y lo que ya está donde va no se mueve otra vez. duck no crea ni cierra issues, ni
@@ -336,6 +349,9 @@ feature, y se citan por `S#`.
 
 **Las piezas (sección 6)** son las mismas: `estado-tarea.js`, `historia-sigue-subtareas.js` y
 `panel-al-cerrar.js` escuchan `ticket.js mover` en vez de `transitionJiraIssue`, y `cierre-finalizado.js`
-ve el merge y recuerda releer y mover a Done.
+ve el merge y recuerda releer y mover a Done. `pr-a-revision.js` ve el `gh pr create` que abrió un PR y
+mueve a In Review él mismo los issues que ese PR cierra (un PR parcial, con `Refs #N`, no mueve nada), e `issue-padre.js` cuelga de su HU el issue creado con
+`Part of`. `issue-al-project.js` agrega al Project todo issue creado con `gh issue create`: fuera del tablero
+un issue no tiene estado y nada lo puede seguir.
 
 - **`duck:analista` no tiene Bash.** Al delegarle con GitHub, pasale en el prompt la salida de `ticket.js ver <clave>` (de la HU y de la sub-tarea) y el cuerpo con `gh issue view <N> -R <owner>/<repo>`.

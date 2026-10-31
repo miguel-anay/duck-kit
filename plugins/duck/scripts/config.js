@@ -39,6 +39,7 @@ const DEFECTOS = {
       pendiente: 'Ready',
       enProceso: 'In Progress',
       enRevision: 'In Review',
+      pruebas: 'Testing', // la HU con todos sus sub-issues cerrados, como la historia en Pruebas de Jira
       finalizado: 'Done',
       bloqueado: 'Blocked',
     },
@@ -272,7 +273,9 @@ const TICKET_JS = path.join(__dirname, 'ticket.js').replace(/\\/g, '/');
 function movidasDeGithub(evento, cfg) {
   if (cfg.tickets.proveedor !== 'github' || evento?.tool_name !== 'Bash') return [];
   if (!/\bticket\.js["']?\s+mover\b/.test(evento?.tool_input?.command || '')) return [];
-  const r = evento?.tool_response;
+  // On PostToolUseFailure (the Bash ended non-zero after ticket.js succeeded, e.g. a later
+  // command in the same line) there is no tool_response: the output comes in `error`.
+  const r = evento?.tool_response ?? evento?.error;
   const salida = typeof r === 'string' ? r : [r?.stdout, r?.output].filter((t) => typeof t === 'string').join('\n');
   return [...salida.matchAll(/^Issue \(([\w.-]+\/[\w.-]+#\d+)\) movido a \(([^)\r\n]+)\)\r?$/gm)].map(
     ([, clave, estado]) => ({ clave, estado })
@@ -406,6 +409,68 @@ function carpetaDe(dir, cfg) {
   return cfg.git.carpetas.includes('.') ? '.' : null;
 }
 
+// --- Estado de la sesion: <dirEstado>/<session_id>.json = { tareas, modo, ... } ---
+
+const ID_SESION = /^[A-Za-z0-9_-]+$/;
+
+// Lo que la sesion tiene anotado, sin las tareas vencidas. Sin archivo: vacio, modo tarea.
+function leerSesion(cfg, sesion) {
+  let almacen = { tareas: {}, modo: 'tarea' };
+  try {
+    almacen = { ...almacen, ...JSON.parse(fs.readFileSync(path.join(cfg.dirEstado, `${sesion}.json`), 'utf8')) };
+  } catch {
+    /* primera vez en esta sesion */
+  }
+  return { ...almacen, tareas: tareasVigentes(almacen.tareas) };
+}
+
+function guardarSesion(cfg, sesion, almacen) {
+  fs.mkdirSync(cfg.dirEstado, { recursive: true });
+  fs.writeFileSync(path.join(cfg.dirEstado, `${sesion}.json`), JSON.stringify(almacen, null, 2) + '\n');
+  barrerSesionesViejas(cfg.dirEstado);
+}
+
+// Las sesiones no avisan cuando terminan: sin esto la carpeta crece sola.
+function barrerSesionesViejas(carpeta) {
+  const limite = Date.now() - VIGENCIA_HORAS * 3600 * 1000;
+  try {
+    for (const archivo of fs.readdirSync(carpeta)) {
+      const ruta = path.join(carpeta, archivo);
+      if (fs.statSync(ruta).mtimeMs < limite) fs.unlinkSync(ruta);
+    }
+  } catch {
+    /* si no se puede barrer, no es grave */
+  }
+}
+
+// Una sesion continuada (compactada o retomada) arranca con otro session_id y sin estado: hereda
+// tareas, modo y spike de la anterior, y su archivo de historia si no tiene uno. La anterior sale
+// del resumen que Claude Code pone al principio del transcript.
+// ponytail: depende del texto "read the full transcript at: .../<id>.jsonl" del resumen; si Claude
+// Code lo cambia, la herencia deja de ocurrir (no rompe nada) y hay que volver a leer el formato.
+function heredarSesionAnterior(cfg, sesion, transcript) {
+  if (!ID_SESION.test(sesion || '') || !transcript) return;
+  if (fs.existsSync(path.join(cfg.dirEstado, `${sesion}.json`))) return; // nunca pisa lo propio
+  let inicio = '';
+  try {
+    const fd = fs.openSync(transcript, 'r');
+    const buffer = Buffer.alloc(1024 * 1024);
+    inicio = buffer.toString('utf8', 0, fs.readSync(fd, buffer, 0, buffer.length, 0));
+    fs.closeSync(fd);
+  } catch {
+    return;
+  }
+  const anterior = inicio.match(/read the full transcript at:\s*\S*?[\\/]([A-Za-z0-9_-]+)\.jsonl/)?.[1];
+  if (!anterior || anterior === sesion || !fs.existsSync(path.join(cfg.dirEstado, `${anterior}.json`))) return;
+
+  const { tareas, modo, spike } = leerSesion(cfg, anterior);
+  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}) });
+  const historia = (id) => path.join(cfg.dirEstado, `${id}-historia.json`);
+  if (fs.existsSync(historia(anterior)) && !fs.existsSync(historia(sesion))) {
+    fs.copyFileSync(historia(anterior), historia(sesion));
+  }
+}
+
 module.exports = {
   cargar,
   hook,
@@ -425,4 +490,7 @@ module.exports = {
   escapar,
   VIGENCIA_HORAS,
   tareasVigentes,
+  leerSesion,
+  guardarSesion,
+  heredarSesionAnterior,
 };

@@ -33,6 +33,7 @@ for d in */; do git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && e
 - **Organización.** La parte del dueño en esas URLs. Si hay más de una, no elijas: va al paso 3.
 - **Rama base.** Es donde se integra el trabajo, que no siempre es la rama por defecto de GitHub. Si existe `origin/develop` (o `develop` local, si no hay remoto) en los repos, proponé `develop`. Si no, `git -C <d> symbolic-ref --short refs/remotes/origin/HEAD` (quitá `origin/`), y si eso no responde, la que exista de `main` o `master`. Siempre se confirma en el paso 3, con lo que viste: «`origin/HEAD` es `main`, pero existe `develop`».
 - **Prefijos de rama.** `git -C <d> branch -r --format='%(refname:short)'`, y contá los prefijos (`feature/`, `bugfix/`, `hotfix/`, `spec/`, …). Los que se usan entran en `git.prefijos`. Con GitHub Projects las ramas son `<prefijo>/N-slug` (`feat/12-login` → `feat`), y la rama base suele ser `main`, la de `origin/HEAD`.
+- **Borrado de la rama remota al mergear.** Con la organización conocida, por cada repo: `gh api repos/<org>/<repo> --jq .delete_branch_on_merge`. El cierre (paso 11 de `METODO.md`) borra solo la rama local y cuenta con que GitHub ya borró la remota: con `false`, cada merge deja la rama colgada en GitHub. No se pregunta ni va a `duck.json`, porque es una opción del repo y no de duck: se avisa en el paso 5. Si `gh` no responde, va a «sin verificar».
 
 No hagas `fetch`: alcanza con lo que ya hay. **No leas** archivos de configuración local con secretos (`.env`, `appsettings.local.json` y parecidos).
 
@@ -64,7 +65,7 @@ Con este proveedor, `duck.json` lleva `"tickets": { "proveedor": "github" }` y u
 
 - **Acceso.** `gh auth status`: los scopes del token tienen que incluir `project`. Si falta, decilo y dá el comando para agregarlo, `gh auth refresh -s project` (lo corre la persona; vos no). Sin ese scope se sigue, pero `ticket.js` no va a poder leer ni mover el estado, y en el paso 5 se marca «sin verificar».
 - **Proyecto.** `gh project list --owner <org>`, con la organización del paso 1. Si hay uno solo, ese: `github.proyecto.owner` = `<org>` y `github.proyecto.numero` = su número. Si hay varios, va al paso 3. Uno cuya descripción dice *legacy* no es candidato.
-- **Campo y estados.** `gh project field-list <número> --owner <org> --format json`: el campo de selección única con los estados (lo normal es `Status`) es `github.campoEstado`. Sus opciones se asignan a `github.estados`: `pendiente` (`Ready`), `enProceso` (`In Progress`), `enRevision` (`In Review`), `finalizado` (`Done`), `bloqueado` (`Blocked`). Una opción que no se pueda emparejar por nombre va al paso 3; las que coinciden no se preguntan.
+- **Campo y estados.** `gh project field-list <número> --owner <org> --format json`: el campo de selección única con los estados (lo normal es `Status`) es `github.campoEstado`. Sus opciones se asignan a `github.estados`: `pendiente` (`Ready`), `enProceso` (`In Progress`), `enRevision` (`In Review`), `pruebas` (`Testing`), `finalizado` (`Done`), `bloqueado` (`Blocked`). Una opción que no se pueda emparejar por nombre va al paso 3; las que coinciden no se preguntan.
 - **Rama base y prefijos.** Los del paso 1: `origin/HEAD` (normalmente `main`) y los prefijos de las ramas `<prefijo>/N-slug`. `git.orgGithub` es la misma organización.
 
 Si `gh` no está, no tiene sesión o no tiene acceso a la organización, se dice y se sigue con los valores por defecto, marcados «sin verificar».
@@ -99,6 +100,8 @@ Mostrá los dos archivos completos (o, si ya existían, las diferencias), y deba
 
 - Lo **detectado**, con su origen en una línea (por ejemplo: `git.ramaBase = develop` — `origin/HEAD` de los 3 repos).
 - Lo **sin verificar**: lo que quedó con el valor por defecto porque no se pudo consultar.
+- Los repos con **`delete_branch_on_merge` en `false`**, cada uno con el comando que lo prende: `gh api -X PATCH repos/<org>/<repo> -F delete_branch_on_merge=true`. Lo corre la persona (pide admin del repo); duck no lo cambia.
+- La **regla de permiso del merge**, para que la persona la agregue a mano en `permissions.allow` de `.claude/settings.json`: `"Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/mergear-pr.js:*)"`, con la ruta tal como se expande acá. Sin ella, el auto mode de Claude Code frena el merge del modo flujo («Merge Without Review»), porque no lee el modo de duck. Cubre solo ese script, que exige CI en verde y el head verificado, y `guard-git.js` lo niega fuera del modo flujo salvo con `--a-pedido`. duck no la escribe: ampliar permisos lo decide la persona.
 
 Esperá un «sí» explícito. Una corrección no es un sí: se aplica, se vuelve a mostrar, y se espera otra vez.
 

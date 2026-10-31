@@ -93,6 +93,21 @@ test('estado-tarea records a GitHub move from the ticket.js success line', () =>
   assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Progress');
 });
 
+test('estado-tarea records a GitHub move when the Bash command failed after ticket.js succeeded', () => {
+  // PostToolUseFailure: no tool_response, the output travels in `error`.
+  const raiz = proyecto(GITHUB);
+  const evento = { ...mover(''), tool_response: undefined, hook_event_name: 'PostToolUseFailure',
+    error: 'Exit code 1\nIssue (org/app#12) movido a (In Progress)\n' };
+  correr('estado-tarea.js', raiz, evento);
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Progress');
+});
+
+test('hooks.json runs estado-tarea on PostToolUseFailure for Bash', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(SCRIPTS, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = (hooks.PostToolUseFailure || []).find((m) => m.matcher === 'Bash');
+  assert.ok(bash && bash.hooks.some((h) => h.command.includes('estado-tarea.js')));
+});
+
 test('estado-tarea ignores a ticket.js mover that printed no success line', () => {
   const raiz = proyecto(GITHUB);
   correr('estado-tarea.js', raiz, mover(''));
@@ -226,6 +241,22 @@ test('historia-sigue-subtareas (github) reminds to move the parent issue', () =>
   const fin = contexto(correr('historia-sigue-subtareas.js', raiz, mover('Issue (org/app#12) movido a (Done)\n')));
   assert.match(fin, /todas sus hijas estan cerradas/);
   assert.match(fin, /Closes/);
+});
+
+test('historia-sigue-subtareas (github) sends the parent to Testing, not Done, when every child is closed', () => {
+  const raiz = proyecto(GITHUB);
+  const fin = contexto(correr('historia-sigue-subtareas.js', raiz, mover('Issue (org/app#12) movido a (Done)\n')));
+  assert.match(fin, /mover <padre> pruebas`/);
+  assert.doesNotMatch(fin, /mover <padre> finalizado/);
+  assert.match(fin, /Done lo decide una persona/);
+});
+
+test('cierre-finalizado (github) sends an HU with sub-issues to Testing, not Done', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const texto = contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}')));
+  assert.match(texto, /pasa a Testing/);
+  assert.match(texto, /Done lo decide una persona/);
 });
 
 test('historia-sigue-subtareas (jira) still reminds on En Proceso', () => {
@@ -538,4 +569,423 @@ test('guard-sin-clave (single-repo project) ignores repos outside the root and c
   ]) {
     assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, c))), c);
   }
+});
+
+// --- tarea-por-commit: a commit on a task branch records the task in the session ---
+
+const commit = (salida, comando = 'git commit -m "feat: x"', extra = {}) => ({
+  session_id: 's1',
+  tool_name: 'Bash',
+  tool_input: { command: comando },
+  tool_response: { stdout: salida, stderr: '' },
+  ...extra,
+});
+
+function repoGithub(raiz, rama) {
+  repo(raiz, rama);
+  git(raiz, 'remote', 'add', 'origin', 'https://github.com/org/app.git');
+}
+
+test('tarea-por-commit (github) records the branch issue of a successful commit as in progress', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/12-algo');
+  const r = correr('tarea-por-commit.js', raiz, commit('[feat/12-algo 1a2b3c4] feat: x\n 1 file changed\n', undefined, { cwd: raiz }));
+  assert.equal(r.status, 0);
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Progress');
+});
+
+test('tarea-por-commit keeps a recorded state and only refreshes when it was worked on', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/12-algo');
+  escribirSesion(raiz, 's1', { tareas: { 'org/app#12': { estado: 'In Review', desde: new Date(Date.now() - 3600e3).toISOString() } }, modo: 'flujo' });
+  correr('tarea-por-commit.js', raiz, commit('[feat/12-algo 1a2b3c4] fix: y\n', undefined, { cwd: raiz }));
+  const sesion = leerSesion(raiz, 's1');
+  assert.equal(sesion.tareas['org/app#12'].estado, 'In Review');
+  assert.ok(Date.parse(sesion.tareas['org/app#12'].desde) > Date.now() - 60e3);
+  assert.equal(sesion.modo, 'flujo');
+});
+
+test('tarea-por-commit ignores a failed commit, a non-commit command and a branch without a key', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/12-algo');
+  correr('tarea-por-commit.js', raiz, commit('nothing to commit, working tree clean\n', undefined, { cwd: raiz }));
+  correr('tarea-por-commit.js', raiz, commit('[feat/12-algo 1a2b3c4] x\n', 'git log -1', { cwd: raiz }));
+  correr('tarea-por-commit.js', raiz, commit('[main 1a2b3c4] chore: x\n', undefined, { cwd: raiz }));
+  assert.equal(fs.existsSync(path.join(raiz, '.claude', 'estado', 'sesiones', 's1.json')), false);
+});
+
+test('tarea-por-commit reads the repo of a cd or git -C folder, not the session folder', () => {
+  const raiz = proyecto(GITHUB);
+  const otro = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-otro-'));
+  temporales.push(otro);
+  repoGithub(otro, 'feat/7-x');
+  git(otro, 'remote', 'set-url', 'origin', 'git@github.com:org/api.git');
+  correr('tarea-por-commit.js', raiz, commit('[feat/7-x 1a2b3c4] feat: x\n', `cd ${otro} && git add -A && git commit -m "feat: x"`, { cwd: raiz }));
+  correr('tarea-por-commit.js', raiz, commit('[feat/7-x 9f8e7d6] feat: y\n', `git -C ${otro} commit -m "feat: y"`, { cwd: raiz }));
+  assert.deepEqual(Object.keys(leerSesion(raiz, 's1').tareas), ['org/api#7']);
+});
+
+test('tarea-por-commit (jira) records the key of the branch', () => {
+  const raiz = proyecto({ ...JIRA, jira: { proyecto: 'ABC' } });
+  repo(raiz, 'feature/ABC-5-algo');
+  correr('tarea-por-commit.js', raiz, commit('[feature/ABC-5-algo 1a2b3c4] feat(ABC-5): x\n', undefined, { cwd: raiz }));
+  assert.equal(leerSesion(raiz, 's1').tareas['ABC-5'].estado, 'En Proceso');
+});
+
+test('hooks.json runs tarea-por-commit after Bash commits', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => h.command.includes('tarea-por-commit.js')));
+});
+
+// --- continued sessions inherit the previous session's tasks ---
+
+function transcript(raiz, anterior) {
+  const ruta = path.join(raiz, 'transcript.jsonl');
+  fs.writeFileSync(ruta, JSON.stringify({ type: 'user', message: { content:
+    `If you need specific details from before compaction, read the full transcript at: /home/u/.claude/projects/p/${anterior}.jsonl\nContinue the conversation` } }) + '\n');
+  return ruta;
+}
+
+test('sesion-inicio copies tasks and mode of the session it continues', () => {
+  const raiz = proyecto(GITHUB);
+  const reciente = new Date().toISOString();
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: reciente } }, modo: 'flujo' });
+  correr('sesion-inicio.js', raiz, { session_id: 'nueva-2', source: 'startup', transcript_path: transcript(raiz, 'vieja-1') });
+  const nueva = leerSesion(raiz, 'nueva-2');
+  assert.deepEqual(nueva.tareas, { 'org/app#12': { estado: 'In Progress', desde: reciente } });
+  assert.equal(nueva.modo, 'flujo');
+});
+
+test('a continued session never overwrites its own tasks with the previous ones', () => {
+  const raiz = proyecto(GITHUB);
+  const reciente = new Date().toISOString();
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: reciente } } });
+  escribirSesion(raiz, 'nueva-2', { tareas: { 'org/app#30': { estado: 'In Review', desde: reciente } }, modo: 'tarea' });
+  correr('sesion-inicio.js', raiz, { session_id: 'nueva-2', transcript_path: transcript(raiz, 'vieja-1') });
+  assert.deepEqual(Object.keys(leerSesion(raiz, 'nueva-2').tareas), ['org/app#30']);
+});
+
+test('tarea-por-commit inherits the previous session first when the summary arrived after the start', () => {
+  const raiz = proyecto(GITHUB);
+  repoGithub(raiz, 'feat/30-x');
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: new Date().toISOString() } } });
+  correr('tarea-por-commit.js', raiz, commit('[feat/30-x 1a2b3c4] feat: x\n', undefined,
+    { session_id: 'nueva-2', cwd: raiz, transcript_path: transcript(raiz, 'vieja-1') }));
+  assert.deepEqual(Object.keys(leerSesion(raiz, 'nueva-2').tareas).sort(), ['org/app#12', 'org/app#30']);
+});
+
+test('inventario inherits the previous session from the transcript Claude Code keeps for the project', () => {
+  const raiz = proyecto(GITHUB);
+  const config = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-config-'));
+  temporales.push(config);
+  const dir = path.join(config, 'projects', fs.realpathSync(raiz).replace(/[^A-Za-z0-9]/g, '-'));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.copyFileSync(transcript(raiz, 'vieja-1'), path.join(dir, 'nueva-2.jsonl'));
+  escribirSesion(raiz, 'vieja-1', { tareas: { 'org/app#12': { estado: 'In Progress', desde: new Date().toISOString() } } });
+  const r = spawnSync('node', [path.join(SCRIPTS, 'inventario.js'), 'nueva-2'], {
+    cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz, CLAUDE_CONFIG_DIR: config }, encoding: 'utf8' });
+  assert.deepEqual(Object.keys(JSON.parse(r.stdout).sesion), ['org/app#12']);
+});
+
+// --- guard-git: first push of the base branch ---
+
+test('guard-git allows the first push of the base branch to an empty remote, and only that one', () => {
+  const raiz = proyecto(GITHUB);
+  const app = path.join(raiz, 'app');
+  const remoto = path.join(raiz, 'remoto.git');
+  fs.mkdirSync(app);
+  repo(app, 'main');
+  git(raiz, 'init', '-q', '--bare', remoto);
+  git(app, 'remote', 'add', 'origin', remoto);
+
+  // Empty remote: there is no base to open a PR against, so the first push must pass.
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('git -C app push -u origin main', raiz))));
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('git push -u origin main', app))));
+
+  // Once the base exists on the remote, pushing to it is blocked again.
+  git(app, 'push', '-q', 'origin', 'main');
+  assert.ok(negado(correr('guard-git.js', raiz, bash('git -C app push -u origin main', raiz))));
+  assert.ok(negado(correr('guard-git.js', raiz, bash('git push origin HEAD:main', app))));
+  // Pushing a task branch is still allowed.
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('git push -u origin feat/1-x', app))));
+});
+
+test('guard-git blocks a push to the base when the remote cannot be read', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'main');
+  git(raiz, 'remote', 'add', 'origin', path.join(raiz, 'no-existe.git'));
+  assert.ok(negado(correr('guard-git.js', raiz, bash('git push -u origin main', raiz))));
+});
+
+// --- guard-git: who may run mergear-pr.js ---
+
+const SHA = 'a'.repeat(40);
+
+test('guard-git lets the agent run mergear-pr.js only in flow mode or with --a-pedido', () => {
+  const raiz = proyecto(GITHUB);
+  const merge = `node /x/scripts/mergear-pr.js app 7 ${SHA}`;
+  // Task mode (no session file): the owner has to ask for this PR.
+  assert.ok(negado(correr('guard-git.js', raiz, bash(merge))));
+  assert.ok(negado(correr('guard-git.js', raiz, bash(`cd app && ${merge}`))));
+  assert.ok(!negado(correr('guard-git.js', raiz, bash(`node /x/scripts/mergear-pr.js --a-pedido app 7 ${SHA}`))));
+  // Flow mode: the series was authorized with its merges.
+  escribirSesion(raiz, 's1', { modo: 'flujo', tareas: {} });
+  assert.ok(!negado(correr('guard-git.js', raiz, bash(merge))));
+  // Other commands that only mention the script are not merges.
+  escribirSesion(raiz, 's1', { modo: 'tarea', tareas: {} });
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('grep -n fallar /x/scripts/mergear-pr.js'))));
+});
+
+test('mergear-pr.js ignores --a-pedido when reading its arguments', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, orgGithub: 'org', repos: { app: 'app' } } });
+  const r = spawnSync('node', [path.join(SCRIPTS, 'mergear-pr.js'), '--a-pedido', 'app', '7', 'corto'], {
+    cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz }, encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /falta el sha completo/);
+});
+
+// --- pr-a-revision ---
+
+const prCreado = (cmd, stdout = 'https://github.com/org/app/pull/28\n') => ({
+  session_id: 's1',
+  tool_name: 'Bash',
+  tool_input: { command: cmd },
+  tool_response: { stdout },
+});
+
+// Stand-in for ticket.js: records its argv and prints the success line of the real one.
+function ticketFalso(raiz) {
+  const script = path.join(raiz, 'ticket-falso.js');
+  fs.writeFileSync(
+    script,
+    "require('fs').writeFileSync(process.argv[1] + '.args', process.argv.slice(2).join(' '));\n" +
+      'console.log(`Issue (${process.argv[3]}) movido a (In Review)`);\n'
+  );
+  return { env: { DUCK_TICKET_JS: script }, args: () => (fs.existsSync(script + '.args') ? fs.readFileSync(script + '.args', 'utf8') : null) };
+}
+
+// Stand-in for gh: answers the PR's closingIssuesReferences with `cierra` (owner/repo#N list).
+function ghCierra(raiz, cierra) {
+  const script = path.join(raiz, 'gh-cierra.js');
+  const nodos = cierra.map((c) => ({ number: Number(c.split('#')[1]), repository: { nameWithOwner: c.split('#')[0] } }));
+  fs.writeFileSync(script, '#!/usr/bin/env node\n' +
+    `console.log(JSON.stringify({ data: { repository: { pullRequest: { closingIssuesReferences: { nodes: ${JSON.stringify(nodos)} } } } } }))\n`);
+  fs.chmodSync(script, 0o755);
+  return { DUCK_GH: script };
+}
+
+test('pr-a-revision (github) moves the issue the PR closes to In Review', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const falso = ticketFalso(raiz);
+  const r = correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: { ...falso.env, ...ghCierra(raiz, ['org/app#27']) } });
+  assert.equal(falso.args(), 'mover org/app#27 enRevision');
+  assert.match(contexto(r), /Issue \(org\/app#27\) movido a \(In Review\)/);
+});
+
+test('pr-a-revision leaves the HU alone on a partial PR that closes nothing, whatever the branch says', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/41-plan');
+  const falso = ticketFalso(raiz);
+  const r = correr('pr-a-revision.js', raiz, prCreado('gh pr create --head fix/41-plan --fill'), { env: { ...falso.env, ...ghCierra(raiz, []) } });
+  assert.equal(falso.args(), null);
+  assert.equal(r.stdout, '');
+});
+
+test('pr-a-revision does nothing when the PR was not created', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const falso = ticketFalso(raiz);
+  const r = correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill', 'a pull request for branch "fix/27-x" already exists'), { env: falso.env });
+  assert.equal(falso.args(), null);
+  assert.equal(r.stdout, '');
+});
+
+test('pr-a-revision (jira) does nothing', () => {
+  const raiz = proyecto(JIRA);
+  repo(raiz, 'feature/ABC-1-x');
+  const falso = ticketFalso(raiz);
+  correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: falso.env });
+  assert.equal(falso.args(), null);
+});
+
+test('hooks.json runs pr-a-revision after a gh pr create', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => /pr-a-revision\.js/.test(h.command) && h.if === 'Bash(*gh*pr*create*)'));
+});
+
+// --- the panel follows the issue from the moment it is taken ---
+
+const historiaDe = (raiz, sesion = 's1') => path.join(raiz, '.claude', 'estado', 'sesiones', `${sesion}-historia.json`);
+
+// Stand-in for `ticket.js ver`: prints the issue with the given parent.
+function verFalso(raiz, padre) {
+  const script = path.join(raiz, 'ver-falso.js');
+  fs.writeFileSync(script, `console.log(JSON.stringify({ clave: process.argv[3], padre: ${JSON.stringify(padre)} }))\n`);
+  return { DUCK_TICKET_JS: script };
+}
+
+test('estado-tarea (github) creates the session story file with the parent issue when one is taken', () => {
+  const raiz = proyecto(GITHUB);
+  correr('estado-tarea.js', raiz, mover('Issue (org/app#12) movido a (In Progress)\n'), { env: verFalso(raiz, 'org/docs#3') });
+  const datos = JSON.parse(fs.readFileSync(historiaDe(raiz), 'utf8'));
+  assert.deepEqual(datos.historias, [{ historia: { clave: 'org/docs#3', titulo: '' }, subtareas: [] }]);
+  assert.deepEqual(datos.alertas, []);
+});
+
+test('estado-tarea (github) uses the issue itself as the story when it has no parent', () => {
+  const raiz = proyecto(GITHUB);
+  correr('estado-tarea.js', raiz, mover('Issue (org/app#38) movido a (In Progress)\n'), { env: verFalso(raiz, null) });
+  assert.equal(JSON.parse(fs.readFileSync(historiaDe(raiz), 'utf8')).historias[0].historia.clave, 'org/app#38');
+});
+
+test('estado-tarea keeps an existing session story file', () => {
+  const raiz = proyecto(GITHUB);
+  escribirSesion(raiz, 's1', { tareas: {} });
+  const previo = { actualizado: 'x', alertas: [], historias: [{ historia: { clave: 'org/docs#9', titulo: 'HU' }, subtareas: [] }] };
+  fs.writeFileSync(historiaDe(raiz), JSON.stringify(previo));
+  correr('estado-tarea.js', raiz, mover('Issue (org/app#12) movido a (In Progress)\n'), { env: verFalso(raiz, 'org/docs#3') });
+  assert.deepEqual(JSON.parse(fs.readFileSync(historiaDe(raiz), 'utf8')), previo);
+});
+
+test('estado-tarea (github) records an In Review move', () => {
+  const raiz = proyecto(GITHUB);
+  correr('estado-tarea.js', raiz, mover('Issue (org/app#12) movido a (In Review)\n', '#12', 'enRevision'), { env: verFalso(raiz, null) });
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#12'].estado, 'In Review');
+});
+
+test('pr-a-revision records the In Review move in the session', () => {
+  const raiz = proyecto(GITHUB);
+  const falso = ticketFalso(raiz);
+  correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: { ...falso.env, ...ghCierra(raiz, ['org/app#27']) } });
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#27'].estado, 'In Review');
+});
+
+test('sticker (github) shows an issue that is In Review', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'main');
+  escribirSesion(raiz, 's1', { tareas: { 'org/app#12': { estado: 'In Review', desde: new Date().toISOString() } } });
+  const r = correr('sticker.js', raiz, { session_id: 's1', cwd: raiz });
+  assert.ok(r.stdout.includes('org/app#12 >'), r.stdout);
+});
+
+// --- issue-padre ---
+
+const issueCreado = (stdout = 'https://github.com/org/app/issues/5\n', cmd = 'gh issue create -R org/app --title t --body-file b.md') => ({
+  session_id: 's1',
+  tool_name: 'Bash',
+  tool_input: { command: cmd },
+  tool_response: { stdout },
+});
+
+// Stand-in for gh: logs each call, answers the issue read with `cuerpo` and any write with {}.
+function ghFalso(raiz, cuerpo) {
+  const script = path.join(raiz, 'gh-falso.js');
+  const log = script + '.log';
+  fs.writeFileSync(
+    script,
+    '#!/usr/bin/env node\n' +
+    `const a = process.argv.slice(2); require('fs').appendFileSync(${JSON.stringify(log)}, a.join(' ') + '\\n');\n` +
+      `console.log(a.includes('POST') ? '{}' : JSON.stringify({ id: 555, body: ${JSON.stringify(cuerpo)} }));\n`
+  );
+  fs.chmodSync(script, 0o755);
+  return { env: { DUCK_GH: script }, llamadas: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : []) };
+}
+
+test('issue-padre (github) hangs the new issue under the HU named in Part of', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Bug text.\n\nPart of: org/docs#41\n');
+  const r = correr('issue-padre.js', raiz, issueCreado(), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), ['api repos/org/app/issues/5', 'api -X POST repos/org/docs/issues/41/sub_issues -F sub_issue_id=555']);
+  assert.match(contexto(r), /org\/app#5 .*sub-issue de org\/docs#41/);
+});
+
+test('issue-padre resolves a bare #N in Part of against the new issue repo', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Part of #3');
+  correr('issue-padre.js', raiz, issueCreado(), { env: gh.env });
+  assert.equal(gh.llamadas()[1], 'api -X POST repos/org/app/issues/3/sub_issues -F sub_issue_id=555');
+});
+
+test('issue-padre does not link on a mere Related reference', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Related: org/docs#41');
+  const r = correr('issue-padre.js', raiz, issueCreado(), { env: gh.env });
+  assert.equal(gh.llamadas().length, 1);
+  assert.equal(r.stdout, '');
+});
+
+test('issue-padre does nothing when the issue was not created', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Part of: org/docs#41');
+  correr('issue-padre.js', raiz, issueCreado('could not create issue: HTTP 422'), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), []);
+});
+
+test('hooks.json runs issue-padre after a gh issue create', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => /issue-padre\.js/.test(h.command) && h.if === 'Bash(*gh*issue*create*)'));
+});
+
+// --- merges that do not go through curl ---
+
+test('cierre-finalizado (github) recognizes duck\'s own mergear-pr.js', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { app: 'app' } } });
+  fs.mkdirSync(path.join(raiz, 'app'));
+  repo(path.join(raiz, 'app'), 'fix/27-x');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node "/x/scripts/mergear-pr.js" app 28 abc123' },
+    tool_response: { stdout: 'app #28 mergeado: ' + 'a'.repeat(40) + '\n' } };
+  const texto = contexto(correr('cierre-finalizado.js', raiz, evento));
+  assert.match(texto, /^El PR app#28 se mergeo\. #27 tiene que pasar a Done/);
+  assert.equal(leerSesion(raiz, 's1').tareas['#27'].estado, 'Mergeado');
+});
+
+test('cierre-finalizado (github) recognizes gh pr merge', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'gh pr merge 28 -R org/app --merge' },
+    tool_response: { stdout: '', stderr: '✓ Merged pull request org/app#28 (fix: x)\n' } };
+  assert.match(contexto(correr('cierre-finalizado.js', raiz, evento)), /^El PR app#28 se mergeo\. #27/);
+});
+
+test('cierre-finalizado takes the issue from the branch mergear-pr.js prints, not the local checkout', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'main');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node mergear-pr.js . 28 abc' },
+    tool_response: { stdout: 'app #28 mergeado: ' + 'a'.repeat(40) + ' (fix/27-x)\n' } };
+  assert.match(contexto(correr('cierre-finalizado.js', raiz, evento)), /^El PR app#28 se mergeo\. #27/);
+});
+
+test('cierre-finalizado ignores a mergear-pr.js that refused', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node mergear-pr.js app 28 abc' },
+    tool_response: { stdout: '', stderr: 'mergear-pr: el check build no termino en success\n' } };
+  assert.equal(correr('cierre-finalizado.js', raiz, evento).stdout, '');
+});
+
+// --- issue-al-project ---
+
+test('issue-al-project (github) adds the new issue to the configured Project', () => {
+  const raiz = proyecto({ ...GITHUB, github: { proyecto: { owner: 'org', numero: 5 } } });
+  const gh = ghFalso(raiz, '');
+  const r = correr('issue-al-project.js', raiz, issueCreado(), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), ['project item-add 5 --owner org --url https://github.com/org/app/issues/5']);
+  assert.match(contexto(r), /org\/app#5 .*Project/);
+});
+
+test('issue-al-project does nothing without a configured Project', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, '');
+  correr('issue-al-project.js', raiz, issueCreado(), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), []);
+});
+
+test('hooks.json runs issue-al-project after a gh issue create', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => /issue-al-project\.js/.test(h.command) && h.if === 'Bash(*gh*issue*create*)'));
 });

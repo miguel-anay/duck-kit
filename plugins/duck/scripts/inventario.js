@@ -18,7 +18,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { cargar, escapar, claveDeRama, clavesEnTexto, referenciaIssue } = require('./config');
+const { cargar, escapar, claveDeRama, clavesEnTexto, referenciaIssue, heredarSesionAnterior } = require('./config');
 
 const RAIZ_PLUGIN = path.resolve(__dirname, '..');
 const cfg = cargar();
@@ -218,11 +218,21 @@ function git(cwd, args) {
   return gitArgs(cwd, args).trim();
 }
 
+// Transcript de la sesion: Claude Code lo guarda en <config>/projects/<raiz con todo lo que no es
+// letra o numero cambiado por "-">/<id>.jsonl. El inventario solo recibe el id.
+function transcriptDe(sessionId) {
+  const raiz = path.resolve(cfg.dirEstado, '..', '..', '..');
+  const config = process.env.CLAUDE_CONFIG_DIR || path.join(require('os').homedir(), '.claude');
+  return path.join(config, 'projects', raiz.replace(/[^A-Za-z0-9]/g, '-'), `${sessionId}.jsonl`);
+}
+
 // --- sesion: tareas recientes de la sesion actual, si se paso el id ---
 
 function leerSesion(sessionId) {
   // El id puede venir como `--claves`: solo cuenta lo que parece un id de sesion.
   if (!sessionId || !/^[A-Za-z0-9_-]+$/.test(sessionId)) return null;
+  // Una sesion recien continuada todavia no hizo commits ni movidas: hereda aca tambien.
+  intentar(() => heredarSesionAnterior(cfg, sessionId, transcriptDe(sessionId)), null);
   const ruta = path.join(cfg.dirEstado, `${sessionId}.json`);
   let contenido;
   try {

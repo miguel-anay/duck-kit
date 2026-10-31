@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 
 import { argvJira, claveValida, parsearConfig } from '../mod/nombres.ts'
 import { construirHechosRepo, repoDeConfigGit, resolverRuta } from '../mod/hechos.ts'
-import { fusionarConJira, textoDesdeTicket } from '../mod/historia.ts'
+import { fusionarConJira, parsearHistoria, textoDesdeTicket } from '../mod/historia.ts'
 
 const github = (extra = {}) => parsearConfig(JSON.stringify({ tickets: { proveedor: 'GitHub' }, ...extra }))
 const rama = (nombre, config) =>
@@ -149,4 +149,22 @@ test('jira: default config, key pattern, branch key and acli argv are unchanged'
     'acli', 'jira', 'workitem', 'search', '--jql', 'key = ABC-1 OR parent = ABC-1',
     '--fields', 'key,summary,status,assignee', '--json', '--limit', '100',
   ])
+})
+
+test('historia: an unassigned sub-task (responsable null or missing) does not discard the file', () => {
+  const texto = JSON.stringify({
+    actualizado: '2026-10-28T00:00:00Z',
+    alertas: [],
+    historias: [{
+      historia: { clave: 'org/docs#24', titulo: 'HU' },
+      subtareas: [
+        { clave: 'org/app#1', prefijo: '', titulo: 'a', estado: 'In Progress', responsable: 'ana' },
+        { clave: 'org/app#2', prefijo: '', titulo: 'b', estado: 'Backlog', responsable: null },
+        { clave: 'org/app#3', prefijo: '', titulo: 'c', estado: 'Backlog' },
+      ],
+    }],
+  })
+  const historia = parsearHistoria(texto)
+  assert.notEqual(historia, null)
+  assert.deepEqual(historia.historias[0].subtareas.map((s) => s.responsable), ['ana', '', ''])
 })
