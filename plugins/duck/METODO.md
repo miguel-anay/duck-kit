@@ -348,6 +348,7 @@ feature, y se citan por `S#`.
 `panel-al-cerrar.js` escuchan `ticket.js mover` en vez de `transitionJiraIssue`, y `cierre-finalizado.js`
 ve el merge y recuerda releer y mover a Done. `pr-a-revision.js` ve el `gh pr create` que abrió un PR y
 mueve el issue de la rama a In Review él mismo, e `issue-padre.js` cuelga de su HU el issue creado con
-`Part of`.
+`Part of`. `issue-al-project.js` agrega al Project todo issue creado con `gh issue create`: fuera del tablero
+un issue no tiene estado y nada lo puede seguir.
 
 - **`duck:analista` no tiene Bash.** Al delegarle con GitHub, pasale en el prompt la salida de `ticket.js ver <clave>` (de la HU y de la sub-tarea) y el cuerpo con `gh issue view <N> -R <owner>/<repo>`.

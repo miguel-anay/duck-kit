@@ -837,3 +837,63 @@ test('hooks.json runs issue-padre after a gh issue create', () => {
   const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
   assert.ok(bash.some((h) => /issue-padre\.js/.test(h.command) && h.if === 'Bash(*gh*issue*create*)'));
 });
+
+// --- merges that do not go through curl ---
+
+test('cierre-finalizado (github) recognizes duck\'s own mergear-pr.js', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { app: 'app' } } });
+  fs.mkdirSync(path.join(raiz, 'app'));
+  repo(path.join(raiz, 'app'), 'fix/27-x');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node "/x/scripts/mergear-pr.js" app 28 abc123' },
+    tool_response: { stdout: 'app #28 mergeado: ' + 'a'.repeat(40) + '\n' } };
+  const texto = contexto(correr('cierre-finalizado.js', raiz, evento));
+  assert.match(texto, /^El PR app#28 se mergeo\. #27 tiene que pasar a Done/);
+  assert.equal(leerSesion(raiz, 's1').tareas['#27'].estado, 'Mergeado');
+});
+
+test('cierre-finalizado (github) recognizes gh pr merge', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'gh pr merge 28 -R org/app --merge' },
+    tool_response: { stdout: '', stderr: '✓ Merged pull request org/app#28 (fix: x)\n' } };
+  assert.match(contexto(correr('cierre-finalizado.js', raiz, evento)), /^El PR app#28 se mergeo\. #27/);
+});
+
+test('cierre-finalizado takes the issue from the branch mergear-pr.js prints, not the local checkout', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'main');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node mergear-pr.js . 28 abc' },
+    tool_response: { stdout: 'app #28 mergeado: ' + 'a'.repeat(40) + ' (fix/27-x)\n' } };
+  assert.match(contexto(correr('cierre-finalizado.js', raiz, evento)), /^El PR app#28 se mergeo\. #27/);
+});
+
+test('cierre-finalizado ignores a mergear-pr.js that refused', () => {
+  const raiz = proyecto(GITHUB);
+  repo(raiz, 'fix/27-x');
+  const evento = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node mergear-pr.js app 28 abc' },
+    tool_response: { stdout: '', stderr: 'mergear-pr: el check build no termino en success\n' } };
+  assert.equal(correr('cierre-finalizado.js', raiz, evento).stdout, '');
+});
+
+// --- issue-al-project ---
+
+test('issue-al-project (github) adds the new issue to the configured Project', () => {
+  const raiz = proyecto({ ...GITHUB, github: { proyecto: { owner: 'org', numero: 5 } } });
+  const gh = ghFalso(raiz, '');
+  const r = correr('issue-al-project.js', raiz, issueCreado(), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), ['project item-add 5 --owner org --url https://github.com/org/app/issues/5']);
+  assert.match(contexto(r), /org\/app#5 .*Project/);
+});
+
+test('issue-al-project does nothing without a configured Project', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, '');
+  correr('issue-al-project.js', raiz, issueCreado(), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), []);
+});
+
+test('hooks.json runs issue-al-project after a gh issue create', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => /issue-al-project\.js/.test(h.command) && h.if === 'Bash(*gh*issue*create*)'));
+});

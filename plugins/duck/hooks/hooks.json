@@ -74,6 +74,12 @@
           },
           {
             "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/issue-al-project.js\"",
+            "if": "Bash(*gh*issue*create*)",
+            "timeout": 30
+          },
+          {
+            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/issue-padre.js\"",
             "if": "Bash(*gh*issue*create*)",
             "timeout": 45
