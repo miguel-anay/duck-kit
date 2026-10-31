@@ -104,7 +104,7 @@ Solo con `"proveedor": "github"`.
 | `proyecto.owner` / `numero` | `null` / `null` | El Project v2 donde vive el estado (`mi-org`, `1`). |
 | `campoEstado` | `Status` | Campo de selección única del Project que guarda el estado. |
 | `historiaSigueSubtareas` | `true` | `false` apaga el recordatorio de mover la HU con sus sub-issues (el de `jira` no aplica con GitHub). |
-| `estados.pendiente` / `enProceso` / `enRevision` / `finalizado` / `bloqueado` | `Ready` / `In Progress` / `In Review` / `Done` / `Blocked` | Qué opción de ese campo es cada momento del flujo. |
+| `estados.pendiente` / `enProceso` / `enRevision` / `pruebas` / `finalizado` / `bloqueado` | `Ready` / `In Progress` / `In Review` / `Testing` / `Done` / `Blocked` | Qué opción de ese campo es cada momento del flujo. `pruebas` es la HU con todos sus sub-issues cerrados, esperando que una persona la pruebe. |
 | `estados.backlog` | `Backlog` | Opción que el panel cuenta como «sin empezar», igual que `pendiente`. Un issue abierto sin opción en el Project se muestra sin estado; uno cerrado, como `finalizado`. |
 
 Con GitHub, `git.prefijos` son los de `<prefijo>/N-slug` (`feat`, `fix`…) y `git.ramaBase` suele ser `main`.

@@ -64,8 +64,9 @@ function textoGithub(repo, numero, clave, cfg) {
     `puede haberlo movido ya por el workflow del Project: relee con \`node "${TICKET_JS}" ver ${clave}\` ` +
     `y, si no esta en ${fin}, movelo con \`node "${TICKET_JS}" mover ${clave} finalizado\`. Si el ` +
     'cambio toca varios repositorios, mover recien cuando entro el ultimo. Excepcion: si ' +
-    `${clave} es la historia (el issue padre), solo pasa a ${fin} cuando todas sus sub-issues ` +
-    'estan cerradas.'
+    `${clave} es la historia (el issue padre, con sub-issues), no pasa a ${fin}: cuando todas sus ` +
+    `sub-issues estan cerradas pasa a ${cfg.github.estados.pruebas} (\`mover ${clave} pruebas\`), y ` +
+    `${fin} lo decide una persona cuando la prueba.`
   );
 }
 
