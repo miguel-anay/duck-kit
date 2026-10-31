@@ -27,6 +27,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
 | Hook `historia-sigue-subtareas` | `scripts/historia-sigue-subtareas.js` | Recuerda mover la historia con sus sub-tareas. |
 | Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR y recuerda transicionar. |
+| Hook `pr-a-revision` | `scripts/pr-a-revision.js` | Con GitHub: cuando `gh pr create` abre el PR, mueve el issue de la rama a In Review. |
 | Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. Una sesión continuada (compactada o retomada) hereda las tareas, el modo y la historia de la anterior. |
 | Status line | `scripts/sticker.js` | El sticker de la tarea de esta sesión. **No lo puede declarar un plugin**: lo instala `instalar.ps1`. |
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |

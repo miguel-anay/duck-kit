@@ -325,7 +325,7 @@ transición que consultar. Siempre por ahí, nunca con `gh project item-edit`: l
 | Momento | Estado |
 |---|---|
 | Al tomar la tarea | `enProceso` (In Progress) |
-| Al abrir el PR | `enRevision` (In Review) |
+| Al abrir el PR | `enRevision` (In Review). Lo mueve `pr-a-revision.js` cuando el agente corre `gh pr create`. Para un PR abierto por una persona, el workflow «Pull request linked to issue» del Project, con Status en In Review, mueve el issue que el PR cierra (`Closes #N`) |
 | Al mergear | `finalizado` (Done). **Releé antes** con `ticket.js ver`: `Closes #N` y el workflow del Project pueden haberlo movido ya |
 | Lo frena algo externo | `bloqueado` (Blocked), que reemplaza al prefijo `[BLOQ]`. El motivo va en un comentario, que es texto: borrador, mostrarlo y esperar el OK |
 | La HU | `enProceso` con su primer sub-issue; `finalizado` **solo** con todos sus sub-issues cerrados. Cerrar el issue de la HU no lo decide el agente |
@@ -343,6 +343,7 @@ feature, y se citan por `S#`.
 
 **Las piezas (sección 6)** son las mismas: `estado-tarea.js`, `historia-sigue-subtareas.js` y
 `panel-al-cerrar.js` escuchan `ticket.js mover` en vez de `transitionJiraIssue`, y `cierre-finalizado.js`
-ve el merge y recuerda releer y mover a Done.
+ve el merge y recuerda releer y mover a Done. `pr-a-revision.js` ve el `gh pr create` que abrió un PR y
+mueve el issue de la rama a In Review él mismo.
 
 - **`duck:analista` no tiene Bash.** Al delegarle con GitHub, pasale en el prompt la salida de `ticket.js ver <clave>` (de la HU y de la sub-tarea) y el cuerpo con `gh issue view <N> -R <owner>/<repo>`.
