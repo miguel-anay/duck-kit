@@ -662,6 +662,33 @@ test('guard-git blocks a push to the base when the remote cannot be read', () =>
   assert.ok(negado(correr('guard-git.js', raiz, bash('git push -u origin main', raiz))));
 });
 
+// --- guard-git: who may run mergear-pr.js ---
+
+const SHA = 'a'.repeat(40);
+
+test('guard-git lets the agent run mergear-pr.js only in flow mode or with --a-pedido', () => {
+  const raiz = proyecto(GITHUB);
+  const merge = `node /x/scripts/mergear-pr.js app 7 ${SHA}`;
+  // Task mode (no session file): the owner has to ask for this PR.
+  assert.ok(negado(correr('guard-git.js', raiz, bash(merge))));
+  assert.ok(negado(correr('guard-git.js', raiz, bash(`cd app && ${merge}`))));
+  assert.ok(!negado(correr('guard-git.js', raiz, bash(`node /x/scripts/mergear-pr.js --a-pedido app 7 ${SHA}`))));
+  // Flow mode: the series was authorized with its merges.
+  escribirSesion(raiz, 's1', { modo: 'flujo', tareas: {} });
+  assert.ok(!negado(correr('guard-git.js', raiz, bash(merge))));
+  // Other commands that only mention the script are not merges.
+  escribirSesion(raiz, 's1', { modo: 'tarea', tareas: {} });
+  assert.ok(!negado(correr('guard-git.js', raiz, bash('grep -n fallar /x/scripts/mergear-pr.js'))));
+});
+
+test('mergear-pr.js ignores --a-pedido when reading its arguments', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, orgGithub: 'org', repos: { app: 'app' } } });
+  const r = spawnSync('node', [path.join(SCRIPTS, 'mergear-pr.js'), '--a-pedido', 'app', '7', 'corto'], {
+    cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz }, encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /falta el sha completo/);
+});
+
 // --- pr-a-revision ---
 
 const prCreado = (cmd, stdout = 'https://github.com/org/app/pull/28\n') => ({

@@ -101,6 +101,7 @@ Mostrá los dos archivos completos (o, si ya existían, las diferencias), y deba
 - Lo **detectado**, con su origen en una línea (por ejemplo: `git.ramaBase = develop` — `origin/HEAD` de los 3 repos).
 - Lo **sin verificar**: lo que quedó con el valor por defecto porque no se pudo consultar.
 - Los repos con **`delete_branch_on_merge` en `false`**, cada uno con el comando que lo prende: `gh api -X PATCH repos/<org>/<repo> -F delete_branch_on_merge=true`. Lo corre la persona (pide admin del repo); duck no lo cambia.
+- La **regla de permiso del merge**, para que la persona la agregue a mano en `permissions.allow` de `.claude/settings.json`: `"Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/mergear-pr.js:*)"`, con la ruta tal como se expande acá. Sin ella, el auto mode de Claude Code frena el merge del modo flujo («Merge Without Review»), porque no lee el modo de duck. Cubre solo ese script, que exige CI en verde y el head verificado, y `guard-git.js` lo niega fuera del modo flujo salvo con `--a-pedido`. duck no la escribe: ampliar permisos lo decide la persona.
 
 Esperá un «sí» explícito. Una corrección no es un sí: se aplica, se vuelve a mostrar, y se espera otra vez.
 
