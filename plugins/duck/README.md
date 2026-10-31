@@ -22,11 +22,12 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
-| Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira (para el sticker y el panel). |
+| Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira o movida de GitHub, In Review incluido (para el sticker y el panel). Con GitHub, al tomar un issue crea el archivo de historia de la sesión, así el panel lo muestra sin correr `/duck:estado`. |
 | Hook `tarea-por-commit` | `scripts/tarea-por-commit.js` | Un commit en la rama de una tarea la anota en la sesión: retomar trabajo ya En Proceso también llega al panel. |
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
 | Hook `historia-sigue-subtareas` | `scripts/historia-sigue-subtareas.js` | Recuerda mover la historia con sus sub-tareas. |
 | Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR y recuerda transicionar. |
+| Hook `pr-a-revision` | `scripts/pr-a-revision.js` | Con GitHub: cuando `gh pr create` abre el PR, mueve el issue de la rama a In Review y lo anota en la sesión. |
 | Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. Una sesión continuada (compactada o retomada) hereda las tareas, el modo y la historia de la anterior. |
 | Status line | `scripts/sticker.js` | El sticker de la tarea de esta sesión. **No lo puede declarar un plugin**: lo instala `instalar.ps1`. |
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |

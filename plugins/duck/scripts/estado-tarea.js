@@ -17,7 +17,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { hook, deducirEstado, estadosDe, movidasDeGithub, leerSesion, guardarSesion, heredarSesionAnterior } = require('./config');
+const { execFileSync } = require('child_process');
+const { hook, deducirEstado, estadosDe, movidasDeGithub, leerSesion, guardarSesion, heredarSesionAnterior, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   const transiciones =
@@ -57,7 +58,7 @@ function transicionesDeAcli(evento, cfg) {
 // Igual que con acli, solo los estados de sub-tarea, con el nombre de la configuracion.
 function movidasDeSubtarea(evento, cfg) {
   const e = estadosDe(cfg);
-  const deSubtarea = [e.finalizado, e.enProceso, e.pendiente].filter(Boolean);
+  const deSubtarea = [e.finalizado, e.enProceso, e.enRevision, e.pendiente].filter(Boolean);
   return movidasDeGithub(evento, cfg).flatMap(({ clave, estado }) => {
     const nombre = deSubtarea.find((n) => n.toLowerCase() === estado.trim().toLowerCase());
     return nombre ? [{ clave, estado: nombre }] : [];
@@ -87,7 +88,30 @@ function anotar(evento, cfg, clave, estado) {
   const almacen = leerSesion(cfg, sesion);
   almacen.tareas[clave] = { estado, desde: new Date().toISOString() };
   guardarSesion(cfg, sesion, almacen);
+  if (cfg.tickets.proveedor === 'github' && estado === cfg.github.estados.enProceso) sembrarHistoria(clave, sesion, cfg);
   actualizarHistoria(clave, estado, evento, cfg);
+}
+
+// Tomar una tarea no dejaba nada que el panel pudiera dibujar: su <session_id>-historia.json solo
+// lo creaba /duck:estado. Con GitHub, al pasar un issue a En Proceso y sin archivo, se crea con la
+// HU (el padre del issue, o el issue mismo si no tiene) y nada mas: el mod lo completa con
+// `ticket.js ver` en su refresco. Un archivo que ya existe no se toca: lo decidio /duck:estado.
+function sembrarHistoria(clave, sesion, cfg) {
+  if (!/^[A-Za-z0-9_-]+$/.test(sesion)) return;
+  const HISTORIA = path.join(cfg.dirEstado, `${sesion}-historia.json`);
+  if (fs.existsSync(HISTORIA)) return;
+  let historia = clave;
+  try {
+    const salida = execFileSync('node', [process.env.DUCK_TICKET_JS || TICKET_JS, 'ver', clave], { encoding: 'utf8', timeout: 15000 });
+    historia = JSON.parse(salida).padre || clave;
+  } catch {
+    /* sin red o sin gh: la historia es el issue mismo */
+  }
+  const datos = { actualizado: new Date().toISOString(), alertas: [], historias: [{ historia: { clave: historia, titulo: '' }, subtareas: [] }] };
+  fs.mkdirSync(cfg.dirEstado, { recursive: true });
+  const temporal = `${HISTORIA}.${process.pid}.tmp`;
+  fs.writeFileSync(temporal, JSON.stringify(datos, null, 2) + '\n');
+  fs.renameSync(temporal, HISTORIA);
 }
 
 // El panel del mod solo ve Jira por <session_id>-historia.json, y ese archivo

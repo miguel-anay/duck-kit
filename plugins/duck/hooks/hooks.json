@@ -68,6 +68,12 @@
           },
           {
             "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/pr-a-revision.js\"",
+            "if": "Bash(*gh*pr*create*)",
+            "timeout": 30
+          },
+          {
+            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/estado-tarea.js\"",
             "timeout": 10
           },
