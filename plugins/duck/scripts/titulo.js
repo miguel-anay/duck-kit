@@ -61,7 +61,7 @@ function leerVista(sesion, cfg) {
 
 function tareasDe(sesion, carpeta, cfg) {
   const e = estadosDe(cfg);
-  const marca = { [e.enProceso]: '*', [e.finalizado]: 'v', [e.pendiente]: '.' };
+  const marca = { [e.enProceso]: '*', [e.enRevision]: '>', [e.finalizado]: 'v', [e.pendiente]: '.' };
   const etiquetas = [];
   const puestos = new Set();
 

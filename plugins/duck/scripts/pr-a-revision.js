@@ -11,7 +11,7 @@
 
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, claveDeRama, ramaDe, TICKET_JS } = require('./config');
+const { hook, claveDeRama, ramaDe, leerSesion, guardarSesion, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   if (cfg.tickets.proveedor !== 'github') return;
@@ -36,6 +36,13 @@ hook((evento, cfg) => {
       timeout: 20000,
     }).trim();
     texto = `PR abierto: ${linea}`;
+    // El sticker y el titulo leen la sesion; esta movida no pasa por un Bash que estado-tarea vea.
+    const movida = linea.match(/^Issue \(([^)]+)\) movido a \(([^)]+)\)$/m);
+    if (movida && /^[A-Za-z0-9_-]+$/.test(evento?.session_id || '')) {
+      const almacen = leerSesion(cfg, evento.session_id);
+      almacen.tareas[movida[1]] = { estado: movida[2], desde: new Date().toISOString() };
+      guardarSesion(cfg, evento.session_id, almacen);
+    }
   } catch (e) {
     texto =
       `PR abierto, pero no se pudo mover ${clave} a ${cfg.github.estados.enRevision} (${String(e.message).split('\n')[0]}). ` +

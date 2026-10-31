@@ -41,6 +41,7 @@ process.stdin.on('end', () => {
   const e = estadosDe(cfg);
   const COLOR = {
     [e.enProceso]: { fondo: 214, texto: 232, marca: '*' },
+    [e.enRevision]: { fondo: 33, texto: 232, marca: '>' },
     [e.finalizado]: { fondo: 35, texto: 232, marca: 'v' },
     [e.pendiente]: { fondo: 244, texto: 232, marca: '.' },
     nombre: { fondo: 30, texto: 231, marca: '#' },
