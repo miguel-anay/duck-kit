@@ -302,6 +302,9 @@ proyecto, si la hay), no una traducción de Jira. Lo que no aparece acá queda i
 cuando una tiene su propio PR, otro repo u otra persona. Una HU de varios repos vive en el repo de
 documentación, con un sub-issue por repo destino. La clave es `#N` (u `owner/repo#N` fuera del repo);
 duck la guarda como `owner/repo#N` en minúsculas. El tipo va en el issue type, no en etiquetas.
+Un issue que pertenece a una HU (una `Task` por repo, o un `Bug` con su propio PR hallado al trabajarla)
+lleva en su cuerpo la línea `Part of: <owner/repo#N de la HU>`: `issue-padre.js` lo cuelga como sub-issue
+al crearlo. `Related:` es solo texto y no enlaza: relacionado no es hijo.
 
 **Ramas, commits y PR (secciones 1 y 2).** Trunk-based: `<base>` es `main`. La rama es
 `<prefijo>/N-<slug>` —`feat/`, `fix/`, que tienen que estar en `git.prefijos` para que los hooks
@@ -344,6 +347,7 @@ feature, y se citan por `S#`.
 **Las piezas (sección 6)** son las mismas: `estado-tarea.js`, `historia-sigue-subtareas.js` y
 `panel-al-cerrar.js` escuchan `ticket.js mover` en vez de `transitionJiraIssue`, y `cierre-finalizado.js`
 ve el merge y recuerda releer y mover a Done. `pr-a-revision.js` ve el `gh pr create` que abrió un PR y
-mueve el issue de la rama a In Review él mismo.
+mueve el issue de la rama a In Review él mismo, e `issue-padre.js` cuelga de su HU el issue creado con
+`Part of`.
 
 - **`duck:analista` no tiene Bash.** Al delegarle con GitHub, pasale en el prompt la salida de `ticket.js ver <clave>` (de la HU y de la sub-tarea) y el cuerpo con `gh issue view <N> -R <owner>/<repo>`.

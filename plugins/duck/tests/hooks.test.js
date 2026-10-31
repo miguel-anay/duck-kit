@@ -762,3 +762,62 @@ test('sticker (github) shows an issue that is In Review', () => {
   const r = correr('sticker.js', raiz, { session_id: 's1', cwd: raiz });
   assert.ok(r.stdout.includes('org/app#12 >'), r.stdout);
 });
+
+// --- issue-padre ---
+
+const issueCreado = (stdout = 'https://github.com/org/app/issues/5\n', cmd = 'gh issue create -R org/app --title t --body-file b.md') => ({
+  session_id: 's1',
+  tool_name: 'Bash',
+  tool_input: { command: cmd },
+  tool_response: { stdout },
+});
+
+// Stand-in for gh: logs each call, answers the issue read with `cuerpo` and any write with {}.
+function ghFalso(raiz, cuerpo) {
+  const script = path.join(raiz, 'gh-falso.js');
+  const log = script + '.log';
+  fs.writeFileSync(
+    script,
+    '#!/usr/bin/env node\n' +
+    `const a = process.argv.slice(2); require('fs').appendFileSync(${JSON.stringify(log)}, a.join(' ') + '\\n');\n` +
+      `console.log(a.includes('POST') ? '{}' : JSON.stringify({ id: 555, body: ${JSON.stringify(cuerpo)} }));\n`
+  );
+  fs.chmodSync(script, 0o755);
+  return { env: { DUCK_GH: script }, llamadas: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : []) };
+}
+
+test('issue-padre (github) hangs the new issue under the HU named in Part of', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Bug text.\n\nPart of: org/docs#41\n');
+  const r = correr('issue-padre.js', raiz, issueCreado(), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), ['api repos/org/app/issues/5', 'api -X POST repos/org/docs/issues/41/sub_issues -F sub_issue_id=555']);
+  assert.match(contexto(r), /org\/app#5 .*sub-issue de org\/docs#41/);
+});
+
+test('issue-padre resolves a bare #N in Part of against the new issue repo', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Part of #3');
+  correr('issue-padre.js', raiz, issueCreado(), { env: gh.env });
+  assert.equal(gh.llamadas()[1], 'api -X POST repos/org/app/issues/3/sub_issues -F sub_issue_id=555');
+});
+
+test('issue-padre does not link on a mere Related reference', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Related: org/docs#41');
+  const r = correr('issue-padre.js', raiz, issueCreado(), { env: gh.env });
+  assert.equal(gh.llamadas().length, 1);
+  assert.equal(r.stdout, '');
+});
+
+test('issue-padre does nothing when the issue was not created', () => {
+  const raiz = proyecto(GITHUB);
+  const gh = ghFalso(raiz, 'Part of: org/docs#41');
+  correr('issue-padre.js', raiz, issueCreado('could not create issue: HTTP 422'), { env: gh.env });
+  assert.deepEqual(gh.llamadas(), []);
+});
+
+test('hooks.json runs issue-padre after a gh issue create', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const bash = hooks.PostToolUse.find((h) => h.matcher === 'Bash').hooks;
+  assert.ok(bash.some((h) => /issue-padre\.js/.test(h.command) && h.if === 'Bash(*gh*issue*create*)'));
+});
