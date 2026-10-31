@@ -68,7 +68,9 @@ justo antes del primer push de la rama, y bloquea si `origin/<base>` se movió.
 10. **Merge sobre el PR** —API de GitHub o botón—, con merge commit. **Nunca `git merge` local y nunca
     `git push origin <base>`:** el merge local necesitaría justo ese push, así que no hay excepción.
     (`guard-git.js` lo hace cumplir; `mergear-pr.js` es la vía por la API, y se niega si la base del PR
-    no es `<base>`, si el head cambió desde que se verificó o si algún check no terminó en éxito.)
+    no es `<base>`, si el head cambió desde que se verificó o si algún check no terminó en éxito.
+    El agente lo corre solo en modo flujo; en modo tarea, con `--a-pedido` y solo después del
+    «mergealo» del dueño para ese PR. `guard-git.js` niega el resto.)
 11. **Borrar la rama local**, que ya cumplió:
 
     ```bash
@@ -232,7 +234,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 
 | Regla | Pieza |
 |---|---|
-| No `push` a `<base>` (salvo el primero, con el remoto sin `<base>`), no `merge` local, no `git branch -D` | `guard-git.js` (deniega) |
+| No `push` a `<base>` (salvo el primero, con el remoto sin `<base>`), no `merge` local, no `git branch -D`, no `mergear-pr.js` fuera del modo flujo sin `--a-pedido` | `guard-git.js` (deniega) |
 | Primer push con la base atrasada: rebase antes | `push-sobre-develop-al-dia.js` (deniega; avisa si ya estaba publicada) |
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |
 | Spike sin remoto, sin Jira, sin clave | `guard-spike.js` (deniega mientras la sesión está en spike) |

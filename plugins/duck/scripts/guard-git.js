@@ -5,13 +5,15 @@
 //      sin rama base no hay contra que abrir un PR
 //   2. merge local hacia la rama base (METODO.md, paso 10)
 //   3. git branch -D                  (METODO.md, paso 11: "-d, nunca -D")
+//   4. mergear-pr.js fuera del modo flujo sin --a-pedido (METODO.md, «El merge»): la regla de
+//      permiso que instala /duck:iniciar lo deja pasar sin preguntar, y este es su limite
 //
 // Lee el JSON del hook por stdin y responde con una decision de permiso.
 // No usa jq. Sin .claude/duck.json no hace nada (ver config.js).
 
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { hook, partirEnTramos } = require('./config');
+const { hook, partirEnTramos, leerSesion } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -20,6 +22,11 @@ hook((evento, cfg) => {
   for (const tramo of partirEnTramos(comando)) {
     const motivo = revisar(tramo, cfg.git.ramaBase, evento.cwd ?? process.cwd());
     if (motivo) return denegar(motivo);
+    if (/\bnode\s+["']?[^\s"']*mergear-pr\.js\b/.test(tramo) && !/\s--a-pedido\b/.test(tramo)
+      && leerSesion(cfg, evento.session_id).modo !== 'flujo') {
+      return denegar('mergear-pr.js fuera del modo flujo. En modo tarea el dueño pide el merge de ESE PR '
+        + '(«mergealo»): recién entonces se corre con --a-pedido. METODO.md, «El merge».');
+    }
   }
 });
 
