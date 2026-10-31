@@ -74,6 +74,12 @@
           },
           {
             "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/issue-padre.js\"",
+            "if": "Bash(*gh*issue*create*)",
+            "timeout": 45
+          },
+          {
+            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/estado-tarea.js\"",
             "timeout": 10
           },
