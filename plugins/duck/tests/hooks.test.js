@@ -682,22 +682,32 @@ function ticketFalso(raiz) {
   return { env: { DUCK_TICKET_JS: script }, args: () => (fs.existsSync(script + '.args') ? fs.readFileSync(script + '.args', 'utf8') : null) };
 }
 
-test('pr-a-revision (github) moves the branch issue to In Review when the PR opens', () => {
+// Stand-in for gh: answers the PR's closingIssuesReferences with `cierra` (owner/repo#N list).
+function ghCierra(raiz, cierra) {
+  const script = path.join(raiz, 'gh-cierra.js');
+  const nodos = cierra.map((c) => ({ number: Number(c.split('#')[1]), repository: { nameWithOwner: c.split('#')[0] } }));
+  fs.writeFileSync(script, '#!/usr/bin/env node\n' +
+    `console.log(JSON.stringify({ data: { repository: { pullRequest: { closingIssuesReferences: { nodes: ${JSON.stringify(nodos)} } } } } }))\n`);
+  fs.chmodSync(script, 0o755);
+  return { DUCK_GH: script };
+}
+
+test('pr-a-revision (github) moves the issue the PR closes to In Review', () => {
   const raiz = proyecto(GITHUB);
-  repo(raiz, 'main');
-  git(raiz, 'remote', 'add', 'origin', 'https://github.com/org/app.git');
+  repo(raiz, 'fix/27-x');
   const falso = ticketFalso(raiz);
-  const r = correr('pr-a-revision.js', raiz, prCreado('gh pr create --base main --head fix/27-x --title t'), { env: falso.env });
+  const r = correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: { ...falso.env, ...ghCierra(raiz, ['org/app#27']) } });
   assert.equal(falso.args(), 'mover org/app#27 enRevision');
   assert.match(contexto(r), /Issue \(org\/app#27\) movido a \(In Review\)/);
 });
 
-test('pr-a-revision (github) takes the issue from the current branch when there is no --head', () => {
+test('pr-a-revision leaves the HU alone on a partial PR that closes nothing, whatever the branch says', () => {
   const raiz = proyecto(GITHUB);
-  repo(raiz, 'feat/31-y');
+  repo(raiz, 'fix/41-plan');
   const falso = ticketFalso(raiz);
-  correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: falso.env });
-  assert.equal(falso.args(), 'mover #31 enRevision');
+  const r = correr('pr-a-revision.js', raiz, prCreado('gh pr create --head fix/41-plan --fill'), { env: { ...falso.env, ...ghCierra(raiz, []) } });
+  assert.equal(falso.args(), null);
+  assert.equal(r.stdout, '');
 });
 
 test('pr-a-revision does nothing when the PR was not created', () => {
@@ -765,10 +775,9 @@ test('estado-tarea (github) records an In Review move', () => {
 
 test('pr-a-revision records the In Review move in the session', () => {
   const raiz = proyecto(GITHUB);
-  repo(raiz, 'fix/27-x');
   const falso = ticketFalso(raiz);
-  correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: falso.env });
-  assert.equal(leerSesion(raiz, 's1').tareas['#27'].estado, 'In Review');
+  correr('pr-a-revision.js', raiz, prCreado('gh pr create --fill'), { env: { ...falso.env, ...ghCierra(raiz, ['org/app#27']) } });
+  assert.equal(leerSesion(raiz, 's1').tareas['org/app#27'].estado, 'In Review');
 });
 
 test('sticker (github) shows an issue that is In Review', () => {

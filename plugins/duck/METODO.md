@@ -328,7 +328,7 @@ transición que consultar. Siempre por ahí, nunca con `gh project item-edit`: l
 | Momento | Estado |
 |---|---|
 | Al tomar la tarea | `enProceso` (In Progress) |
-| Al abrir el PR | `enRevision` (In Review). Lo mueve `pr-a-revision.js` cuando el agente corre `gh pr create`. Para un PR abierto por una persona, el workflow «Pull request linked to issue» del Project, con Status en In Review, mueve el issue que el PR cierra (`Closes #N`) |
+| Al abrir el PR | `enRevision` (In Review). Lo mueve `pr-a-revision.js` cuando el agente corre `gh pr create`, solo para los issues que el PR cierra (`Closes #N`); un PR parcial (`Refs #N`) no mueve nada. Para un PR abierto por una persona, el workflow «Pull request linked to issue» del Project, con Status en In Review, mueve el issue que el PR cierra (`Closes #N`) |
 | Al mergear | `finalizado` (Done). **Releé antes** con `ticket.js ver`: `Closes #N` y el workflow del Project pueden haberlo movido ya |
 | Lo frena algo externo | `bloqueado` (Blocked), que reemplaza al prefijo `[BLOQ]`. El motivo va en un comentario, que es texto: borrador, mostrarlo y esperar el OK |
 | La HU | `enProceso` con su primer sub-issue; `pruebas` (Testing) cuando todos sus sub-issues están cerrados, como la historia en Pruebas de Jira; `finalizado` (Done) lo pone una persona cuando la prueba, nunca el agente. Un issue sin sub-issues pasa a Done al mergear, como una sub-tarea |
@@ -347,7 +347,7 @@ feature, y se citan por `S#`.
 **Las piezas (sección 6)** son las mismas: `estado-tarea.js`, `historia-sigue-subtareas.js` y
 `panel-al-cerrar.js` escuchan `ticket.js mover` en vez de `transitionJiraIssue`, y `cierre-finalizado.js`
 ve el merge y recuerda releer y mover a Done. `pr-a-revision.js` ve el `gh pr create` que abrió un PR y
-mueve el issue de la rama a In Review él mismo, e `issue-padre.js` cuelga de su HU el issue creado con
+mueve a In Review él mismo los issues que ese PR cierra (un PR parcial, con `Refs #N`, no mueve nada), e `issue-padre.js` cuelga de su HU el issue creado con
 `Part of`. `issue-al-project.js` agrega al Project todo issue creado con `gh issue create`: fuera del tablero
 un issue no tiene estado y nada lo puede seguir.
 

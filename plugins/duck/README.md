@@ -29,7 +29,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `cierre-finalizado` | `scripts/cierre-finalizado.js` | Detecta el merge real de un PR (curl a la API, `mergear-pr.js` o `gh pr merge`) y recuerda transicionar. |
 | Hook `issue-al-project` | `scripts/issue-al-project.js` | Con GitHub: un issue creado con `gh issue create` entra al Project de `github.proyecto`. |
 | Hook `issue-padre` | `scripts/issue-padre.js` | Con GitHub: cuando `gh issue create` crea un issue con `Part of: <HU>` en el cuerpo, lo cuelga como sub-issue de esa HU. |
-| Hook `pr-a-revision` | `scripts/pr-a-revision.js` | Con GitHub: cuando `gh pr create` abre el PR, mueve el issue de la rama a In Review y lo anota en la sesión. |
+| Hook `pr-a-revision` | `scripts/pr-a-revision.js` | Con GitHub: cuando `gh pr create` abre el PR, mueve a In Review los issues que el PR cierra (`Closes #N`) y lo anota en la sesión. Un PR parcial (`Refs #N`) no mueve nada. |
 | Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. Una sesión continuada (compactada o retomada) hereda las tareas, el modo y la historia de la anterior. |
 | Status line | `scripts/sticker.js` | El sticker de la tarea de esta sesión. **No lo puede declarar un plugin**: lo instala `instalar.ps1`. |
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |
