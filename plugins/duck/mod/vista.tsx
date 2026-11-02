@@ -129,6 +129,9 @@ function lineaSubtarea(kit: Kit, s: SubtareaHistoria): RenderElement {
       <Text color={colorEstado(kit, s)}>{`${iconoEstado(kit, s)} `}</Text>
       <Text color={s.git ? colorUbicacion(s.git.ubicacion) : TENUE}>{`${iconoCodigo} `}</Text>
       <Text dimColor> {responsable}</Text>
+      {s.git?.ubicacion === 'rama' && s.git.ramas.length > 0 ? (
+        <Text color={AZUL} wrap="truncate-end">{`  ${s.git.ramas.join(', ')}`}</Text>
+      ) : null}
     </Box>
   )
 }
