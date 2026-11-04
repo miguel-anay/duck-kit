@@ -1,0 +1,1 @@
+../plugins/duck/METODO.md
