@@ -249,7 +249,8 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 | ODD escribe su documento fuera de los repos y delega en duck | `sesion-inicio.js` (inyecta la regla si `odd.tareas` está) |
 
 Los guardias fallan **abiertos**: un JSON ilegible, un estado que no se puede leer o una excepción dejan pasar
-el comando. Comparan el texto literal del comando, así que lo que se ofusca de verdad (variables, scripts
+el comando. Pero no en silencio: si un guardia no pudo revisar (una excepción, `gh` o el remoto sin
+responder), la persona ve un aviso que lo dice. Comparan el texto literal del comando, así que lo que se ofusca de verdad (variables, scripts
 ajenos) no se detecta: son una red, no un sandbox.
 
 ## 7. Convivencia con ODD de gentle-ai

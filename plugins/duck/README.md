@@ -245,3 +245,7 @@ Sin dependencias, con `node:test`:
 node --test plugins/duck/tests/*.test.js                                  # scripts y hooks
 node --experimental-strip-types --test plugins/duck/tests/mod.test.mjs    # mod (TypeScript)
 ```
+
+Un archivo por hook (`tests/hook-<nombre>.test.js`), con lo compartido en `tests/helpers.js`: dos PR que
+agregan hooks distintos no chocan en el mismo archivo. `tests/docs.test.js` exige que la tabla de hooks
+de este README nombre cada script que corre `hooks/hooks.json`.

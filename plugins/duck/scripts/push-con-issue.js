@@ -14,7 +14,7 @@
 // Una rama que ya estaba en el remoto antes de este hook no se frena (renombrarla cerraria su PR):
 // se avisa. La rama base no es de trabajo: su push lo cuida guard-git.js. spike/ y cualquier rama
 // fuera de cfg.git.prefijos pasan. Si gh falla por otra cosa que un issue inexistente, el hook deja
-// pasar: los guardias fallan abiertos.
+// pasar con un aviso: los guardias fallan abiertos, pero no en silencio.
 //
 // DUCK_TICKET_JS existe SOLO para las pruebas: reemplaza a ticket.js.
 
@@ -54,11 +54,12 @@ function formaDeRama(cfg) {
 function revisarPush(rama, { dir, remoto }, cfg) {
   if (!deTrabajo(rama, cfg)) return null;
   const clave = claveDeRama(rama, cfg, dir);
-  const problema = !clave
-    ? `la rama ${rama} no lleva el número de su issue (${formaDeRama(cfg)})`
+  const { problema, aviso } = !clave
+    ? { problema: `la rama ${rama} no lleva el número de su issue (${formaDeRama(cfg)})` }
     : cfg.tickets.proveedor === 'github'
-      ? problemaDeIssue(clave, cfg)
-      : null;
+      ? revisarIssue(clave, cfg)
+      : {};
+  if (aviso) return { avisar: aviso };
   if (!problema) return null;
 
   const enRemoto = git(dir, ['ls-remote', '--heads', remoto, rama], 20000);
@@ -74,8 +75,8 @@ function revisarPush(rama, { dir, remoto }, cfg) {
   };
 }
 
-// Por que el issue no sirve, o null si sirve o no se pudo saber.
-function problemaDeIssue(clave, cfg) {
+// { problema } si el issue no sirve, { aviso } si no se pudo consultar, {} si sirve.
+function revisarIssue(clave, cfg) {
   let issue;
   try {
     const salida = execFileSync('node', [process.env.DUCK_TICKET_JS || TICKET_JS, 'ver', clave], {
@@ -87,12 +88,12 @@ function problemaDeIssue(clave, cfg) {
     issue = JSON.parse(salida);
   } catch (e) {
     return /no existe el issue|Could not resolve to an Issue/i.test(String(e.stderr || ''))
-      ? `el issue ${clave} no existe`
-      : null;
+      ? { problema: `el issue ${clave} no existe` }
+      : { aviso: `Aviso: no se pudo verificar el issue ${clave} en GitHub; el push sale sin esa revisión.` };
   }
-  if (!issue.abierto) return `el issue ${clave} está cerrado`;
-  if (!issue.padre) return `el issue ${clave} no cuelga de ninguna HU`;
-  return null;
+  if (!issue.abierto) return { problema: `el issue ${clave} está cerrado` };
+  if (!issue.padre) return { problema: `el issue ${clave} no cuelga de ninguna HU` };
+  return {};
 }
 
 // gh pr create: la rama de cabeza (--head, o la actual) y el cuerpo (--body en el comando, o el

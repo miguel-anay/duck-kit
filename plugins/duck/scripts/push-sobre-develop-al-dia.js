@@ -42,11 +42,15 @@ function leerPush(tramo, cwd, cfg) {
 }
 
 function revisar({ dir, remoto, rama }, base) {
-  // Sin red o sin repo no se puede comprobar nada: no se inventa un bloqueo.
-  if (git(dir, ['fetch', '--quiet', remoto, base], 20000) === null) return null;
+  // Sin red o sin repo no se puede comprobar nada: no se inventa un bloqueo, pero se avisa.
+  const sinComprobar = {
+    avisar: true,
+    texto: `Aviso: no se pudo comprobar ${remoto}/${base} (sin red o sin acceso); ${rama} sale sin revisar si está al día.`,
+  };
+  if (git(dir, ['fetch', '--quiet', remoto, base], 20000) === null) return sinComprobar;
 
   const enRemoto = git(dir, ['ls-remote', '--heads', remoto, rama], 20000);
-  if (enRemoto === null) return null;
+  if (enRemoto === null) return sinComprobar;
   const yaPublicada = enRemoto.trim() !== '';
 
   const alDia = git(dir, ['merge-base', '--is-ancestor', `${remoto}/${base}`, rama]) !== null;
