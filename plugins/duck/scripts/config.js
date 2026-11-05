@@ -400,6 +400,30 @@ function ramaQueSeCrea(tramo, cwd, cfg) {
   return { rama, dir, repo: carpetaDe(dir, cfg) };
 }
 
+// El push de un tramo de comando, o null. La usan push-sobre-develop-al-dia y push-con-issue.
+//   git [-C dir] push [opciones] [remoto] [rama | HEAD | local:remota]
+// origen es lo que se empuja (la rama local); destino, la rama que queda en el remoto. Los dos
+// salen sin resolver: HEAD queda HEAD, y refs/heads/ se quita del destino.
+function pushDe(tramo, cwd) {
+  const partes = tramo.split(/\s+/).map((p) => p.replace(/^["']|["']$/g, ''));
+  const iGit = partes.findIndex((p) => p === 'git' || /[\\/]git(\.exe)?$/.test(p));
+  if (iGit < 0) return null;
+
+  let dir = cwd;
+  let i = iGit + 1;
+  while (partes[i] === '-C' && partes[i + 1]) {
+    dir = path.resolve(dir, partes[i + 1]);
+    i += 2;
+  }
+  if (partes[i] !== 'push') return null;
+
+  const posicionales = partes.slice(i + 1).filter((p) => !p.startsWith('-'));
+  const remoto = posicionales[0] || 'origin';
+  const [origen, destino] = (posicionales[1] || 'HEAD').split(':');
+  // `git push origin :rama` borra la rama remota: origen queda '' y nadie la revisa.
+  return { dir, remoto, origen, destino: (destino ?? origen).replace(/^refs\/heads\//, '') };
+}
+
 // Carpeta del proyecto (una de cfg.git.carpetas) en que cae el directorio.
 function carpetaDe(dir, cfg) {
   const relativo = path.relative(path.resolve(cfg.raiz), path.resolve(dir)).split(path.sep)[0];
@@ -478,6 +502,7 @@ module.exports = {
   deducirEstado,
   claveDeRama,
   ramaQueSeCrea,
+  pushDe,
   clavesEnTexto,
   referenciaIssue,
   estadosDe,

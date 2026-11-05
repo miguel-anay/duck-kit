@@ -15,9 +15,8 @@
 // Solo mira ramas con los prefijos de cfg.git.prefijos. El push a la rama base
 // lo bloquea guard-git.js; este hook no lo duplica.
 
-const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos } = require('./config');
+const { hook, partirEnTramos, pushDe } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -33,28 +32,13 @@ hook((evento, cfg) => {
   }
 });
 
-// git [-C dir] push [opciones] [remoto] [rama | HEAD | local:remota]
+// La rama local que se empuja, si es de trabajo (cfg.git.prefijos).
 function leerPush(tramo, cwd, cfg) {
-  const partes = tramo.split(/\s+/).map((p) => p.replace(/^["']|["']$/g, ''));
-  const iGit = partes.findIndex((p) => p === 'git' || /[\\/]git(\.exe)?$/.test(p));
-  if (iGit < 0) return null;
-
-  let dir = cwd;
-  let i = iGit + 1;
-  while (partes[i] === '-C' && partes[i + 1]) {
-    dir = path.resolve(dir, partes[i + 1]);
-    i += 2;
-  }
-  if (partes[i] !== 'push') return null;
-
-  const posicionales = partes.slice(i + 1).filter((p) => !p.startsWith('-'));
-  const remoto = posicionales[0] || 'origin';
-  let rama = posicionales[1] || 'HEAD';
-  if (rama.includes(':')) rama = rama.split(':')[0];
-  if (rama === 'HEAD') rama = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const push = pushDe(tramo, cwd);
+  if (!push) return null;
+  const rama = push.origen === 'HEAD' ? git(push.dir, ['rev-parse', '--abbrev-ref', 'HEAD']) : push.origen;
   if (!rama || !cfg.git.prefijos.some((p) => rama.startsWith(`${p}/`))) return null;
-
-  return { dir, remoto, rama };
+  return { dir: push.dir, remoto: push.remoto, rama };
 }
 
 function revisar({ dir, remoto, rama }, base) {
