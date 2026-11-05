@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { temporales, GITHUB, JIRA, proyecto, correr, git, repo, bash, negado, commit } = require('./helpers');
+const { temporales, GITHUB, JIRA, proyecto, correr, contexto, git, repo, bash, negado, commit } = require('./helpers');
 
 // --- push-con-issue: no push or PR of a work branch without its issue ---
 
@@ -77,7 +77,9 @@ test('push-con-issue (github) denies an issue that is missing, closed or has no 
   ]) {
     assert.ok(negado(pushCon(raiz, comando, raiz, ticketVer(raiz, falso))), caso);
   }
-  assert.ok(!negado(pushCon(raiz, comando, raiz, ticketVer(raiz, { error: 'gh: command not found' }))));
+  const sinGh = pushCon(raiz, comando, raiz, ticketVer(raiz, { error: 'gh: command not found' }));
+  assert.ok(!negado(sinGh));
+  assert.match(contexto(sinGh), /no se pudo verificar el issue \S*#12/);
 });
 
 test('push-con-issue only warns for a branch already on the remote before the guard existed', () => {
@@ -140,3 +142,10 @@ test('push-sobre-develop-al-dia blocks the first push of a branch behind origin/
   }
 });
 
+test('push-sobre-develop-al-dia warns, without blocking, when it cannot reach the remote', () => {
+  const raiz = conOrigen(GITHUB, 'feat/1-x');
+  git(raiz, 'remote', 'set-url', 'origin', path.join(raiz, 'no-existe'));
+  const r = correr('push-sobre-develop-al-dia.js', raiz, bash('git push -u origin feat/1-x', raiz));
+  assert.ok(!negado(r));
+  assert.match(contexto(r), /no se pudo comprobar/);
+});

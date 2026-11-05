@@ -162,8 +162,9 @@ function cargar() {
 }
 
 // Corre fn(evento, cfg, entradaCruda) con el JSON que Claude Code manda por stdin, y sale con 0.
-// Sin duck.json no llama a fn: sale con 0 sin escribir nada. Una excepcion en fn tambien se
-// traga —un hook de duck no puede romper el comando que observa—; los guardias fallan abiertos.
+// Sin duck.json no llama a fn: sale con 0 sin escribir nada. Una excepcion en fn no rompe el
+// comando que observa —los guardias fallan abiertos—, pero se avisa a la persona: un guardia que
+// deja pasar sin revisar no puede pasar en silencio.
 function hook(fn) {
   let entrada = '';
   process.stdin.on('data', (c) => (entrada += c));
@@ -178,8 +179,9 @@ function hook(fn) {
     }
     try {
       fn(evento, cfg, entrada);
-    } catch {
-      /* ver arriba */
+    } catch (e) {
+      const script = path.basename(process.argv[1] || 'hook');
+      process.stdout.write(JSON.stringify({ systemMessage: `duck: ${script} falló (${e?.message ?? e}) y dejó pasar sin revisar.` }));
     }
     process.exit(0);
   });
