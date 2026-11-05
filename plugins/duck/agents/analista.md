@@ -25,6 +25,24 @@ archivos para entender uno.
 
 Si el archivo ya existe, lo **editás**: no lo reescribís desde cero ni abrís uno nuevo.
 
+## Antes de proponer: lo que ya existe
+
+Antes de diseñar nada, buscá en **todos** los repos del proyecto (`git.repos` de `duck.json`) si lo que
+pide el ticket ya está implementado, entero o en parte. Con `Grep` y `Glob`, por lo que nombra el ticket:
+endpoints y rutas (`webhook`, `/pagos`), integraciones y proveedores (`yape`, `plin`), entidades y tablas,
+servicios y comandos. Buscá también sinónimos y el nombre en inglés.
+
+El plan empieza con una sección **`## Lo que ya existe`**:
+
+- lo encontrado, con `ruta:línea` y una línea de qué hace;
+- si no encontraste nada, las búsquedas que hiciste (patrón y repos), para que quien revise vea qué se miró.
+
+Lo que ya existe se **reusa o se extiende**; no se vuelve a escribir. Si el ticket pide algo que ya está,
+decilo en la sección y en tu respuesta, antes de proponer. Si buscar exige leer muchos archivos, pedí al
+hilo principal que lance `duck:explorador` y esperá su mapa.
+
+El hook `plan-con-existente.js` deniega escribir el plan sin esa sección.
+
 ## Contenido mínimo
 
 Arquitectura propuesta, componentes afectados, APIs e integraciones, entidades y contratos,

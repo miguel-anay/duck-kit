@@ -239,6 +239,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 | Ninguna rama de trabajo sale sin su issue; el PR lo referencia | `push-con-issue.js` (deniega el push y `gh pr create`; avisa si la rama ya estaba publicada) |
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |
 | Spike sin remoto, sin Jira, sin clave | `guard-spike.js` (deniega mientras la sesión está en spike) |
+| El plan mira el código antes de proponer: sección `## Lo que ya existe` | `plan-con-existente.js` (deniega escribir el plan sin ella) |
 | Toda rama de trabajo pasa por `/duck:tomar`, que pregunta tarea o flujo | `guard-sin-clave.js` (deniega la rama sin clave o sin `DUCK_MODO`) |
 | El estado de Jira es un hecho, no una promesa | `estado-tarea.js`, `cierre-finalizado.js` |
 | La historia sigue a sus sub-tareas | `historia-sigue-subtareas.js` (recuerda) |

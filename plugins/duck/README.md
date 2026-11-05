@@ -23,6 +23,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
 | Hook `push-con-issue` | `scripts/push-con-issue.js` | Una rama de trabajo no sale sin su issue: deniega el `git push` de una rama de `git.prefijos` sin clave en el nombre y, con GitHub, si el issue no existe, está cerrado o no cuelga de una HU (`ticket.js ver`). Deniega `gh pr create` sin `Closes #N` o `Refs #N` del issue de la rama en el cuerpo. Una rama que ya estaba publicada solo recibe un aviso. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
+| Hook `plan-con-existente` | `scripts/plan-con-existente.js` | Deniega escribir el plan de la historia (`odd.diseno`) sin la sección `## Lo que ya existe`: antes de proponer, el analista busca en los repos si ya está implementado. Sin `odd.diseno` no hace nada. |
 | Hook `guard-sin-clave` | `scripts/guard-sin-clave.js` | Ninguna rama de trabajo nace sin `/duck:tomar`: deniega crear una rama en `git.repos` sin clave en el nombre o sin la marca `DUCK_MODO=tarea\|flujo`, que pone `/duck:tomar` después de preguntar el modo. Pasan las `spike/`. |
 | Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira o movida de GitHub, In Review incluido (para el sticker y el panel). Con GitHub, al tomar un issue crea el archivo de historia de la sesión, así el panel lo muestra sin correr `/duck:estado`. |
 | Hook `tarea-por-commit` | `scripts/tarea-por-commit.js` | Un commit en la rama de una tarea la anota en la sesión: retomar trabajo ya En Proceso también llega al panel. |
@@ -174,7 +175,7 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 | Campo | Por defecto | Qué hace |
 |---|---|---|
 | `tareas` | `null` | Carpeta del documento de feature de ODD (gentle-ai), relativa a la raíz y **fuera de todo repo**: `odd/tasks`. Con valor, `sesion-inicio.js` le da a ODD esa ruta absoluta, `single-pr` y los agentes de duck. `null` = ODD corre tal cual. Ver `METODO.md` §7. |
-| `diseno` | `null` | El plan versionado de la historia, con `{historia}` en el lugar de la clave: `docs/disenos/{historia}.md`. ODD no lo reemplaza: el hook pide escribir ahí también las decisiones que cambian el plan. |
+| `diseno` | `null` | El plan versionado de la historia, con `{historia}` en el lugar de la clave: `docs/disenos/{historia}.md`. ODD no lo reemplaza: el hook pide escribir ahí también las decisiones que cambian el plan. Lleva la sección `## Lo que ya existe` (la exige `plan-con-existente.js`). |
 | `versionado` | `false` | `true` cuando el proyecto lleva **un solo** documento de feature versionado en vez de bitácora local + diseño: `tareas` apunta a una carpeta del repo de docs (`doc/odd/tasks`), el nombre lo fijan las convenciones del proyecto (no la clave), al cerrar se archiva, y el hook no impone `single-pr`. Normalmente con `diseno: null`. Ver `METODO.md` §7. |
 
 ### Dónde guarda su estado
