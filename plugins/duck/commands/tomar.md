@@ -16,15 +16,17 @@ Los pasos corren en orden. Cada uno tiene condiciones de parada: al primer tropi
 
 ## 0. ¿Tarea o historia? Eso decide el modo
 
-Los dos modos son los de `METODO.md` (tarea y flujo). **Lo decide el `issuetype` del ticket**, no quien llama:
+Los dos modos son los de `METODO.md` (tarea y flujo). **Lo decide la persona, siempre**: leé el ticket (paso 1) y preguntale con `AskUserQuestion`, una pregunta de dos opciones, *modo tarea* (solo `$1`) y *modo flujo* (la historia entera, sub-tarea por sub-tarea). Marcá como «(Recomendado)» la que sugiere el `issuetype` según la tabla, y no sigas sin respuesta. Si `$2` ya dice `flujo` o `tarea`, esa es la respuesta: no preguntes de nuevo.
 
-| `issuetype` | Modo | Qué hace este comando |
+El modo elegido viaja en la creación de la rama (paso 6): `DUCK_MODO=<tarea|flujo> git … switch -c …`. Sin esa marca, `guard-sin-clave.js` deniega la rama.
+
+| `issuetype` | Modo recomendado | Qué hace este comando |
 |---|---|---|
 | `Sub-task`, `Task`, `Bug` | **tarea** | Los pasos 1 a 8 de abajo, sobre `$1` |
 | `Historia` | **flujo** | La sección «Modo flujo» de abajo, y después los pasos 1 a 8 sobre **la primera** sub-tarea de la serie |
 | `Epic` u otro | — | **PARÁ**: una épica no se toma entera. Pedí una historia o una sub-tarea |
 
-Pasar la clave de una historia **es** la activación explícita del modo flujo que exige `METODO.md` («se activa diciéndolo, nombrando el conjunto»): nombra la serie. Tomar una sub-tarea suelta vuelve al modo tarea.
+Elegir *modo flujo* en la pregunta **es** la activación explícita que exige `METODO.md` («se activa diciéndolo, nombrando el conjunto»). Si la persona elige *modo tarea* sobre una historia, se toma solo la historia como un issue suelto, sin serie.
 
 ## Modo flujo: cuando `$1` es una Historia
 
@@ -85,7 +87,7 @@ Corré los pasos 1 a 4 de abajo normalmente (leer el ticket, repositorio y prefi
 git -C <repo> fetch origin --prune
 git -C <repo> switch <base>
 git -C <repo> merge --ff-only origin/<base>
-git -C <repo> switch -c <prefijo>/$1-<slug>
+DUCK_MODO=<modo> git -C <repo> switch -c <prefijo>/$1-<slug>
 git -C <repo> cherry-pick --no-commit origin/<base>..spike/<tema>
 ```
 
@@ -175,8 +177,10 @@ git -C <repo> merge --ff-only origin/<base>
 ## 6. Crear la rama
 
 ```bash
-git -C <repo> switch -c <prefijo>/$1-<slug>
+DUCK_MODO=<modo> git -C <repo> switch -c <prefijo>/$1-<slug>
 ```
+
+`<modo>` es el que eligió la persona en el paso 0. La marca es lo que `guard-sin-clave.js` exige para dejar nacer una rama de trabajo.
 
 **Antes, verificá que no exista ya**, local ni remota: `git -C <repo> branch -a --list "*$1*"`. Si existe, no la recrees — reportá que ya estaba y en qué estado. Un `+` delante en `git branch` significa que está tomada por otro worktree; ahí tampoco toques nada.
 
@@ -211,7 +215,7 @@ Con `"tickets": {"proveedor": "github"}` se sigue la convención de GitHub (la `
 | Paso | Con GitHub |
 |---|---|
 | Clave | `#N` (mismo repo) o `owner/repo#N`. duck la guarda como `owner/repo#N` en minúsculas. Sin prefijos tipo `EPIC-NNN` |
-| 0. Modo | `ticket.js ver $1` → `tipo` e `hijas`. `Feature` o `Bug` **con** sub-issues → **flujo**; `Task`, o `Feature`/`Bug` sin sub-issues → **tarea**. Sin tipo u otro tipo: PARÁ y preguntá |
+| 0. Modo | `ticket.js ver $1` → `tipo` e `hijas`. Recomendado: `Feature` o `Bug` **con** sub-issues → **flujo**; `Task`, o `Feature`/`Bug` sin sub-issues → **tarea**. Se pregunta igual, siempre |
 | 1 y F1. Leer | `ticket.js ver <clave>`: `titulo`, `tipo`, `abierto`, `estado` (opción del campo Status del Project), `asignados`, `padre`, `hijas` con su estado. Una llamada trae la HU y sus sub-issues. Quién corre el comando: `gh api user --jq .login`. Dependencias, si la org las usa: `gh api repos/<owner>/<repo>/issues/<N>/dependencies/blocked_by` |
 | PARÁ si | `abierto: false` o estado `github.estados.finalizado`; no está asignado a quien corre; está en `github.estados.bloqueado`; lo bloquea un issue abierto. En flujo: la HU cerrada o sin sub-issues (crearlos es de `/tbd` o de una persona, con autorización) |
 | F2. Serie | Sub-issues abiertos, asignados a quien corre, en `github.estados.pendiente` (o Backlog). No hay `[ANALISIS]` ni `[BLOQ]`: lo bloqueado es el estado `Blocked`, y queda fuera con el motivo de su último comentario |
@@ -220,7 +224,7 @@ Con `"tickets": {"proveedor": "github"}` se sigue la convención de GitHub (la `
 | 3. Plan | `odd.diseno` con `{historia}` = el número de la HU (`N`, sin `owner/repo#`). Si las HU del proyecto viven en más de un repo, `<repo>-N` (`docs-12`), porque `N` solo choca entre repos. El *qué* está en el documento de feature que enlaza el bloque de referencia de la HU (`Change:`) |
 | 4. Radar | `git -C <repo> log origin/<base> --oneline -E --grep="#N([^0-9]\|$)"`, `git -C <repo> branch -a --list "*/N-*"`, y las hermanas con `ticket.js ver <HU>` (una `In Progress` de otra persona es la misma parada) |
 | 5 y 6. Base | `<base>` es la troncal (`main`, trunk-based) |
-| 7. En Proceso | `ticket.js mover $1 enProceso`. Imprime `Issue (owner/repo#N) movido a (In Progress)`, que es lo que leen los hooks: no lo muevas con `gh project item-edit`. No hay ids de transición: la opción se fija directo. Mover sí; comentar, no |
+| 7. En Proceso | `ticket.js mover $1 enProceso`, con la ruta escrita en el comando (nunca `T=…; node $T mover`: los hooks reconocen el texto `ticket.js mover`). Imprime `Issue (owner/repo#N) movido a (In Progress)`, que es lo que leen los hooks: no lo muevas con `gh project item-edit`. No hay ids de transición: la opción se fija directo. Mover sí; comentar, no |
 | Spike | Rama `<prefijo>/N-<slug>`; el commit con la clave es `git commit -m "feat(<alcance>): …" -m "Refs #N"` |
 | 8. Reporte | «Estado en el Project: In Progress», con la línea que imprimió `ticket.js mover` |
 
