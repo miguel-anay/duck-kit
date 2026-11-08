@@ -78,6 +78,9 @@ const DEFECTOS = {
   // versionado de la historia, que ODD no reemplaza ({historia} = la clave). versionado: true cuando
   // tareas ES el plan versionado (un solo documento, nombre propio, se archiva) en vez de bitacora local.
   odd: { tareas: null, diseno: null, versionado: false },
+  // Carpeta de los ADR, relativa a la raiz (doc/adr). Con valor, guard-adr.js no deja editar un ADR
+  // aceptado en la rama base salvo su linea Status. null = sin guardia.
+  adr: null,
 };
 
 function existe(ruta) {
@@ -497,7 +500,24 @@ function heredarSesionAnterior(cfg, sesion, transcript) {
   }
 }
 
+// Lo que el archivo diria despues de la herramienta, o null si no se puede saber (Edit sobre un
+// archivo ilegible o sin el texto a reemplazar: la herramienta misma va a fallar).
+function textoResultante(herramienta, entrada) {
+  if (herramienta === 'Write') return String(entrada.content ?? '');
+  if (herramienta !== 'Edit') return null;
+  let actual;
+  try {
+    actual = fs.readFileSync(entrada.file_path, 'utf8');
+  } catch {
+    return null;
+  }
+  const { old_string: viejo = '', new_string: nuevo = '' } = entrada;
+  if (!viejo || !actual.includes(viejo)) return null;
+  return entrada.replace_all ? actual.split(viejo).join(nuevo) : actual.replace(viejo, () => nuevo);
+}
 module.exports = {
+  textoResultante,
+
   cargar,
   hook,
   partirEnTramos,

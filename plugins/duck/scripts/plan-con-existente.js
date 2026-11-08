@@ -12,7 +12,7 @@
 // archivo como quedaria despues del cambio. Sin odd.diseno, o sin .claude/duck.json, no hace nada.
 
 const fs = require('fs');
-const { hook } = require('./config');
+const { hook, textoResultante } = require('./config');
 
 const SECCION = /^##\s+Lo que ya existe\s*$/m;
 
@@ -44,20 +44,4 @@ function rutaDePlan(diseno) {
   const [antes, despues = ''] = diseno.replace(/\\/g, '/').replace(/^\.?\//, '').split('{historia}');
   const literal = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|/)${literal(antes)}[^/]+${literal(despues)}$`);
-}
-
-// Lo que el archivo diria despues de la herramienta, o null si no se puede saber (Edit sobre un
-// archivo ilegible o sin el texto a reemplazar: la herramienta misma va a fallar).
-function textoResultante(herramienta, entrada) {
-  if (herramienta === 'Write') return String(entrada.content ?? '');
-  if (herramienta !== 'Edit') return null;
-  let actual;
-  try {
-    actual = fs.readFileSync(entrada.file_path, 'utf8');
-  } catch {
-    return null;
-  }
-  const { old_string: viejo = '', new_string: nuevo = '' } = entrada;
-  if (!viejo || !actual.includes(viejo)) return null;
-  return entrada.replace_all ? actual.split(viejo).join(nuevo) : actual.replace(viejo, () => nuevo);
 }

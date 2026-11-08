@@ -24,6 +24,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `push-con-issue` | `scripts/push-con-issue.js` | Una rama de trabajo no sale sin su issue: deniega el `git push` de una rama de `git.prefijos` sin clave en el nombre y, con GitHub, si el issue no existe, está cerrado o no cuelga de una HU (`ticket.js ver`). Deniega `gh pr create` sin `Closes #N` o `Refs #N` del issue de la rama en el cuerpo. Una rama que ya estaba publicada solo recibe un aviso. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
 | Hook `plan-con-existente` | `scripts/plan-con-existente.js` | Deniega escribir el plan de la historia (`odd.diseno`) sin la sección `## Lo que ya existe`: antes de proponer, el analista busca en los repos si ya está implementado. Sin `odd.diseno` no hace nada. |
+| Hook `guard-adr` | `scripts/guard-adr.js` | Deniega editar un ADR (`NNNN-titulo.md` en la carpeta `adr`) que está `Status: Accepted` en la rama base (`origin/HEAD`), salvo su línea Status (`Superseded by NNNN`, `Deprecated`). Un ADR nuevo o `Proposed` en la base sigue editable en su PR. También cuida los worktrees del repo de docs. Sin `adr` no hace nada. |
 | Hook `guard-sin-clave` | `scripts/guard-sin-clave.js` | Ninguna rama de trabajo nace sin `/duck:tomar`: deniega crear una rama en `git.repos` sin clave en el nombre o sin la marca `DUCK_MODO=tarea\|flujo`, que pone `/duck:tomar` después de preguntar el modo. Pasan las `spike/`. |
 | Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira o movida de GitHub, In Review incluido (para el sticker y el panel). Con GitHub, al tomar un issue crea el archivo de historia de la sesión, así el panel lo muestra sin correr `/duck:estado`. |
 | Hook `tarea-por-commit` | `scripts/tarea-por-commit.js` | Un commit en la rama de una tarea la anota en la sesión: retomar trabajo ya En Proceso también llega al panel. |
@@ -168,6 +169,7 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 | Campo | Por defecto | Qué hace |
 |---|---|---|
 | `convenciones` | `null` | Archivo, relativo a la raíz, con lo propio del proyecto que leen los agentes y `/duck:tomar`: ver «Adaptar duck a un proyecto». Los hooks no lo usan. |
+| `adr` | `null` | Carpeta de los ADR, relativa a la raíz: `doc/adr`. Con valor, `guard-adr.js` no deja editar un ADR aceptado en la rama base salvo su línea Status. Dentro de un repo se compara con el final de la carpeta (`adr` dentro del repo `doc`), así que también vale en un worktree. `null` = sin guardia. |
 | `acli` | `acli` | Cómo invocar el CLI de Atlassian para el refresco de Jira del panel. `acli` a secas se ejecuta directo; una ruta (admite `%VARIABLES%` de Windows) se resuelve con PowerShell, y si no existe se cae a `acli` del PATH. |
 
 ### `odd`
