@@ -1,7 +1,9 @@
 ---
+name: iniciar
 description: Configura duck en este proyecto — detecta repos, rama base y Jira o GitHub Projects, pregunta lo propio del proyecto, y genera .claude/duck.json y su archivo de convenciones
 argument-hint: "[clave-de-jira]"
 allowed-tools: Bash, Read, Write, Glob, Grep, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__getVisibleJiraProjects, mcp__atlassian__discover, mcp__atlassian__executeRead
+disable-model-invocation: true
 ---
 
 Configuración de duck para el proyecto de esta sesión. Clave de Jira propuesta por quien llama: `$ARGUMENTS` (puede venir vacía).

@@ -1,4 +1,5 @@
 ---
+name: estado
 description: La mesa de trabajo Duck — extensiones instaladas, dónde está cada repo, y cómo va la historia en curso (Jira o GitHub)
 allowed-tools: Bash, Read, mcp__atlassian__searchJiraIssuesUsingJql
 ---

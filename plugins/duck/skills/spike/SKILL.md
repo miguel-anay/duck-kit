@@ -1,7 +1,9 @@
 ---
+name: spike
 description: Arranca un spike — desarrollo local para ver si es lo que se quiere, sin Jira ni remoto — rama spike/<tema> desde la rama base al día
 argument-hint: <tema-en-kebab-case> [carpeta-de-repo ...]
 allowed-tools: Bash, Read, Write, Glob, Grep
+disable-model-invocation: true
 ---
 
 Arranque de un spike. Argumentos tal cual los pasó quien llama: `$ARGUMENTS`.

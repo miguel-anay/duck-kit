@@ -1,7 +1,9 @@
 ---
+name: tomar
 description: Arranca una tarea de Jira o un issue de GitHub (modo tarea) o una historia entera (modo flujo) — lee el ticket, revisa el otro carril, crea la rama y la pone En Proceso
 argument-hint: <CLAVE>-nnn | #N | owner/repo#N [slug]
 allowed-tools: Bash, Read, Write, Glob, Grep, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__transitionJiraIssue, mcp__atlassian__discover, mcp__atlassian__executeRead
+disable-model-invocation: true
 ---
 
 Arranque de `$1`. Slug propuesto por quien llama: `$2` — puede venir vacío.

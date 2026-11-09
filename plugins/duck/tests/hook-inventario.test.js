@@ -101,3 +101,19 @@ test('sesion-inicio (odd.versionado) treats the feature document as versioned an
   assert.doesNotMatch(texto, /single-pr/);
   assert.match(texto, /duck:escritor/);
 });
+
+test('inventario lists the plugin skills that declare allowed-tools as commands, plus project .claude/commands and .claude/skills, and still lists every skill', () => {
+  const raiz = proyecto(JIRA);
+  const escribir = (ruta, texto) => {
+    fs.mkdirSync(path.dirname(path.join(raiz, ruta)), { recursive: true });
+    fs.writeFileSync(path.join(raiz, ruta), texto);
+  };
+  escribir('.claude/commands/mio.md', '---\ndescription: x\n---\n');
+  escribir('.claude/skills/propio/SKILL.md', '---\nname: propio\nallowed-tools: Bash\n---\n');
+  escribir('.claude/skills/solo-saber/SKILL.md', '---\nname: solo-saber\n---\n');
+  const r = JSON.parse(correr('inventario.js', raiz, {}).stdout);
+  for (const c of ['duck:tomar', 'duck:estado', 'duck:spike', 'duck:iniciar', 'mio', 'propio']) assert.ok(r.comandos.includes(c), c);
+  assert.ok(!r.comandos.includes('duck:evidencia-de-pruebas'));
+  assert.ok(!r.comandos.includes('solo-saber'));
+  for (const s of ['duck:tomar', 'duck:evidencia-de-pruebas', 'propio', 'solo-saber']) assert.ok(r.skills.includes(s), s);
+});
