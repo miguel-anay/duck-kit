@@ -53,6 +53,15 @@ test('conjunto de repos: doc/ hermana con adr, changelog/<repo>.md, convenciones
   }
 });
 
+test('conjunto de repos: el repo doc/ no lleva changelog propio', () => {
+  const d = tmp();
+  fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
+  fs.mkdirSync(path.join(d, 'doc', '.git'), { recursive: true });
+  const r = correr(d, '--dry-run');
+  assert.ok(r.json.creados.includes('doc/changelog/api.md'));
+  assert.ok(!r.json.creados.includes('doc/changelog/doc.md'));
+});
+
 test('nunca pisa un archivo existente', () => {
   const d = tmp(); repo(d);
   fs.mkdirSync(path.join(d, 'docs'));

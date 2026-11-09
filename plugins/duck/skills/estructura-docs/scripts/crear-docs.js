@@ -38,7 +38,7 @@ function plan() {
     const serie = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'CHANGELOG.md'].map((f) => [f, f]);
     return { layout: esMonorepo() ? 'monorepo' : 'repo', destino: 'docs', items: [...serie, adr] };
   }
-  const repos = subrepos();
+  const repos = subrepos().filter((r) => r !== 'doc'); // doc/ es el repo de docs, no un repo de codigo
   if (!repos.length) return null;
   return {
     layout: 'multi-repo',

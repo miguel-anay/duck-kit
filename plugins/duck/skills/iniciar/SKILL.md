@@ -37,6 +37,8 @@ for d in */; do git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && e
 - **Prefijos de rama.** `git -C <d> branch -r --format='%(refname:short)'`, y contá los prefijos (`feature/`, `bugfix/`, `hotfix/`, `spec/`, …). Los que se usan entran en `git.prefijos`. Con GitHub Projects las ramas son `<prefijo>/N-slug` (`feat/12-login` → `feat`), y la rama base suele ser `main`, la de `origin/HEAD`.
 - **Borrado de la rama remota al mergear.** Con la organización conocida, por cada repo: `gh api repos/<org>/<repo> --jq .delete_branch_on_merge`. El cierre (paso 11 de `METODO.md`) borra solo la rama local y cuenta con que GitHub ya borró la remota: con `false`, cada merge deja la rama colgada en GitHub. No se pregunta ni va a `duck.json`, porque es una opción del repo y no de duck: se avisa en el paso 5. Si `gh` no responde, va a «sin verificar».
 
+- **Carpeta de ADR.** Si existe `docs/adr/` (un repo) o `doc/adr/` (varios repos) con archivos `NNNN-*.md`, proponé `"adr"` con esa ruta: activa `guard-adr.js`, que no deja editar un ADR aceptado en la rama base salvo su línea Status. Si no hay carpeta, `adr` no se escribe (la crea la skill `estructura-docs`).
+
 No hagas `fetch`: alcanza con lo que ya hay. **No leas** archivos de configuración local con secretos (`.env`, `appsettings.local.json` y parecidos).
 
 ## 2. Detectar el seguimiento: Jira o GitHub Projects — sin preguntar
