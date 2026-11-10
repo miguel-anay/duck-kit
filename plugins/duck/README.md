@@ -17,7 +17,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | `/duck:iniciar [clave]` | `skills/iniciar/` | Configura duck en un proyecto: detecta, pregunta y genera `duck.json` y las convenciones. |
 | `/duck:spike <tema> [repos]` | `skills/spike/` | Arranca un spike: rama `spike/<tema>` local, sin Jira ni remoto. |
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
-| Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (repo, monorepo o varios repos) y crea la carpeta con plantillas de ADR, PRD, changelog, diseño, seguridad y despliegue, sin pisar nada. |
+| Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (repo, monorepo o varios repos) y crea la misma serie en los tres casos: PRD, diseño, ADR, specs, seguridad, despliegue, guías, manuales, convenciones, IA (agentes), plantillas y changelog, sin pisar nada. |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
 | Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`. |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |

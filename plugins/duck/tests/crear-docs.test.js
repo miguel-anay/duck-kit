@@ -15,6 +15,10 @@ function tmp() {
   temporales.push(d);
   return d;
 }
+// The same series in every layout; only the place and the changelog shape change.
+const SERIE = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'adr/0000-plantilla.md',
+  'specs/README.md', 'plantillas/spec.md', 'plantillas/agente-ia.md', 'manuales/README.md', 'ia/README.md',
+  'ia/agentes', 'guias/README.md', 'convenciones/README.md'];
 const repo = (d) => fs.mkdirSync(path.join(d, '.git'), { recursive: true });
 const correr = (cwd, ...args) => {
   const r = spawnSync('node', [SCRIPT, ...args], { cwd, encoding: 'utf8' });
@@ -26,7 +30,7 @@ test('repo chico sin workspaces: docs/ dentro del repo', () => {
   const r = correr(d);
   assert.strictEqual(r.status, 0);
   assert.strictEqual(r.json.layout, 'repo');
-  for (const f of ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'CHANGELOG.md', 'adr/0000-plantilla.md']) {
+  for (const f of [...SERIE, 'CHANGELOG.md']) {
     assert.ok(fs.existsSync(path.join(d, 'docs', f)), f);
   }
   assert.ok(r.json.creados.includes('docs/README.md'));
@@ -37,7 +41,7 @@ test('monorepo (pnpm-workspace.yaml): docs/ en la raiz con la serie completa', (
   fs.writeFileSync(path.join(d, 'pnpm-workspace.yaml'), 'packages: []\n');
   const r = correr(d);
   assert.strictEqual(r.json.layout, 'monorepo');
-  for (const f of ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'CHANGELOG.md', 'adr/0000-plantilla.md']) {
+  for (const f of [...SERIE, 'CHANGELOG.md']) {
     assert.ok(fs.existsSync(path.join(d, 'docs', f)), f);
   }
 });
@@ -48,7 +52,7 @@ test('conjunto de repos: doc/ hermana con adr, changelog/<repo>.md, convenciones
   fs.mkdirSync(path.join(d, 'web', '.git'), { recursive: true });
   const r = correr(d);
   assert.strictEqual(r.json.layout, 'multi-repo');
-  for (const f of ['README.md', 'adr/0000-plantilla.md', 'changelog/api.md', 'changelog/web.md', 'convenciones', 'odd']) {
+  for (const f of [...SERIE, 'changelog/api.md', 'changelog/web.md', 'repositorios.md', 'odd']) {
     assert.ok(fs.existsSync(path.join(d, 'doc', f)), f);
   }
 });

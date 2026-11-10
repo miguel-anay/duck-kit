@@ -30,20 +30,37 @@ function subrepos() {
     .map((e) => e.name);
 }
 
-// Cada entrada: [ruta relativa al destino, plantilla | null]. Una ruta terminada en / es carpeta vacia.
+// Cada entrada: [ruta relativa al destino, plantilla | null]. Sin plantilla, el archivo queda vacio
+// (un .gitkeep que versiona la carpeta).
+// La misma serie en los tres layouts: cambia donde vive y la forma del changelog.
+const SERIE = [
+  ...['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md'].map((f) => [f, f]),
+  ['adr/0000-plantilla.md', 'adr-0000.md'],
+  ['specs/README.md', 'specs-README.md'],
+  ['plantillas/spec.md', 'spec.md'],
+  ['plantillas/agente-ia.md', 'agente-ia.md'],
+  ['manuales/README.md', 'manuales-README.md'],
+  ['ia/README.md', 'ia-README.md'],
+  ['ia/agentes/.gitkeep', null],
+  ['guias/README.md', 'guias-README.md'],
+  ['convenciones/README.md', 'convenciones-README.md'],
+];
+
 function plan() {
-  const adr = ['adr/0000-plantilla.md', 'adr-0000.md'];
   if (esRepo(raiz)) {
-    // A single repo, small or monorepo, keeps the full series inside: it depends on no other docs.
-    const serie = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'CHANGELOG.md'].map((f) => [f, f]);
-    return { layout: esMonorepo() ? 'monorepo' : 'repo', destino: 'docs', items: [...serie, adr] };
+    return { layout: esMonorepo() ? 'monorepo' : 'repo', destino: 'docs', items: [...SERIE, ['CHANGELOG.md', 'CHANGELOG.md']] };
   }
   const repos = subrepos().filter((r) => r !== 'doc'); // doc/ es el repo de docs, no un repo de codigo
   if (!repos.length) return null;
   return {
     layout: 'multi-repo',
     destino: 'doc',
-    items: [['README.md', 'README.md'], adr, ...repos.map((r) => [`changelog/${r}.md`, 'CHANGELOG.md']), ['convenciones/.gitkeep', null], ['odd/.gitkeep', null]],
+    items: [
+      ...SERIE,
+      ...repos.map((r) => [`changelog/${r}.md`, 'CHANGELOG.md']),
+      ['repositorios.md', 'repositorios.md'],
+      ['odd/.gitkeep', null],
+    ],
   };
 }
 
