@@ -30,8 +30,8 @@ Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del c
 | `DEPLOY.md` | Cómo se despliega y se revierte. |
 | `guias/` | Ejecución local, entornos y flujo de trabajo. |
 | `manuales/` | `usuario.html` y `tecnico.html`: salen del código real y describen lo que hay, nunca lo que debería haber. Sin código funcionando, esperan. |
-| `convenciones/` | Reglas del proyecto, con su motivo. |
-| `ia/` | `CLAUDE.md` base y `agentes/` del proyecto; copiar `plantillas/agente-ia.md`. |
+| `convenciones/` | Reglas del proyecto, con su motivo y quién la hace cumplir (duck, git, GitHub o la revisión). Los hooks de git del proyecto van en `convenciones/hooks/`; los de duck no se copian: viven en el plugin. |
+| `ia/` | `CLAUDE.md` base y `agentes/` propios del proyecto; copiar `plantillas/agente-ia.md`. Los agentes de duck no se copian: los instala el plugin. |
 | `plantillas/` | Plantillas de spec y de agente. |
 | `CHANGELOG.md` o `changelog/<repo>.md` | Cambios visibles por versión. |
 | `repositorios.md` (varios repos) | Inventario de repos, rama base y qué contiene cada uno. |
