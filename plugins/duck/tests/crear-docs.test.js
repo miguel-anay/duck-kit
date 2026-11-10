@@ -18,7 +18,7 @@ function tmp() {
 // The same series in every layout; only the place and the changelog shape change.
 const SERIE = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'adr/0000-plantilla.md',
   'specs/README.md', 'plantillas/spec.md', 'plantillas/agente-ia.md', 'manuales/README.md', 'ia/README.md',
-  'ia/agentes', 'guias/README.md', 'convenciones/README.md'];
+  'ia/agentes', 'guias/README.md', 'convenciones/README.md', 'odd'];
 const repo = (d) => fs.mkdirSync(path.join(d, '.git'), { recursive: true });
 const correr = (cwd, ...args) => {
   const r = spawnSync('node', [SCRIPT, ...args], { cwd, encoding: 'utf8' });
@@ -52,7 +52,7 @@ test('conjunto de repos: doc/ hermana con adr, changelog/<repo>.md, convenciones
   fs.mkdirSync(path.join(d, 'web', '.git'), { recursive: true });
   const r = correr(d);
   assert.strictEqual(r.json.layout, 'multi-repo');
-  for (const f of [...SERIE, 'changelog/api.md', 'changelog/web.md', 'repositorios.md', 'odd']) {
+  for (const f of [...SERIE, 'changelog/api.md', 'changelog/web.md', 'repositorios.md']) {
     assert.ok(fs.existsSync(path.join(d, 'doc', f)), f);
   }
 });

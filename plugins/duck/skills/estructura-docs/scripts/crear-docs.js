@@ -44,6 +44,7 @@ const SERIE = [
   ['ia/agentes/.gitkeep', null],
   ['guias/README.md', 'guias-README.md'],
   ['convenciones/README.md', 'convenciones-README.md'],
+  ['odd/.gitkeep', null],
 ];
 
 function plan() {
@@ -59,7 +60,6 @@ function plan() {
       ...SERIE,
       ...repos.map((r) => [`changelog/${r}.md`, 'CHANGELOG.md']),
       ['repositorios.md', 'repositorios.md'],
-      ['odd/.gitkeep', null],
     ],
   };
 }

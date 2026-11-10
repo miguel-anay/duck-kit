@@ -21,4 +21,5 @@
 - [convenciones/](convenciones/README.md): reglas del proyecto.
 - [ia/](ia/README.md): contexto y agentes de IA del proyecto.
 - [plantillas/](plantillas/): plantillas de spec y de agente.
+- [odd/](odd/): documentos de tareas de ODD, si el proyecto los versiona.
 - CHANGELOG: qué cambió en cada versión.

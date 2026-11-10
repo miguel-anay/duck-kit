@@ -15,7 +15,7 @@ Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del c
 |---|---|---|
 | Raíz es un repo git, sin workspaces | `docs/` dentro del repo | `CHANGELOG.md` |
 | Raíz es un repo git con `pnpm-workspace.yaml`, `turbo.json`, `nx.json` (o `workspaces` en `package.json`) | `docs/` en la raíz | `CHANGELOG.md` |
-| Raíz no es un repo y sus subcarpetas sí lo son | carpeta hermana `doc/`, que tiene que ser **su propio repo git** (el script avisa si no lo es) | `changelog/<repo>.md`, `repositorios.md`, `odd/` |
+| Raíz no es un repo y sus subcarpetas sí lo son | carpeta hermana `doc/`, que tiene que ser **su propio repo git** (el script avisa si no lo es) | `changelog/<repo>.md`, `repositorios.md` |
 
 ## 2. Qué va en cada lugar
 
@@ -35,7 +35,7 @@ Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del c
 | `plantillas/` | Plantillas de spec y de agente. |
 | `CHANGELOG.md` o `changelog/<repo>.md` | Cambios visibles por versión. |
 | `repositorios.md` (varios repos) | Inventario de repos, rama base y qué contiene cada uno. |
-| `odd/` (varios repos) | Documentos de tareas de ODD versionados. |
+| `odd/` | Documentos de tareas de ODD, cuando el proyecto los versiona (`odd.versionado: true`, con `odd.tareas` apuntando acá). |
 
 Orden de escritura: `PRD.md`, `TECH-DESIGN.md`, `adr/`, `SECURITY.md`; después, una spec por cambio. Si el proyecto usa `odd.diseno` de duck, conviene apuntarlo a `specs/{historia}/spec.md`.
 
