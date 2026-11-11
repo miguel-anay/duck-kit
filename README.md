@@ -116,8 +116,11 @@ Solo cambia dónde vive:
 
 | Proyecto | Dónde |
 |---|---|
-| Un repo, o un monorepo (`pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `workspaces`) | `docs/` dentro del repo, con `CHANGELOG.md` |
-| Varios repos en una carpeta madre | `doc/` al lado de los repos, como repo git propio, con `changelog/<repo>.md` y `repositories.md` |
+| `mono-repo`: un repo, con o sin workspaces | `docs/` dentro del repo, con `CHANGELOG.md`; o un repo aparte `<repo>.docs` al lado |
+| `multi-repo`: varios repos en una carpeta madre | `docs/` al lado de los repos, como repo git propio (`<carpeta-madre>.docs` en GitHub), con `changelog/<repo>.md` y `repositories.md` |
+
+El nombre es siempre `docs`, el que GitHub reconoce. `/duck:iniciar` pregunta dónde y lo guarda como `"docs"`
+en `duck.json`; un proyecto que ya usa `doc/` sigue funcionando, y duck avisa el `git mv doc docs`.
 
 La serie, con nombres y plantillas en inglés: `PRD.md`, `TECH-DESIGN.md`, `SECURITY.md`, `DEPLOY.md`, `adr/`,
 `specs/`, `templates/`, `manuals/`, `guides/`, `conventions/` (cada regla con quién la hace cumplir), `ai/` y
@@ -128,7 +131,7 @@ duck avisa el rename.
 `templates/ai-agent.md`) y se instalan en `.claude/agents/` de la raíz del proyecto, donde Claude los lee:
 
 ```sh
-sh docs/ai/install-agents.sh                                        # Linux, macOS (doc/ con varios repos)
+sh docs/ai/install-agents.sh                                        # Linux, macOS
 powershell -ExecutionPolicy Bypass -File docs/ai/install-agents.ps1 # Windows
 ```
 

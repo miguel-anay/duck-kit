@@ -78,7 +78,10 @@ const DEFECTOS = {
   // versionado de la historia, que ODD no reemplaza ({historia} = la clave). versionado: true cuando
   // tareas ES el plan versionado (un solo documento, nombre propio, se archiva) en vez de bitacora local.
   odd: { tareas: null, diseno: null, versionado: false },
-  // Carpeta de los ADR, relativa a la raiz (doc/adr). Con valor, guard-adr.js no deja editar un ADR
+  // Carpeta de docs, relativa a la raiz (docs, o ../<repo>.docs). La elige /duck:iniciar y la lee
+  // estructura-docs; null = la skill usa la docs/ o doc/ que exista, o crea docs/.
+  docs: null,
+  // Carpeta de los ADR, relativa a la raiz (docs/adr). Con valor, guard-adr.js no deja editar un ADR
   // aceptado en la rama base salvo su linea Status. null = sin guardia.
   adr: null,
 };

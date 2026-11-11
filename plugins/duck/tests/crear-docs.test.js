@@ -26,45 +26,96 @@ const correr = (cwd, ...args) => {
   return { ...r, json: r.stdout ? JSON.parse(r.stdout) : null };
 };
 
-test('repo chico sin workspaces: docs/ dentro del repo', () => {
+test('mono-repo: docs/ dentro del repo', () => {
   const d = tmp(); repo(d);
   const r = correr(d);
   assert.strictEqual(r.status, 0);
-  assert.strictEqual(r.json.layout, 'repo');
+  assert.strictEqual(r.json.layout, 'mono-repo');
   for (const f of [...SERIE, 'CHANGELOG.md']) {
     assert.ok(fs.existsSync(path.join(d, 'docs', f)), f);
   }
   assert.ok(r.json.creados.includes('docs/README.md'));
 });
 
-test('monorepo (pnpm-workspace.yaml): docs/ en la raiz con la serie completa', () => {
+test('mono-repo con workspaces (pnpm-workspace.yaml): mismo layout, docs/ en la raiz', () => {
   const d = tmp(); repo(d);
   fs.writeFileSync(path.join(d, 'pnpm-workspace.yaml'), 'packages: []\n');
   const r = correr(d);
-  assert.strictEqual(r.json.layout, 'monorepo');
+  assert.strictEqual(r.json.layout, 'mono-repo');
   for (const f of [...SERIE, 'CHANGELOG.md']) {
     assert.ok(fs.existsSync(path.join(d, 'docs', f)), f);
   }
 });
 
-test('conjunto de repos: doc/ hermana con adr, changelog/<repo>.md, convenciones y odd', () => {
+test('multi-repo sin carpeta de docs: crea docs/ hermana (no doc/) con la serie y changelog/<repo>.md', () => {
   const d = tmp();
   fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
   fs.mkdirSync(path.join(d, 'web', '.git'), { recursive: true });
   const r = correr(d);
   assert.strictEqual(r.json.layout, 'multi-repo');
   for (const f of [...SERIE, 'changelog/api.md', 'changelog/web.md', 'repositories.md']) {
-    assert.ok(fs.existsSync(path.join(d, 'doc', f)), f);
+    assert.ok(fs.existsSync(path.join(d, 'docs', f)), f);
   }
+  assert.ok(!fs.existsSync(path.join(d, 'doc')));
 });
 
-test('conjunto de repos: el repo doc/ no lleva changelog propio', () => {
+test('multi-repo con docs/ existente: la usa y no la trata como repo de codigo', () => {
+  const d = tmp();
+  fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
+  fs.mkdirSync(path.join(d, 'docs', '.git'), { recursive: true });
+  const r = correr(d, '--dry-run');
+  assert.strictEqual(r.json.destino, 'docs');
+  assert.ok(r.json.creados.includes('docs/changelog/api.md'));
+  assert.ok(!r.json.creados.some((c) => /changelog\/docs?\.md$/.test(c)));
+  assert.ok(!r.json.creados.some((c) => c.startsWith('doc/')));
+  assert.deepStrictEqual(r.json.advertencias, []);
+});
+
+test('multi-repo con doc/ existente (nombre viejo): la usa, sin changelog/doc.md, y avisa el git mv', () => {
   const d = tmp();
   fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
   fs.mkdirSync(path.join(d, 'doc', '.git'), { recursive: true });
+  const r = correr(d);
+  assert.strictEqual(r.json.destino, 'doc');
+  assert.ok(fs.existsSync(path.join(d, 'doc', 'changelog', 'api.md')));
+  assert.ok(!fs.existsSync(path.join(d, 'doc', 'changelog', 'doc.md')));
+  assert.ok(!fs.existsSync(path.join(d, 'docs')));
+  assert.ok(r.json.advertencias.some((a) => /git mv doc docs/.test(a)));
+});
+
+const duck = (d, cfg) => {
+  fs.mkdirSync(path.join(d, '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(d, '.claude', 'duck.json'), JSON.stringify(cfg));
+};
+
+test('duck.json docs: la serie va a esa ruta, aunque este fuera del repo', () => {
+  const madre = tmp();
+  const d = path.join(madre, 'app'); repo(d);
+  duck(d, { docs: '../app.docs' });
+  const r = correr(d);
+  assert.strictEqual(r.json.destino, '../app.docs');
+  assert.ok(fs.existsSync(path.join(madre, 'app.docs', 'PRD.md')));
+  assert.ok(fs.existsSync(path.join(madre, 'app.docs', 'CHANGELOG.md')));
+  assert.ok(!fs.existsSync(path.join(d, 'docs')));
+});
+
+test('duck.json docs elegido como doc: se respeta sin avisar el rename', () => {
+  const d = tmp();
+  fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
+  fs.mkdirSync(path.join(d, 'doc', '.git'), { recursive: true });
+  duck(d, { docs: 'doc' });
   const r = correr(d, '--dry-run');
-  assert.ok(r.json.creados.includes('doc/changelog/api.md'));
-  assert.ok(!r.json.creados.includes('doc/changelog/doc.md'));
+  assert.strictEqual(r.json.destino, 'doc');
+  assert.ok(!r.json.advertencias.some((a) => /git mv/.test(a)));
+});
+
+test('duck.json git.repos: changelog solo de los repos listados, nunca de la carpeta de docs', () => {
+  const d = tmp();
+  for (const r of ['api', 'web', 'base_conocimiento', 'docs']) fs.mkdirSync(path.join(d, r, '.git'), { recursive: true });
+  duck(d, { git: { repos: { api: 'api', web: 'web', docs: 'app-docs' } } });
+  const r = correr(d, '--dry-run');
+  const changelogs = r.json.creados.filter((c) => c.includes('/changelog/')).sort();
+  assert.deepStrictEqual(changelogs, ['docs/changelog/api.md', 'docs/changelog/web.md']);
 });
 
 test('nunca pisa un archivo existente', () => {
@@ -87,12 +138,12 @@ test('--dry-run informa el plan y no escribe nada', () => {
   assert.ok(!fs.existsSync(path.join(d, 'docs')));
 });
 
-test('conjunto de repos: avisa si doc/ no es un repo git', () => {
+test('multi-repo: avisa si docs/ no es un repo git', () => {
   const d = tmp();
   fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
   let r = correr(d);
   assert.ok(r.json.advertencias.some((a) => /git/.test(a)));
-  repo(path.join(d, 'doc'));
+  repo(path.join(d, 'docs'));
   r = correr(d);
   assert.deepStrictEqual(r.json.advertencias, []);
 });
@@ -128,11 +179,11 @@ test('carpeta vieja en espanol: no crea la duplicada en ingles y avisa el rename
 });
 
 // ai/agents is the versioned source; the installer copies it to <root>/.claude/agents, where Claude reads it.
-for (const layout of ['repo', 'multi-repo']) {
+for (const layout of ['mono-repo', 'multi-repo']) {
   test(`install-agents.sh (${layout}): copia ai/agents a .claude/agents de la raiz y refresca`, () => {
     const d = tmp();
-    if (layout === 'repo') repo(d); else fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
-    const ia = path.join(d, layout === 'repo' ? 'docs' : 'doc', 'ai');
+    if (layout === 'mono-repo') repo(d); else fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
+    const ia = path.join(d, 'docs', 'ai');
     correr(d);
     const instalar = () => spawnSync('sh', [path.join(ia, 'install-agents.sh')], { cwd: os.tmpdir(), encoding: 'utf8' });
     const copia = path.join(d, '.claude', 'agents', 'seguridad.md');

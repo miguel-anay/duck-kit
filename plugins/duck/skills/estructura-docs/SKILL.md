@@ -9,13 +9,16 @@ Antes de escribir un ADR, PRD, changelog, diseño, documento de seguridad o de d
 
 ## 1. Layout
 
-Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del changelog.
+Hay dos layouts, y los dos reciben **la misma serie**; cambia dónde vive y la forma del changelog.
 
-| Detección | Dónde van los docs | Además |
-|---|---|---|
-| Raíz es un repo git, sin workspaces | `docs/` dentro del repo | `CHANGELOG.md` |
-| Raíz es un repo git con `pnpm-workspace.yaml`, `turbo.json`, `nx.json` (o `workspaces` en `package.json`) | `docs/` en la raíz | `CHANGELOG.md` |
-| Raíz no es un repo y sus subcarpetas sí lo son | carpeta hermana `doc/`, que tiene que ser **su propio repo git** (el script avisa si no lo es) | `changelog/<repo>.md`, `repositories.md` |
+| Layout | Detección | Dónde van los docs | Además |
+|---|---|---|---|
+| `mono-repo` | La raíz es un repo git (con o sin workspaces) | `docs/` dentro del repo, o un repo aparte `<repo>.docs` al lado | `CHANGELOG.md` |
+| `multi-repo` | La raíz no es un repo y sus subcarpetas sí lo son | carpeta hermana `docs/`, que tiene que ser **su propio repo git** (el script avisa si no lo es); en GitHub, `<carpeta-madre>.docs` | `changelog/<repo>.md`, `repositories.md` |
+
+El nombre es siempre `docs`: es la carpeta que GitHub reconoce (Pages publica desde `/docs`, y `SECURITY.md` y los demás archivos de comunidad se leen de ahí).
+
+**Dónde, en orden:** `docs` de `.claude/duck.json` (ruta relativa a la raíz, la que eligió `/duck:iniciar`); si no está, la carpeta que ya exista, `docs/` o `doc/`; si no hay ninguna, `docs/`. Una `doc/` sin `docs` en `duck.json` se usa igual, y el script avisa el `git mv doc docs`. Los repos de código son los de `git.repos` de `duck.json`, o, sin esa clave, las subcarpetas que son repo; la carpeta de docs nunca cuenta como repo de código.
 
 ## 2. Qué va en cada lugar
 
@@ -51,4 +54,4 @@ Los nombres de carpetas y archivos, y el contenido de las plantillas, están en 
 
 ## 4. Conectar con duck
 
-Si el proyecto tiene `.claude/duck.json`, proponer agregarle `"adr"` con la carpeta de ADR creada (`docs/adr`, o `doc/adr` con varios repos): sin esa clave, `guard-adr.js` no cuida los ADR aceptados. Se muestra el cambio y se espera conformidad, como en `/duck:iniciar`.
+Si el proyecto tiene `.claude/duck.json`, proponer agregarle `"adr"` con la carpeta de ADR creada (`<docs>/adr`): sin esa clave, `guard-adr.js` no cuida los ADR aceptados. Se muestra el cambio y se espera conformidad, como en `/duck:iniciar`.

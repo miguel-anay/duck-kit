@@ -17,7 +17,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | `/duck:iniciar [clave]` | `skills/iniciar/` | Configura duck en un proyecto: detecta, pregunta y genera `duck.json` y las convenciones; dice qué le falta a la carpeta de docs y la crea si se acepta. |
 | `/duck:spike <tema> [repos]` | `skills/spike/` | Arranca un spike: rama `spike/<tema>` local, sin Jira ni remoto. |
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
-| Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (repo, monorepo o varios repos) y crea la misma serie en los tres casos: PRD, diseño, ADR, specs, seguridad, despliegue, guías, manuales, convenciones, IA (agentes, con `install-agents.sh`/`.ps1` que los copia a `.claude/agents/`), plantillas, ODD y changelog, sin pisar nada. Nombres y plantillas en inglés. |
+| Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (`mono-repo` o `multi-repo`, siempre con el nombre `docs`; o la ruta de `docs` en `duck.json`) y crea la misma serie en los dos casos: PRD, diseño, ADR, specs, seguridad, despliegue, guías, manuales, convenciones, IA (agentes, con `install-agents.sh`/`.ps1` que los copia a `.claude/agents/`), plantillas, ODD y changelog, sin pisar nada. Nombres y plantillas en inglés. |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
 | Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`. |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
@@ -170,7 +170,8 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 | Campo | Por defecto | Qué hace |
 |---|---|---|
 | `convenciones` | `null` | Archivo, relativo a la raíz, con lo propio del proyecto que leen los agentes y `/duck:tomar`: ver «Adaptar duck a un proyecto». Los hooks no lo usan. |
-| `adr` | `null` | Carpeta de los ADR, relativa a la raíz: `doc/adr`. Con valor, `guard-adr.js` no deja editar un ADR aceptado en la rama base salvo su línea Status. Dentro de un repo se compara con el final de la carpeta (`adr` dentro del repo `doc`), así que también vale en un worktree. `null` = sin guardia. |
+| `docs` | `null` | Carpeta de docs, relativa a la raíz: `docs` (dentro del repo, o la hermana con varios repos) o `../<repo>.docs` (repo aparte). La elige `/duck:iniciar` y la lee `estructura-docs`. `null` = la skill usa la `docs/` o `doc/` que exista, o crea `docs/`. |
+| `adr` | `null` | Carpeta de los ADR, relativa a la raíz: `docs/adr`. Con valor, `guard-adr.js` no deja editar un ADR aceptado en la rama base salvo su línea Status. Dentro de un repo se compara con el final de la carpeta (`adr` dentro del repo `docs`), así que también vale en un worktree. `null` = sin guardia. |
 | `acli` | `acli` | Cómo invocar el CLI de Atlassian para el refresco de Jira del panel. `acli` a secas se ejecuta directo; una ruta (admite `%VARIABLES%` de Windows) se resuelve con PowerShell, y si no existe se cae a `acli` del PATH. |
 
 ### `odd`
