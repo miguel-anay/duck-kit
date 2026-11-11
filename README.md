@@ -9,7 +9,7 @@ trabajan con Jira (o GitHub Issues + Projects) y git.
 
 Trae guardias de git (sin push ni merge local a la rama base, sin `git branch -D`), estado de Jira por
 sesión, un panel lateral de la mesa de trabajo, un status line con la tarea en curso, cuatro comandos
-(`/duck:tomar`, `/duck:estado`, `/duck:iniciar`, `/duck:spike`), una skill de comentario de cierre y cuatro
+(`/duck:tomar`, `/duck:estado`, `/duck:iniciar`, `/duck:spike`), una skill de comentario de cierre, una de estructura de docs y cuatro
 agentes (`analista`, `escritor`, `explorador`, `verificador`).
 
 ## Instalación

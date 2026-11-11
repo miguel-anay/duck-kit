@@ -131,11 +131,22 @@ function existeArchivo(ruta) {
   }
 }
 
-// --- comandos: los del plugin (/duck:...) y los del proyecto bajo .claude/commands/ ---
+// --- comandos: skills invocables (/duck:...), y los del proyecto bajo .claude/commands/ y .claude/skills/ ---
 
+// Un comando es una skill que declara allowed-tools en su frontmatter; las que solo
+// aportan conocimiento (evidencia-de-pruebas) no lo declaran y salen unicamente en skills.
 function leerComandos() {
-  const delPlugin = nombresMd(path.join(RAIZ_PLUGIN, 'commands')).map((n) => `duck:${n}`);
-  const delProyecto = nombresMd(path.join(RAIZ, '.claude', 'commands'));
+  const comandosDe = (base, prefijo) =>
+    leerSkills(base, prefijo).filter((n) => {
+      try {
+        const md = fs.readFileSync(path.join(base, n.slice(prefijo.length), 'SKILL.md'), 'utf8');
+        return /^allowed-tools:/m.test(md.split(/^---$/m)[1] || '');
+      } catch {
+        return false;
+      }
+    });
+  const delPlugin = comandosDe(path.join(RAIZ_PLUGIN, 'skills'), 'duck:');
+  const delProyecto = [...nombresMd(path.join(RAIZ, '.claude', 'commands')), ...comandosDe(path.join(RAIZ, '.claude', 'skills'), '')];
   return [...new Set([...delPlugin, ...delProyecto])].sort();
 }
 
@@ -170,8 +181,8 @@ function listarMdRecursivo(dir) {
 
 // --- skills: nombres de carpeta del plugin y del proyecto (.claude/skills/) ---
 
-function leerSkills() {
-  const nombres = (base, prefijo) => {
+function leerSkills(base, prefijo) {
+  if (base) {
     try {
       return fs
         .readdirSync(base, { withFileTypes: true })
@@ -180,8 +191,8 @@ function leerSkills() {
     } catch {
       return [];
     }
-  };
-  return [...nombres(path.join(RAIZ_PLUGIN, 'skills'), 'duck:'), ...nombres(path.join(RAIZ, '.claude', 'skills'), '')].sort();
+  }
+  return [...leerSkills(path.join(RAIZ_PLUGIN, 'skills'), 'duck:'), ...leerSkills(path.join(RAIZ, '.claude', 'skills'), '')].sort();
 }
 
 // --- repos: estado git de cada carpeta de cfg.git.repos ---

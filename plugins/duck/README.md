@@ -2,7 +2,7 @@
 
 `duck` empaqueta un flujo de trabajo para Claude Code: **una rama por tarea de
 Jira, una sola puerta hacia el remoto, un ticket que sigue al trabajo**. Son guardias de git, estado de
-Jira por sesión, un panel de la mesa de trabajo, cuatro comandos, una skill y cuatro agentes.
+Jira por sesión, un panel de la mesa de trabajo, cuatro comandos (skills invocables), dos skills y cuatro agentes.
 
 El método está en [`METODO.md`](METODO.md). Este archivo dice qué trae el plugin, cómo se instala y cómo se
 configura. **Se configura por proyecto** (`.claude/duck.json`); sin ese archivo, duck no existe: los hooks
@@ -12,11 +12,12 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 
 | Pieza | Dónde | Para qué |
 |---|---|---|
-| `/duck:tomar <clave> [slug]` | `commands/tomar.md` | Arranca una tarea (modo tarea) o una historia (modo flujo): lee el ticket, mira el otro carril, crea la rama, pone el ticket en proceso. También `<clave> desde-spike`. |
-| `/duck:estado` | `commands/estado.md` | Panel de solo lectura: historia en curso, sub-tareas, dónde está el código de cada una, repos, alertas. |
-| `/duck:iniciar [clave]` | `commands/iniciar.md` | Configura duck en un proyecto: detecta, pregunta y genera `duck.json` y las convenciones. |
-| `/duck:spike <tema> [repos]` | `commands/spike.md` | Arranca un spike: rama `spike/<tema>` local, sin Jira ni remoto. |
+| `/duck:tomar <clave> [slug]` | `skills/tomar/` | Arranca una tarea (modo tarea) o una historia (modo flujo): lee el ticket, mira el otro carril, crea la rama, pone el ticket en proceso. También `<clave> desde-spike`. |
+| `/duck:estado` | `skills/estado/` | Panel de solo lectura: historia en curso, sub-tareas, dónde está el código de cada una, repos, alertas. |
+| `/duck:iniciar [clave]` | `skills/iniciar/` | Configura duck en un proyecto: detecta, pregunta y genera `duck.json` y las convenciones; dice qué le falta a la carpeta de docs y la crea si se acepta. |
+| `/duck:spike <tema> [repos]` | `skills/spike/` | Arranca un spike: rama `spike/<tema>` local, sin Jira ni remoto. |
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
+| Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (repo, monorepo o varios repos) y crea la misma serie en los tres casos: PRD, diseño, ADR, specs, seguridad, despliegue, guías, manuales, convenciones, IA (agentes, con `instalar-agentes.sh`/`.ps1` que los copia a `.claude/agents/`), plantillas, ODD y changelog, sin pisar nada. |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
 | Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`. |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
