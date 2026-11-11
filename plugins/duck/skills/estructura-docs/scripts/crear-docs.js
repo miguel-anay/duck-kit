@@ -32,22 +32,35 @@ function subrepos() {
 
 // Cada entrada: [ruta relativa al destino, plantilla | null]. Sin plantilla, el archivo queda vacio
 // (un .gitkeep que versiona la carpeta).
-// La misma serie en los tres layouts: cambia donde vive y la forma del changelog.
+// La misma serie en los tres layouts: cambia donde vive y la forma del changelog. Nombres y contenido en
+// ingles, como el resto de los artefactos tecnicos.
 const SERIE = [
   ...['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md'].map((f) => [f, f]),
-  ['adr/0000-plantilla.md', 'adr-0000.md'],
+  ['adr/0000-template.md', 'adr-template.md'],
   ['specs/README.md', 'specs-README.md'],
-  ['plantillas/spec.md', 'spec.md'],
-  ['plantillas/agente-ia.md', 'agente-ia.md'],
-  ['manuales/README.md', 'manuales-README.md'],
-  ['ia/README.md', 'ia-README.md'],
-  ['ia/agentes/.gitkeep', null],
-  ['ia/instalar-agentes.sh', 'instalar-agentes.sh'],
-  ['ia/instalar-agentes.ps1', 'instalar-agentes.ps1'],
-  ['guias/README.md', 'guias-README.md'],
-  ['convenciones/README.md', 'convenciones-README.md'],
+  ['templates/spec.md', 'spec.md'],
+  ['templates/ai-agent.md', 'ai-agent.md'],
+  ['manuals/README.md', 'manuals-README.md'],
+  ['ai/README.md', 'ai-README.md'],
+  ['ai/agents/.gitkeep', null],
+  ['ai/install-agents.sh', 'install-agents.sh'],
+  ['ai/install-agents.ps1', 'install-agents.ps1'],
+  ['guides/README.md', 'guides-README.md'],
+  ['conventions/README.md', 'conventions-README.md'],
   ['odd/.gitkeep', null],
 ];
+
+// Nombres que la skill uso en espanol. Si el proyecto ya tiene el viejo, no se crea el nuevo al lado:
+// se avisa el rename y lo decide la persona.
+const LEGADOS = {
+  guides: 'guias',
+  manuals: 'manuales',
+  conventions: 'convenciones',
+  ai: 'ia',
+  templates: 'plantillas',
+  'repositories.md': 'repositorios.md',
+  'adr/0000-template.md': 'adr/0000-plantilla.md',
+};
 
 function plan() {
   if (esRepo(raiz)) {
@@ -61,7 +74,7 @@ function plan() {
     items: [
       ...SERIE,
       ...repos.map((r) => [`changelog/${r}.md`, 'CHANGELOG.md']),
-      ['repositorios.md', 'repositorios.md'],
+      ['repositories.md', 'repositories.md'],
     ],
   };
 }
@@ -75,9 +88,12 @@ if (!p) {
 const base = path.join(raiz, p.destino);
 const creados = [];
 const existentes = [];
+const legados = new Set();
 for (const [rel, plantilla] of p.items) {
   const destino = path.join(base, rel);
   const nombre = path.posix.join(p.destino, rel);
+  const nuevo = Object.keys(LEGADOS).find((k) => rel === k || rel.startsWith(`${k}/`));
+  if (nuevo && fs.existsSync(path.join(base, LEGADOS[nuevo]))) { legados.add(nuevo); continue; }
   if (fs.existsSync(destino)) { existentes.push(nombre); continue; }
   creados.push(nombre);
   if (dryRun) continue;
@@ -86,7 +102,8 @@ for (const [rel, plantilla] of p.items) {
   fs.writeFileSync(destino, contenido, { flag: 'wx', mode: rel.endsWith('.sh') ? 0o755 : 0o644 });
 }
 
-const advertencias = [];
+const advertencias = [...legados].map((n) =>
+  `${p.destino}/${LEGADOS[n]} tiene el nombre viejo: renombrelo a ${p.destino}/${n} (git mv) y vuelva a correr la skill.`);
 if (p.layout === 'multi-repo' && !esRepo(base)) {
   advertencias.push('doc/ no es un repo git: haga git init para versionarlo, o se pierde el historial de los docs.');
 }

@@ -1,11 +1,11 @@
 # Changelog
 
-Formato: una sección por versión, la más reciente arriba. Solo cambios que alguien de afuera nota.
+Format: one section per version, newest first. Only changes someone outside the team notices.
 
-## [Sin publicar]
+## [Unreleased]
 
-### Agregado
+### Added
 
-### Cambiado
+### Changed
 
-### Corregido
+### Fixed

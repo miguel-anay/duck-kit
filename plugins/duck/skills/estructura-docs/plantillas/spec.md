@@ -1,37 +1,37 @@
-# NNN — Título del cambio
+# NNN — Change title
 
-- **Tipo:** feature | fix | refactor | deuda técnica
-- **Estado:** borrador | aprobada | implementada | cancelada
-- **Ticket:** (clave de Jira o issue de GitHub)
-- **Repos afectados:**
+- **Type:** feature | fix | refactor | tech debt
+- **Status:** draft | approved | implemented | cancelled
+- **Ticket:** (Jira key or GitHub issue)
+- **Affected repos:**
 
-## Problema
+## Problem
 
-Qué pasa hoy y por qué hay que cambiarlo. En un fix: comportamiento actual, esperado y cómo reproducirlo.
+What happens today and why it must change. For a fix: current behavior, expected behavior and how to reproduce it.
 
-## Alcance
+## Scope
 
-- **Incluye:**
-- **No incluye:**
+- **Includes:**
+- **Excludes:**
 
-## Lo que ya existe
+## What already exists
 
-Qué parte del cambio ya está implementada (ruta:línea), o qué se buscó sin encontrar nada.
+Which part of the change is already implemented (path:line), or what was searched for without finding anything.
 
-## Criterios de aceptación
+## Acceptance criteria
 
-Verificables: dado un contexto, ante una acción, se obtiene un resultado.
+Verifiable: given a context, on an action, a result is obtained.
 
-| # | Criterio | Validado |
+| # | Criterion | Validated |
 |---|---|---|
 | 1 | | ☐ |
 
-## Diseño técnico
+## Technical design
 
-Cambios por repo: contratos, datos, configuración. Si cambia la arquitectura, actualizar TECH-DESIGN o escribir un ADR.
+Changes per repo: contracts, data, configuration. If the architecture changes, update TECH-DESIGN or write an ADR.
 
-## Verificación
+## Verification
 
-Cómo se comprueba cada criterio (pruebas automáticas, manuales, ambiente).
+How each criterion is checked (automated tests, manual tests, environment).
 
-## Preguntas abiertas
+## Open questions

@@ -109,7 +109,7 @@ Mostrá los dos archivos completos (o, si ya existían, las diferencias), y deba
 - Los repos con **`delete_branch_on_merge` en `false`**, cada uno con el comando que lo prende: `gh api -X PATCH repos/<org>/<repo> -F delete_branch_on_merge=true`. Lo corre la persona (pide admin del repo); duck no lo cambia.
 - La **regla de permiso del merge**, para que la persona la agregue a mano en `permissions.allow` de `.claude/settings.json`: `"Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/mergear-pr.js:*)"`, con la ruta tal como se expande acá. Sin ella, el auto mode de Claude Code frena el merge del modo flujo («Merge Without Review»), porque no lee el modo de duck. Cubre solo ese script, que exige CI en verde y el head verificado, y `guard-git.js` lo niega fuera del modo flujo salvo con `--a-pedido`. duck no la escribe: ampliar permisos lo decide la persona.
 
-- La **carpeta de docs**: si `creados` no está vacío, «al proyecto le faltan `<carpetas>`; se van a crear estos archivos», con la lista. Es una aprobación aparte de los dos archivos: la persona puede aceptar duck sin la carpeta. Si ya existe `ia/instalar-agentes.sh`, recordá que instala los agentes propios del proyecto.
+- La **carpeta de docs**: si `creados` no está vacío, «al proyecto le faltan `<carpetas>`; se van a crear estos archivos», con la lista. Es una aprobación aparte de los dos archivos: la persona puede aceptar duck sin la carpeta. Si ya existe `ai/install-agents.sh`, recordá que instala los agentes propios del proyecto.
 
 Esperá un «sí» explícito. Una corrección no es un sí: se aplica, se vuelve a mostrar, y se espera otra vez.
 
@@ -117,7 +117,7 @@ Esperá un «sí» explícito. Una corrección no es un sí: se aplica, se vuelv
 
 1. Los dos archivos.
 2. `.claude/estado/` en el `.gitignore` del repo que contenga `.claude/`, si la raíz es un repo y todavía no está. Si la raíz no es un repo, no hace falta.
-3. La carpeta de docs, si se aceptó: el mismo `crear-docs.js` sin `--dry-run` (nunca pisa nada). Si quedaron agentes en `ia/agentes/`, corré `sh <docs>/ia/instalar-agentes.sh` (en Windows, `instalar-agentes.ps1`).
+3. La carpeta de docs, si se aceptó: el mismo `crear-docs.js` sin `--dry-run` (nunca pisa nada). Si quedaron agentes en `ai/agents/`, corré `sh <docs>/ai/install-agents.sh` (en Windows, `install-agents.ps1`). Si `crear-docs.js` avisa nombres viejos en español, mostralo: el rename lo decide la persona.
 4. Comprobá que la configuración carga: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventario.js" <session_id>` no tiene que responder `sinConfiguracion`.
 
 ## 7. Reportar
