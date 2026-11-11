@@ -16,9 +16,10 @@ function tmp() {
   return d;
 }
 // The same series in every layout; only the place and the changelog shape change.
-const SERIE = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'adr/0000-plantilla.md',
-  'specs/README.md', 'plantillas/spec.md', 'plantillas/agente-ia.md', 'manuales/README.md', 'ia/README.md',
-  'ia/agentes', 'ia/instalar-agentes.sh', 'ia/instalar-agentes.ps1', 'guias/README.md', 'convenciones/README.md', 'odd'];
+// Folder and file names are English.
+const SERIE = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'adr/0000-template.md',
+  'specs/README.md', 'templates/spec.md', 'templates/ai-agent.md', 'manuals/README.md', 'ai/README.md',
+  'ai/agents', 'ai/install-agents.sh', 'ai/install-agents.ps1', 'guides/README.md', 'conventions/README.md', 'odd'];
 const repo = (d) => fs.mkdirSync(path.join(d, '.git'), { recursive: true });
 const correr = (cwd, ...args) => {
   const r = spawnSync('node', [SCRIPT, ...args], { cwd, encoding: 'utf8' });
@@ -52,7 +53,7 @@ test('conjunto de repos: doc/ hermana con adr, changelog/<repo>.md, convenciones
   fs.mkdirSync(path.join(d, 'web', '.git'), { recursive: true });
   const r = correr(d);
   assert.strictEqual(r.json.layout, 'multi-repo');
-  for (const f of [...SERIE, 'changelog/api.md', 'changelog/web.md', 'repositorios.md']) {
+  for (const f of [...SERIE, 'changelog/api.md', 'changelog/web.md', 'repositories.md']) {
     assert.ok(fs.existsSync(path.join(d, 'doc', f)), f);
   }
 });
@@ -103,27 +104,50 @@ test('sin repo ni subrepos: sale con error y no crea nada', () => {
   assert.deepStrictEqual(fs.readdirSync(d), []);
 });
 
-// ia/agentes is the versioned source; the installer copies it to <root>/.claude/agents, where Claude reads it.
+test('plantillas en ingles: README indice y ADR con la linea Status que lee guard-adr', () => {
+  const d = tmp(); repo(d);
+  correr(d);
+  assert.match(fs.readFileSync(path.join(d, 'docs', 'README.md'), 'utf8'), /^# Documentation/);
+  assert.match(fs.readFileSync(path.join(d, 'docs', 'adr', '0000-template.md'), 'utf8'), /^- Status: Proposed/m);
+  for (const f of SERIE.filter((f) => f.endsWith('.md'))) {
+    assert.doesNotMatch(fs.readFileSync(path.join(d, 'docs', f), 'utf8'), /guias|manuales|convenciones|plantillas|agentes|\bia\//, f);
+  }
+});
+
+test('carpeta vieja en espanol: no crea la duplicada en ingles y avisa el rename', () => {
+  const d = tmp(); repo(d);
+  fs.mkdirSync(path.join(d, 'docs', 'guias'), { recursive: true });
+  fs.mkdirSync(path.join(d, 'docs', 'ia', 'agentes'), { recursive: true });
+  const r = correr(d);
+  assert.ok(!fs.existsSync(path.join(d, 'docs', 'guides')));
+  assert.ok(!fs.existsSync(path.join(d, 'docs', 'ai')));
+  assert.ok(!r.json.creados.some((c) => /docs\/(guides|ai)\//.test(c)));
+  assert.ok(r.json.advertencias.some((a) => /docs\/guias.*docs\/guides/.test(a)));
+  assert.ok(r.json.advertencias.some((a) => /docs\/ia\b.*docs\/ai\b/.test(a)));
+  assert.ok(fs.existsSync(path.join(d, 'docs', 'manuals', 'README.md')), 'the rest of the series is still created');
+});
+
+// ai/agents is the versioned source; the installer copies it to <root>/.claude/agents, where Claude reads it.
 for (const layout of ['repo', 'multi-repo']) {
-  test(`instalar-agentes.sh (${layout}): copia ia/agentes a .claude/agents de la raiz y refresca`, () => {
+  test(`install-agents.sh (${layout}): copia ai/agents a .claude/agents de la raiz y refresca`, () => {
     const d = tmp();
     if (layout === 'repo') repo(d); else fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
-    const ia = path.join(d, layout === 'repo' ? 'docs' : 'doc', 'ia');
+    const ia = path.join(d, layout === 'repo' ? 'docs' : 'doc', 'ai');
     correr(d);
-    const instalar = () => spawnSync('sh', [path.join(ia, 'instalar-agentes.sh')], { cwd: os.tmpdir(), encoding: 'utf8' });
+    const instalar = () => spawnSync('sh', [path.join(ia, 'install-agents.sh')], { cwd: os.tmpdir(), encoding: 'utf8' });
     const copia = path.join(d, '.claude', 'agents', 'seguridad.md');
 
-    fs.writeFileSync(path.join(ia, 'agentes', 'seguridad.md'), 'v1\n');
+    fs.writeFileSync(path.join(ia, 'agents', 'seguridad.md'), 'v1\n');
     let r = instalar();
     assert.strictEqual(r.status, 0, r.stderr);
     assert.strictEqual(fs.readFileSync(copia, 'utf8'), 'v1\n');
-    assert.match(r.stdout, /nuevo\s+seguridad\.md/);
+    assert.match(r.stdout, /new\s+seguridad\.md/);
     assert.ok(!fs.existsSync(path.join(d, '.claude', 'agents', '.gitkeep')), 'only .md agents are copied');
 
-    fs.writeFileSync(path.join(ia, 'agentes', 'seguridad.md'), 'v2\n');
+    fs.writeFileSync(path.join(ia, 'agents', 'seguridad.md'), 'v2\n');
     r = instalar();
     assert.strictEqual(fs.readFileSync(copia, 'utf8'), 'v2\n');
-    assert.match(r.stdout, /actualizado\s+seguridad\.md/);
-    assert.match(instalar().stdout, /igual\s+seguridad\.md/);
+    assert.match(r.stdout, /updated\s+seguridad\.md/);
+    assert.match(instalar().stdout, /unchanged\s+seguridad\.md/);
   });
 }

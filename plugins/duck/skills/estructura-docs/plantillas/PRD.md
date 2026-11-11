@@ -1,17 +1,17 @@
 # PRD
 
-## Problema
+## Problem
 
-Qué duele hoy y a quién.
+What hurts today, and for whom.
 
-## Objetivos
+## Goals
 
-Resultados medibles que definen el éxito.
+Measurable outcomes that define success.
 
-## Fuera de alcance
+## Out of scope
 
-Lo que explícitamente no se hace.
+What is explicitly not done.
 
-## Requisitos
+## Requirements
 
-Lista numerada, cada uno verificable.
+Numbered list, each one verifiable.

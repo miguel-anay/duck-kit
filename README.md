@@ -117,17 +117,19 @@ Solo cambia dónde vive:
 | Proyecto | Dónde |
 |---|---|
 | Un repo, o un monorepo (`pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `workspaces`) | `docs/` dentro del repo, con `CHANGELOG.md` |
-| Varios repos en una carpeta madre | `doc/` al lado de los repos, como repo git propio, con `changelog/<repo>.md` y `repositorios.md` |
+| Varios repos en una carpeta madre | `doc/` al lado de los repos, como repo git propio, con `changelog/<repo>.md` y `repositories.md` |
 
-La serie: `PRD.md`, `TECH-DESIGN.md`, `SECURITY.md`, `DEPLOY.md`, `adr/`, `specs/`, `plantillas/`,
-`manuales/`, `guias/`, `convenciones/` (cada regla con quién la hace cumplir), `ia/` y `odd/`.
+La serie, con nombres y plantillas en inglés: `PRD.md`, `TECH-DESIGN.md`, `SECURITY.md`, `DEPLOY.md`, `adr/`,
+`specs/`, `templates/`, `manuals/`, `guides/`, `conventions/` (cada regla con quién la hace cumplir), `ai/` y
+`odd/`. Si el proyecto ya tiene una carpeta con el nombre viejo en español (`guias/`, `ia/`…), no se duplica:
+duck avisa el rename.
 
-**Agentes propios del proyecto.** Se escriben en `ia/agentes/` (la fuente versionada, a partir de
-`plantillas/agente-ia.md`) y se instalan en `.claude/agents/` de la raíz del proyecto, donde Claude los lee:
+**Agentes propios del proyecto.** Se escriben en `ai/agents/` (la fuente versionada, a partir de
+`templates/ai-agent.md`) y se instalan en `.claude/agents/` de la raíz del proyecto, donde Claude los lee:
 
 ```sh
-sh docs/ia/instalar-agentes.sh                                        # Linux, macOS (doc/ con varios repos)
-powershell -ExecutionPolicy Bypass -File docs/ia/instalar-agentes.ps1 # Windows
+sh docs/ai/install-agents.sh                                        # Linux, macOS (doc/ con varios repos)
+powershell -ExecutionPolicy Bypass -File docs/ai/install-agents.ps1 # Windows
 ```
 
 Se vuelve a correr al clonar, al crear un agente o al traer cambios de otro: refresca la copia. Los cuatro

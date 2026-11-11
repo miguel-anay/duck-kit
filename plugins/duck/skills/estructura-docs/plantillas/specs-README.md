@@ -1,12 +1,12 @@
 # Specs
 
-Cada cambio empieza acá, antes del código: qué se quiere, cómo se sabe que está hecho y qué toca.
+Every change starts here, before the code: what is wanted, how to know it is done and what it touches.
 
-- Una carpeta por spec: `NNN-slug/spec.md`, copiada de [plantillas/spec.md](../plantillas/spec.md).
-- El número es correlativo y no se reutiliza. Lo que acompaña a la spec (diagramas, capturas) va en su carpeta.
-- Una spec no se da por implementada mientras tenga un criterio de aceptación sin validar.
+- One folder per spec: `NNN-slug/spec.md`, copied from [templates/spec.md](../templates/spec.md).
+- The number is sequential and never reused. What goes with the spec (diagrams, screenshots) lives in its folder.
+- A spec is not implemented while any acceptance criterion is unvalidated.
 
-## Índice
+## Index
 
-| Spec | Título | Estado |
+| Spec | Title | Status |
 |---|---|---|

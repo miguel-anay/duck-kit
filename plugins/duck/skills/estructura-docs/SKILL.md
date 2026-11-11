@@ -15,7 +15,7 @@ Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del c
 |---|---|---|
 | Raíz es un repo git, sin workspaces | `docs/` dentro del repo | `CHANGELOG.md` |
 | Raíz es un repo git con `pnpm-workspace.yaml`, `turbo.json`, `nx.json` (o `workspaces` en `package.json`) | `docs/` en la raíz | `CHANGELOG.md` |
-| Raíz no es un repo y sus subcarpetas sí lo son | carpeta hermana `doc/`, que tiene que ser **su propio repo git** (el script avisa si no lo es) | `changelog/<repo>.md`, `repositorios.md` |
+| Raíz no es un repo y sus subcarpetas sí lo son | carpeta hermana `doc/`, que tiene que ser **su propio repo git** (el script avisa si no lo es) | `changelog/<repo>.md`, `repositories.md` |
 
 ## 2. Qué va en cada lugar
 
@@ -24,17 +24,17 @@ Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del c
 | `README.md` | Índice de los docs. |
 | `PRD.md` | Qué se construye y para quién. |
 | `TECH-DESIGN.md` | Cómo se construye. |
-| `adr/NNNN-titulo.md` | Una decisión de arquitectura por archivo; copiar `adr/0000-plantilla.md`. |
-| `specs/NNN-slug/spec.md` | Cada cambio antes del código, con criterios de aceptación; copiar `plantillas/spec.md`. |
+| `adr/NNNN-titulo.md` | Una decisión de arquitectura por archivo; copiar `adr/0000-template.md`. |
+| `specs/NNN-slug/spec.md` | Cada cambio antes del código, con criterios de aceptación; copiar `templates/spec.md`. |
 | `SECURITY.md` | Amenazas y controles. |
 | `DEPLOY.md` | Cómo se despliega y se revierte. |
-| `guias/` | Ejecución local, entornos y flujo de trabajo. |
-| `manuales/` | `usuario.html` y `tecnico.html`: salen del código real y describen lo que hay, nunca lo que debería haber. Sin código funcionando, esperan. |
-| `convenciones/` | Reglas del proyecto, con su motivo y quién la hace cumplir (duck, git, GitHub o la revisión). Los hooks de git del proyecto van en `convenciones/hooks/`; los de duck no se copian: viven en el plugin. |
-| `ia/` | `CLAUDE.md` base y `agentes/` propios del proyecto; copiar `plantillas/agente-ia.md`. `instalar-agentes.sh` / `.ps1` los copia a `.claude/agents/` de la raíz (el repo, o la carpeta madre con varios repos); se vuelve a correr al crear o cambiar un agente. Los agentes de duck no se copian: los instala el plugin. |
-| `plantillas/` | Plantillas de spec y de agente. |
+| `guides/` | Ejecución local, entornos y flujo de trabajo. |
+| `manuals/` | `user.html` y `technical.html`: salen del código real y describen lo que hay, nunca lo que debería haber. Sin código funcionando, esperan. |
+| `conventions/` | Reglas del proyecto, con su motivo y quién la hace cumplir (duck, git, GitHub o la revisión). Los hooks de git del proyecto van en `conventions/hooks/`; los de duck no se copian: viven en el plugin. |
+| `ai/` | `CLAUDE.md` base y `agents/` propios del proyecto; copiar `templates/ai-agent.md`. `install-agents.sh` / `.ps1` los copia a `.claude/agents/` de la raíz (el repo, o la carpeta madre con varios repos); se vuelve a correr al crear o cambiar un agente. Los agentes de duck no se copian: los instala el plugin. |
+| `templates/` | Plantillas de spec y de agente. |
 | `CHANGELOG.md` o `changelog/<repo>.md` | Cambios visibles por versión. |
-| `repositorios.md` (varios repos) | Inventario de repos, rama base y qué contiene cada uno. |
+| `repositories.md` (varios repos) | Inventario de repos, rama base y qué contiene cada uno. |
 | `odd/` | Documentos de tareas de ODD, cuando el proyecto los versiona (`odd.versionado: true`, con `odd.tareas` apuntando acá). |
 
 Orden de escritura: `PRD.md`, `TECH-DESIGN.md`, `adr/`, `SECURITY.md`; después, una spec por cambio. Si el proyecto usa `odd.diseno` de duck, conviene apuntarlo a `specs/{historia}/spec.md`.
@@ -46,6 +46,8 @@ Orden de escritura: `PRD.md`, `TECH-DESIGN.md`, `adr/`, `SECURITY.md`; después,
 3. Ejecutar sin `--dry-run`.
 
 La salida es JSON: `layout`, `destino`, `creados`, `existentes`, `advertencias`. **Nunca sobrescribe**: lo que ya existe queda como está y se lista en `existentes`. Si hay `advertencias`, informarlas al usuario.
+
+Los nombres de carpetas y archivos, y el contenido de las plantillas, están en inglés. Un proyecto que ya tiene la carpeta con el nombre viejo en español (`guias/`, `manuales/`, `convenciones/`, `ia/`, `plantillas/`, `repositorios.md`, `adr/0000-plantilla.md`) no recibe la duplicada: el script lo deja en `advertencias` con el `git mv` que corresponde, y el rename lo decide la persona.
 
 ## 4. Conectar con duck
 

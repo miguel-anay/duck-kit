@@ -1,17 +1,17 @@
-# Diseño técnico
+# Technical design
 
-## Visión general
+## Overview
 
-Los componentes y cómo se hablan, en un párrafo o un diagrama.
+The components and how they talk to each other, in one paragraph or a diagram.
 
-## Decisiones
+## Decisions
 
-Enlaces a los ADR que lo sostienen.
+Links to the ADRs behind it.
 
-## Datos
+## Data
 
-Qué se guarda, dónde y con qué forma.
+What is stored, where, and in what shape.
 
-## Riesgos
+## Risks
 
-Qué puede salir mal y cómo se detecta.
+What can go wrong and how it is detected.

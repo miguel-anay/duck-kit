@@ -1,17 +1,17 @@
-# Despliegue
+# Deployment
 
-## Entornos
+## Environments
 
-Los entornos que existen y qué corre en cada uno.
+The environments that exist and what runs in each one.
 
-## Cómo desplegar
+## How to deploy
 
-Pasos exactos, en orden.
+Exact steps, in order.
 
-## Cómo revertir
+## How to roll back
 
-Pasos exactos para volver a la versión anterior.
+Exact steps to return to the previous version.
 
-## Verificación
+## Verification
 
-Qué mirar para saber que salió bien.
+What to check to know it went well.

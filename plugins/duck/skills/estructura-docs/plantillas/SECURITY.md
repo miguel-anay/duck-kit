@@ -1,17 +1,17 @@
-# Seguridad
+# Security
 
-## Amenazas
+## Threats
 
-Qué se protege y de quién.
+What is protected, and from whom.
 
-## Controles
+## Controls
 
-Qué impide o detecta cada amenaza.
+What prevents or detects each threat.
 
-## Secretos
+## Secrets
 
-Dónde viven y quién puede leerlos. Nunca el valor, solo la ubicación.
+Where they live and who can read them. Never the value, only the location.
 
-## Reporte de vulnerabilidades
+## Reporting vulnerabilities
 
-A quién avisar y en qué plazo.
+Whom to tell, and how soon.
