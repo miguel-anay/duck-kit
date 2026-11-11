@@ -37,9 +37,11 @@ for d in */; do git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && e
 - **Prefijos de rama.** `git -C <d> branch -r --format='%(refname:short)'`, y contá los prefijos (`feature/`, `bugfix/`, `hotfix/`, `spec/`, …). Los que se usan entran en `git.prefijos`. Con GitHub Projects las ramas son `<prefijo>/N-slug` (`feat/12-login` → `feat`), y la rama base suele ser `main`, la de `origin/HEAD`.
 - **Borrado de la rama remota al mergear.** Con la organización conocida, por cada repo: `gh api repos/<org>/<repo> --jq .delete_branch_on_merge`. El cierre (paso 11 de `METODO.md`) borra solo la rama local y cuenta con que GitHub ya borró la remota: con `false`, cada merge deja la rama colgada en GitHub. No se pregunta ni va a `duck.json`, porque es una opción del repo y no de duck: se avisa en el paso 5. Si `gh` no responde, va a «sin verificar».
 
-- **Carpeta de ADR.** Si existe `docs/adr/` (un repo) o `doc/adr/` (varios repos) con archivos `NNNN-*.md`, proponé `"adr"` con esa ruta: activa `guard-adr.js`, que no deja editar un ADR aceptado en la rama base salvo su línea Status. Si no hay carpeta, `adr` no se escribe (la crea la skill `estructura-docs`).
+- **Dónde van los docs.** Si la raíz ya tiene `docs/` o `doc/`, esa (una `doc/` se respeta; el rename a `docs/` lo decide la persona). Si no, la recomendación según el layout: un solo repo (`mono-repo`), `docs/` dentro del repo, y la alternativa es un repo aparte `<repo>.docs` al lado (`../<repo>.docs`); varios repos (`multi-repo`), la carpeta hermana `docs/`, su propio repo, que en GitHub se llama `<carpeta-madre>.docs`. Se pregunta en el paso 3 y va a `duck.json` como `"docs": "<ruta relativa a la raíz>"`.
 
-- **Carpeta de docs.** `node "${CLAUDE_PLUGIN_ROOT}/skills/estructura-docs/scripts/crear-docs.js" --dry-run` desde la raíz: sin escribir nada, dice el layout y qué falta de la estructura de docs (`creados` es lo que se crearía). Va al paso 5.
+- **Carpeta de ADR.** Si existe `<docs>/adr/` con archivos `NNNN-*.md`, proponé `"adr"` con esa ruta: activa `guard-adr.js`, que no deja editar un ADR aceptado en la rama base salvo su línea Status. Si no existe, proponé igual `"adr": "<docs>/adr"` cuando la persona acepte crear la carpeta de docs (la serie trae `adr/`).
+
+- **Carpeta de docs.** `node "${CLAUDE_PLUGIN_ROOT}/skills/estructura-docs/scripts/crear-docs.js" --dry-run` desde la raíz: sin escribir nada, dice el layout y qué falta de la estructura de docs (`creados` es lo que se crearía). Si la persona elige otra ruta que la detectada, el plan se recalcula después de escribir `duck.json`, porque el script lee su `docs`. Va al paso 5.
 
 No hagas `fetch`: alcanza con lo que ya hay. **No leas** archivos de configuración local con secretos (`.env`, `appsettings.local.json` y parecidos).
 
@@ -85,11 +87,12 @@ Si `gh` no está, no tiene sesión o no tiene acceso a la organización, se dice
 1. **Repos del proyecto y rama base.** Mostrá las carpetas candidatas y la rama propuesta: ¿son estas, y se integra en esa rama? Después, lo que quedó ambiguo: la organización, la clave, el Project (si hay varios) o los estados de GitHub que no se pudieron emparejar.
 2. **Tipos de ticket.** Con los prefijos encontrados, proponé la tabla «en el ticket → repositorio → prefijo de rama» (por ejemplo `[BE]` → `api/` → `feature/`). ¿Es así?
 3. **Orden de la serie.** Si hay más de un tipo de implementación, ¿cuál va primero? (lo típico es backend antes que frontend).
-4. **Plan por historia.** ¿Cada historia lleva un plan versionado? ¿En qué ruta? (eso es `odd.diseno`, con `{historia}`; si hay una carpeta como `docs/disenos/` o `docs/design/`, proponela).
-5. **Spec antes que código.** ¿La implementación espera a que la spec esté mergeada en la rama base?
-6. **Tests mientras se itera.** Por cada repo, el comando para correr solo los tests de lo tocado. Proponelo a partir de lo que veas (`package.json` → `scripts.test`; un `.sln` o `.csproj` → `dotnet test --filter`; `pyproject.toml` → `pytest -k`).
-7. **Reglas que no se negocian.** Si los `CLAUDE.md` de los repos ya las tienen, **no las copies**: proponé dejar en convenciones solo lo que no esté ahí. ¿Hay algo más?
-8. **Quién lee los comentarios de cierre** en el ticket (PM, QA, negocio…).
+4. **Dónde van los docs.** La recomendación del paso 1, marcada; en un solo repo, la alternativa `../<repo>.docs`. La respuesta es `docs` en `duck.json`.
+5. **Plan por historia.** ¿Cada historia lleva un plan versionado? ¿En qué ruta? (eso es `odd.diseno`, con `{historia}`; si hay una carpeta como `docs/disenos/` o `docs/design/`, proponela).
+6. **Spec antes que código.** ¿La implementación espera a que la spec esté mergeada en la rama base?
+7. **Tests mientras se itera.** Por cada repo, el comando para correr solo los tests de lo tocado. Proponelo a partir de lo que veas (`package.json` → `scripts.test`; un `.sln` o `.csproj` → `dotnet test --filter`; `pyproject.toml` → `pytest -k`).
+8. **Reglas que no se negocian.** Si los `CLAUDE.md` de los repos ya las tienen, **no las copies**: proponé dejar en convenciones solo lo que no esté ahí. ¿Hay algo más?
+9. **Quién lee los comentarios de cierre** en el ticket (PM, QA, negocio…).
 
 Si la persona dice «no sé», «después» o «dejalo», esa sección queda fuera del archivo: no la inventes.
 

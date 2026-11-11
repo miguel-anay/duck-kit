@@ -1,13 +1,13 @@
 // Crea la carpeta de docs del proyecto segun su layout, sin pisar nada.
 // Uso: node crear-docs.js [--dry-run] [directorio]   (por defecto, el directorio actual)
 // Imprime un JSON { layout, destino, dryRun, creados, existentes, advertencias }.
-// Standalone: solo usa plantillas/ junto a este script, sin hooks ni duck.json.
+// Standalone: solo usa plantillas/ junto a este script. Si la raiz tiene .claude/duck.json, toma de ahi
+// `docs` (donde van) y `git.repos` (los repos de codigo); sin el, decide solo.
 
 const fs = require('fs');
 const path = require('path');
 
 const PLANTILLAS = path.join(__dirname, '..', 'plantillas');
-const MARCAS_MONOREPO = ['pnpm-workspace.yaml', 'turbo.json', 'nx.json'];
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -15,14 +15,14 @@ const raiz = path.resolve(args.find((a) => !a.startsWith('--')) || process.cwd()
 
 const esRepo = (d) => fs.existsSync(path.join(d, '.git'));
 
-function esMonorepo() {
-  if (MARCAS_MONOREPO.some((m) => fs.existsSync(path.join(raiz, m)))) return true;
+function leerDuck() {
   try {
-    return !!JSON.parse(fs.readFileSync(path.join(raiz, 'package.json'), 'utf8')).workspaces;
+    return JSON.parse(fs.readFileSync(path.join(raiz, '.claude', 'duck.json'), 'utf8'));
   } catch {
-    return false;
+    return {};
   }
 }
+const duck = leerDuck();
 
 function subrepos() {
   return fs.readdirSync(raiz, { withFileTypes: true })
@@ -32,7 +32,7 @@ function subrepos() {
 
 // Cada entrada: [ruta relativa al destino, plantilla | null]. Sin plantilla, el archivo queda vacio
 // (un .gitkeep que versiona la carpeta).
-// La misma serie en los tres layouts: cambia donde vive y la forma del changelog. Nombres y contenido en
+// La misma serie en los dos layouts: cambia donde vive y la forma del changelog. Nombres y contenido en
 // ingles, como el resto de los artefactos tecnicos.
 const SERIE = [
   ...['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md'].map((f) => [f, f]),
@@ -62,15 +62,26 @@ const LEGADOS = {
   'adr/0000-template.md': 'adr/0000-plantilla.md',
 };
 
+// Donde van los docs: lo que diga duck.json; si no, la carpeta que ya exista (docs/, o doc/ con el
+// nombre viejo); si no, docs/, el nombre que GitHub reconoce (Pages, SECURITY.md).
+function carpetaDocs() {
+  if (typeof duck.docs === 'string' && duck.docs) return duck.docs;
+  return ['docs', 'doc'].find((c) => fs.existsSync(path.join(raiz, c))) || 'docs';
+}
+
 function plan() {
+  const destino = carpetaDocs();
   if (esRepo(raiz)) {
-    return { layout: esMonorepo() ? 'monorepo' : 'repo', destino: 'docs', items: [...SERIE, ['CHANGELOG.md', 'CHANGELOG.md']] };
+    return { layout: 'mono-repo', destino, items: [...SERIE, ['CHANGELOG.md', 'CHANGELOG.md']] };
   }
-  const repos = subrepos().filter((r) => r !== 'doc'); // doc/ es el repo de docs, no un repo de codigo
+  // La carpeta de docs es su propio repo, no uno de codigo: no lleva changelog.
+  const listados = Object.keys((duck.git && duck.git.repos) || {});
+  const repos = (listados.length ? listados : subrepos())
+    .filter((r) => r !== path.normalize(destino) && r !== 'docs' && r !== 'doc');
   if (!repos.length) return null;
   return {
     layout: 'multi-repo',
-    destino: 'doc',
+    destino,
     items: [
       ...SERIE,
       ...repos.map((r) => [`changelog/${r}.md`, 'CHANGELOG.md']),
@@ -104,8 +115,11 @@ for (const [rel, plantilla] of p.items) {
 
 const advertencias = [...legados].map((n) =>
   `${p.destino}/${LEGADOS[n]} tiene el nombre viejo: renombrelo a ${p.destino}/${n} (git mv) y vuelva a correr la skill.`);
+if (p.destino === 'doc' && !duck.docs) {
+  advertencias.push('doc/ tiene el nombre viejo: renombrelo a docs/ (git mv doc docs) y vuelva a correr la skill.');
+}
 if (p.layout === 'multi-repo' && !esRepo(base)) {
-  advertencias.push('doc/ no es un repo git: haga git init para versionarlo, o se pierde el historial de los docs.');
+  advertencias.push(`${p.destino}/ no es un repo git: haga git init para versionarlo, o se pierde el historial de los docs.`);
 }
 
 console.log(JSON.stringify({ layout: p.layout, destino: p.destino, dryRun, creados, existentes, advertencias }, null, 2));
