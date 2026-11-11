@@ -31,7 +31,7 @@ Los tres layouts reciben **la misma serie**; cambia dónde vive y la forma del c
 | `guias/` | Ejecución local, entornos y flujo de trabajo. |
 | `manuales/` | `usuario.html` y `tecnico.html`: salen del código real y describen lo que hay, nunca lo que debería haber. Sin código funcionando, esperan. |
 | `convenciones/` | Reglas del proyecto, con su motivo y quién la hace cumplir (duck, git, GitHub o la revisión). Los hooks de git del proyecto van en `convenciones/hooks/`; los de duck no se copian: viven en el plugin. |
-| `ia/` | `CLAUDE.md` base y `agentes/` propios del proyecto; copiar `plantillas/agente-ia.md`. Los agentes de duck no se copian: los instala el plugin. |
+| `ia/` | `CLAUDE.md` base y `agentes/` propios del proyecto; copiar `plantillas/agente-ia.md`. `instalar-agentes.sh` / `.ps1` los copia a `.claude/agents/` de la raíz (el repo, o la carpeta madre con varios repos); se vuelve a correr al crear o cambiar un agente. Los agentes de duck no se copian: los instala el plugin. |
 | `plantillas/` | Plantillas de spec y de agente. |
 | `CHANGELOG.md` o `changelog/<repo>.md` | Cambios visibles por versión. |
 | `repositorios.md` (varios repos) | Inventario de repos, rama base y qué contiene cada uno. |

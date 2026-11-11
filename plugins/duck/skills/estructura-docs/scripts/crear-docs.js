@@ -42,6 +42,8 @@ const SERIE = [
   ['manuales/README.md', 'manuales-README.md'],
   ['ia/README.md', 'ia-README.md'],
   ['ia/agentes/.gitkeep', null],
+  ['ia/instalar-agentes.sh', 'instalar-agentes.sh'],
+  ['ia/instalar-agentes.ps1', 'instalar-agentes.ps1'],
   ['guias/README.md', 'guias-README.md'],
   ['convenciones/README.md', 'convenciones-README.md'],
   ['odd/.gitkeep', null],
@@ -80,7 +82,8 @@ for (const [rel, plantilla] of p.items) {
   creados.push(nombre);
   if (dryRun) continue;
   fs.mkdirSync(path.dirname(destino), { recursive: true });
-  fs.writeFileSync(destino, plantilla ? fs.readFileSync(path.join(PLANTILLAS, plantilla), 'utf8') : '', { flag: 'wx' });
+  const contenido = plantilla ? fs.readFileSync(path.join(PLANTILLAS, plantilla), 'utf8') : '';
+  fs.writeFileSync(destino, contenido, { flag: 'wx', mode: rel.endsWith('.sh') ? 0o755 : 0o644 });
 }
 
 const advertencias = [];

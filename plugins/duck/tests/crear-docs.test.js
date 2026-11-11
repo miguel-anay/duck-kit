@@ -18,7 +18,7 @@ function tmp() {
 // The same series in every layout; only the place and the changelog shape change.
 const SERIE = ['README.md', 'PRD.md', 'TECH-DESIGN.md', 'SECURITY.md', 'DEPLOY.md', 'adr/0000-plantilla.md',
   'specs/README.md', 'plantillas/spec.md', 'plantillas/agente-ia.md', 'manuales/README.md', 'ia/README.md',
-  'ia/agentes', 'guias/README.md', 'convenciones/README.md', 'odd'];
+  'ia/agentes', 'ia/instalar-agentes.sh', 'ia/instalar-agentes.ps1', 'guias/README.md', 'convenciones/README.md', 'odd'];
 const repo = (d) => fs.mkdirSync(path.join(d, '.git'), { recursive: true });
 const correr = (cwd, ...args) => {
   const r = spawnSync('node', [SCRIPT, ...args], { cwd, encoding: 'utf8' });
@@ -102,3 +102,28 @@ test('sin repo ni subrepos: sale con error y no crea nada', () => {
   assert.strictEqual(r.status, 1);
   assert.deepStrictEqual(fs.readdirSync(d), []);
 });
+
+// ia/agentes is the versioned source; the installer copies it to <root>/.claude/agents, where Claude reads it.
+for (const layout of ['repo', 'multi-repo']) {
+  test(`instalar-agentes.sh (${layout}): copia ia/agentes a .claude/agents de la raiz y refresca`, () => {
+    const d = tmp();
+    if (layout === 'repo') repo(d); else fs.mkdirSync(path.join(d, 'api', '.git'), { recursive: true });
+    const ia = path.join(d, layout === 'repo' ? 'docs' : 'doc', 'ia');
+    correr(d);
+    const instalar = () => spawnSync('sh', [path.join(ia, 'instalar-agentes.sh')], { cwd: os.tmpdir(), encoding: 'utf8' });
+    const copia = path.join(d, '.claude', 'agents', 'seguridad.md');
+
+    fs.writeFileSync(path.join(ia, 'agentes', 'seguridad.md'), 'v1\n');
+    let r = instalar();
+    assert.strictEqual(r.status, 0, r.stderr);
+    assert.strictEqual(fs.readFileSync(copia, 'utf8'), 'v1\n');
+    assert.match(r.stdout, /nuevo\s+seguridad\.md/);
+    assert.ok(!fs.existsSync(path.join(d, '.claude', 'agents', '.gitkeep')), 'only .md agents are copied');
+
+    fs.writeFileSync(path.join(ia, 'agentes', 'seguridad.md'), 'v2\n');
+    r = instalar();
+    assert.strictEqual(fs.readFileSync(copia, 'utf8'), 'v2\n');
+    assert.match(r.stdout, /actualizado\s+seguridad\.md/);
+    assert.match(instalar().stdout, /igual\s+seguridad\.md/);
+  });
+}

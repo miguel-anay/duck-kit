@@ -15,7 +15,7 @@ Al terminar existen dos archivos en la raíz del proyecto (el directorio de esta
 
 Las plantillas son `${CLAUDE_PLUGIN_ROOT}/plantillas/duck.ejemplo.json` (Jira), `${CLAUDE_PLUGIN_ROOT}/plantillas/duck.github.ejemplo.json` (GitHub Projects) y `${CLAUDE_PLUGIN_ROOT}/plantillas/convenciones.ejemplo.md`. La referencia de cada campo está en `${CLAUDE_PLUGIN_ROOT}/README.md`, sección «Referencia de `.claude/duck.json`». Leé las plantillas y esa sección antes de empezar.
 
-**Esto es configuración, no trabajo.** No crees ramas, no transiciones, no muevas tarjetas, no escribas en Jira, en GitHub ni en ningún repositorio. Lo único que se escribe son esos dos archivos y, si hace falta, una línea en un `.gitignore` (paso 6), y todo **después** de mostrarlo.
+**Esto es configuración, no trabajo.** No crees ramas, no transiciones, no muevas tarjetas, no escribas en Jira, en GitHub ni en ningún repositorio. Lo único que se escribe son esos dos archivos, si hace falta una línea en un `.gitignore`, y la carpeta de docs que falte si la persona la acepta (paso 6), y todo **después** de mostrarlo.
 
 ## 0. ¿Ya está configurado?
 
@@ -38,6 +38,8 @@ for d in */; do git -C "$d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && e
 - **Borrado de la rama remota al mergear.** Con la organización conocida, por cada repo: `gh api repos/<org>/<repo> --jq .delete_branch_on_merge`. El cierre (paso 11 de `METODO.md`) borra solo la rama local y cuenta con que GitHub ya borró la remota: con `false`, cada merge deja la rama colgada en GitHub. No se pregunta ni va a `duck.json`, porque es una opción del repo y no de duck: se avisa en el paso 5. Si `gh` no responde, va a «sin verificar».
 
 - **Carpeta de ADR.** Si existe `docs/adr/` (un repo) o `doc/adr/` (varios repos) con archivos `NNNN-*.md`, proponé `"adr"` con esa ruta: activa `guard-adr.js`, que no deja editar un ADR aceptado en la rama base salvo su línea Status. Si no hay carpeta, `adr` no se escribe (la crea la skill `estructura-docs`).
+
+- **Carpeta de docs.** `node "${CLAUDE_PLUGIN_ROOT}/skills/estructura-docs/scripts/crear-docs.js" --dry-run` desde la raíz: sin escribir nada, dice el layout y qué falta de la estructura de docs (`creados` es lo que se crearía). Va al paso 5.
 
 No hagas `fetch`: alcanza con lo que ya hay. **No leas** archivos de configuración local con secretos (`.env`, `appsettings.local.json` y parecidos).
 
@@ -107,13 +109,16 @@ Mostrá los dos archivos completos (o, si ya existían, las diferencias), y deba
 - Los repos con **`delete_branch_on_merge` en `false`**, cada uno con el comando que lo prende: `gh api -X PATCH repos/<org>/<repo> -F delete_branch_on_merge=true`. Lo corre la persona (pide admin del repo); duck no lo cambia.
 - La **regla de permiso del merge**, para que la persona la agregue a mano en `permissions.allow` de `.claude/settings.json`: `"Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/mergear-pr.js:*)"`, con la ruta tal como se expande acá. Sin ella, el auto mode de Claude Code frena el merge del modo flujo («Merge Without Review»), porque no lee el modo de duck. Cubre solo ese script, que exige CI en verde y el head verificado, y `guard-git.js` lo niega fuera del modo flujo salvo con `--a-pedido`. duck no la escribe: ampliar permisos lo decide la persona.
 
+- La **carpeta de docs**: si `creados` no está vacío, «al proyecto le faltan `<carpetas>`; se van a crear estos archivos», con la lista. Es una aprobación aparte de los dos archivos: la persona puede aceptar duck sin la carpeta. Si ya existe `ia/instalar-agentes.sh`, recordá que instala los agentes propios del proyecto.
+
 Esperá un «sí» explícito. Una corrección no es un sí: se aplica, se vuelve a mostrar, y se espera otra vez.
 
 ## 6. Escribir
 
 1. Los dos archivos.
 2. `.claude/estado/` en el `.gitignore` del repo que contenga `.claude/`, si la raíz es un repo y todavía no está. Si la raíz no es un repo, no hace falta.
-3. Comprobá que la configuración carga: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventario.js" <session_id>` no tiene que responder `sinConfiguracion`.
+3. La carpeta de docs, si se aceptó: el mismo `crear-docs.js` sin `--dry-run` (nunca pisa nada). Si quedaron agentes en `ia/agentes/`, corré `sh <docs>/ia/instalar-agentes.sh` (en Windows, `instalar-agentes.ps1`).
+4. Comprobá que la configuración carga: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventario.js" <session_id>` no tiene que responder `sinConfiguracion`.
 
 ## 7. Reportar
 
