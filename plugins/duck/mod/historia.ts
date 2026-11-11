@@ -98,15 +98,29 @@ function esBloqueValido(valor: unknown): valor is BloqueHistoria {
 // elemento: uno solo roto invalida el archivo entero.
 // A sub-task nobody is assigned to may come with `responsable` null or missing (an unassigned
 // GitHub issue). That is a fact, not a broken file: it becomes '' instead of discarding every story.
+// `inventario.js --claves` prints each live branch as { repo, rama }: it becomes the branch name,
+// the same as a branch written as plain text. Anything else is left for esGit to reject.
+function conRamasTexto(git: unknown): unknown {
+  if (typeof git !== 'object' || git === null) return git
+  const g = git as Record<string, unknown>
+  if (!Array.isArray(g.ramas)) return git
+  const ramas = g.ramas.map((r) =>
+    typeof r === 'object' && r !== null && typeof (r as Record<string, unknown>).rama === 'string'
+      ? (r as Record<string, unknown>).rama
+      : r
+  )
+  return { ...g, ramas }
+}
+
 function conResponsable(bloque: unknown): unknown {
   if (typeof bloque !== 'object' || bloque === null) return bloque
   const b = bloque as Record<string, unknown>
   if (!Array.isArray(b.subtareas)) return bloque
-  const subtareas = b.subtareas.map((s) =>
-    typeof s === 'object' && s !== null && (s as Record<string, unknown>).responsable == null
-      ? { ...(s as Record<string, unknown>), responsable: '' }
-      : s
-  )
+  const subtareas = b.subtareas.map((s) => {
+    if (typeof s !== 'object' || s === null) return s
+    const v = s as Record<string, unknown>
+    return { ...v, responsable: v.responsable ?? '', ...(v.git === undefined ? {} : { git: conRamasTexto(v.git) }) }
+  })
   return { ...b, subtareas }
 }
 

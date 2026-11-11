@@ -47,6 +47,11 @@ let ultimosHechosSpike: HechosSpikeRepo[] = []
 let ticks = 0
 let gitEnCurso = false
 let jiraEnCurso = false
+// Turnos en curso (el principal y los de subagentes) y el cuadro del pato que nada mientras haya alguno.
+const turnosActivos = new Set<string>()
+let temporizadorPato: Timer | null = null
+let pasoPato = 0
+const CUADRO_PATO_MS = 150
 
 function detenerRefresco(): void {
   temporizadorRefresco?.cancel()
@@ -397,11 +402,35 @@ export function register(on: On): void {
         config: proyectoActual.config,
       }
       const hechos = ultimosHechos ?? { repos: [], obtenidoEn: Date.now() }
-      return panelPrincipal(kit, hechos, ultimaHistoria, ultimoSpike, ultimosHechosSpike, Date.now())
+      const pato = temporizadorPato === null ? null : pasoPato
+      return panelPrincipal(kit, hechos, ultimaHistoria, ultimoSpike, ultimosHechosSpike, Date.now(), pato)
     } catch (error) {
       $.ui.log(`duck-panel: fallo el dibujado — ${String(error)}`)
       return next(e)
     }
+  })
+
+  // turn.complete llega tambien cuando el turno se interrumpe o falla, asi que el pato siempre para.
+  on('turn.start', ($, e, next) => {
+    turnosActivos.add(e.turnId)
+    if (temporizadorPato === null && proyectoActual !== null) {
+      pasoPato = 0
+      temporizadorPato = $.clock.every(CUADRO_PATO_MS, () => {
+        pasoPato++
+        $.ui.invalidate('ui.render')
+      })
+    }
+    return next(e)
+  })
+
+  on('turn.complete', ($, e, next) => {
+    turnosActivos.delete(e.turnId)
+    if (turnosActivos.size === 0 && temporizadorPato !== null) {
+      temporizadorPato.cancel()
+      temporizadorPato = null
+      $.ui.invalidate('ui.render')
+    }
+    return next(e)
   })
 
   // Si $.store.set falla, el .catch de abajo igual deja cerrar el pane: un

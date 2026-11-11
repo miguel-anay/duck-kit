@@ -168,3 +168,14 @@ test('historia: an unassigned sub-task (responsable null or missing) does not di
   assert.notEqual(historia, null)
   assert.deepEqual(historia.historias[0].subtareas.map((s) => s.responsable), ['ana', '', ''])
 })
+
+test('historia: branches as inventario --claves prints them ({repo, rama}) become branch names', () => {
+  const sub = (ramas) => ({ clave: '#9', prefijo: '', titulo: 't', estado: 'In Review', responsable: 'a',
+    git: { ubicacion: 'rama', repos: [], ramas } })
+  const archivo = (ramas) => JSON.stringify({ actualizado: 'x', alertas: [],
+    historias: [{ historia: { clave: '#24', titulo: 'h' }, subtareas: [sub(ramas)] }] })
+  const leida = parsearHistoria(archivo([{ repo: 'api', rama: 'fix/9-log' }, 'fix/9-other']))
+  assert.notEqual(leida, null)
+  assert.deepEqual(leida.historias[0].subtareas[0].git.ramas, ['fix/9-log', 'fix/9-other'])
+  assert.equal(parsearHistoria(archivo([{ repo: 'api' }])), null)
+})

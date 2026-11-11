@@ -101,6 +101,22 @@ export function divider(kit: Kit): RenderElement {
   )
 }
 
+// Pato de goma que nada de derecha a izquierda mientras Claude procesa un turno. `paso` avanza
+// una columna por cuadro; al llegar al borde izquierdo vuelve a entrar por la derecha.
+export function filaPato(kit: Kit, paso: number): RenderElement {
+  const { Box, Text } = kit.ui
+  const ancho = Math.max(3, kit.columns)
+  const columna = ancho - 2 - (paso % (ancho - 1))
+  return (
+    <Box flexDirection="column">
+      <Text wrap="truncate-end">{' '.repeat(columna) + '🦆'}</Text>
+      <Text color={AZUL} wrap="truncate-end">
+        {'~'.repeat(ancho)}
+      </Text>
+    </Box>
+  )
+}
+
 function recortar(texto: string, maximo: number): string {
   if (texto.length <= maximo) return texto
   return `${texto.slice(0, Math.max(0, maximo - 1))}…`
@@ -129,6 +145,9 @@ function lineaSubtarea(kit: Kit, s: SubtareaHistoria): RenderElement {
       <Text color={colorEstado(kit, s)}>{`${iconoEstado(kit, s)} `}</Text>
       <Text color={s.git ? colorUbicacion(s.git.ubicacion) : TENUE}>{`${iconoCodigo} `}</Text>
       <Text dimColor> {responsable}</Text>
+      {s.git?.ubicacion === 'rama' && s.git.ramas.length > 0 ? (
+        <Text color={AZUL} wrap="truncate-end">{`  ${s.git.ramas.join(', ')}`}</Text>
+      ) : null}
     </Box>
   )
 }
@@ -349,11 +368,13 @@ export function panelPrincipal(
   spike: EstadoSpike | null = null,
   hechosSpike: HechosSpikeRepo[] = [],
   ahora: number = 0,
+  pato: number | null = null,
 ): RenderElement {
   const { Box } = kit.ui
 
   return (
     <Box flexDirection="column" paddingRight={1}>
+      {pato === null ? null : filaPato(kit, pato)}
       {seccionSpike(kit, spike, hechosSpike, ahora)}
       {seccionHistorias(kit, historia)}
       {divider(kit)}
