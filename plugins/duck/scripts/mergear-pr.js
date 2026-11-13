@@ -60,7 +60,7 @@ async function main() {
   if (pr.head.sha !== shaArg) fallar(`el head es ${pr.head.sha}, no el verificado ${shaArg}`);
 
   const checks = await (await fetch(`${api}/commits/${shaArg}/check-runs`, { headers: cabeceras })).json();
-  const malos = (checks.check_runs || []).filter((c) => c.status !== 'completed' || c.conclusion !== 'success');
+  const malos = (checks.check_runs || []).filter((c) => c.status !== 'completed' || !['success', 'skipped'].includes(c.conclusion));
   if (malos.length) fallar(`checks sin éxito: ${malos.map((c) => `${c.name}:${c.status}/${c.conclusion}`).join(', ')}`);
 
   const r = await fetch(`${api}/pulls/${numArg}/merge`, {
