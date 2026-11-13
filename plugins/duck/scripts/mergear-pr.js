@@ -13,7 +13,8 @@
 //   - la carpeta no esta en git.repos de .claude/duck.json;
 //   - la base del PR no es git.ramaBase (a main nunca se mergea desde aqui);
 //   - el PR no esta abierto, o su head no es el sha esperado (alguien empujo despues de verificar);
-//   - algun check del head no termino en success.
+//   - algun check del head no termino en success o skipped (los jobs que solo corren en main
+//     quedan skipped en un PR).
 // No toca la casilla de confirmacion del PR: esa la firma una persona (paso 9).
 
 const { execFileSync } = require('node:child_process');
@@ -60,7 +61,7 @@ async function main() {
   if (pr.head.sha !== shaArg) fallar(`el head es ${pr.head.sha}, no el verificado ${shaArg}`);
 
   const checks = await (await fetch(`${api}/commits/${shaArg}/check-runs`, { headers: cabeceras })).json();
-  const malos = (checks.check_runs || []).filter((c) => c.status !== 'completed' || c.conclusion !== 'success');
+  const malos = (checks.check_runs || []).filter((c) => c.status !== 'completed' || !['success', 'skipped'].includes(c.conclusion));
   if (malos.length) fallar(`checks sin éxito: ${malos.map((c) => `${c.name}:${c.status}/${c.conclusion}`).join(', ')}`);
 
   const r = await fetch(`${api}/pulls/${numArg}/merge`, {
