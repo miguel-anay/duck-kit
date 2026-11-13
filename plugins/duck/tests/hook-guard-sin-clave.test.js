@@ -41,6 +41,20 @@ test('guard-sin-clave lets /duck:tomar, spikes, other git commands and folders o
   }
 });
 
+test('guard-sin-clave lets branches outside git.prefijos through (release, dependabot, chore), like push-con-issue', () => {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { app: 'org/app' } } });
+  fs.mkdirSync(path.join(raiz, 'app'));
+  for (const c of [
+    'git -C app switch -c release/1.2',
+    'git -C app checkout -b dependabot/npm_and_yarn/x-1.0',
+    'git -C app switch -c chore/actualizar-deps',
+  ]) {
+    assert.ok(!negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, c))), c);
+  }
+  // A work prefix still needs /duck:tomar.
+  assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, 'git -C app switch -c feat/sin-issue'))));
+});
+
 test('guard-sin-clave (jira) needs the key and the mode marker too', () => {
   const raiz = proyecto(JIRA);
   assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, 'git switch -c feature/arreglo'))));

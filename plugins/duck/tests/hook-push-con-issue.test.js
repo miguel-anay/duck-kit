@@ -73,13 +73,21 @@ test('push-con-issue (github) denies an issue that is missing, closed or has no 
     ['missing', { error: 'no existe el issue org/app#12' }],
     ['missing (gh)', { error: "GraphQL: Could not resolve to an Issue with the number of 12. (repository.issue)" }],
     ['closed', { issue: { ...ISSUE_OK, abierto: false } }],
-    ['no HU', { issue: { ...ISSUE_OK, padre: null } }],
+    ['Task with no HU', { issue: { ...ISSUE_OK, tipo: 'Task', padre: null } }],
   ]) {
     assert.ok(negado(pushCon(raiz, comando, raiz, ticketVer(raiz, falso))), caso);
   }
   const sinGh = pushCon(raiz, comando, raiz, ticketVer(raiz, { error: 'gh: command not found' }));
   assert.ok(!negado(sinGh));
   assert.match(contexto(sinGh), /no se pudo verificar el issue \S*#12/);
+});
+
+test('push-con-issue (github) lets a top-level Bug, Feature or untyped issue out without an HU', () => {
+  const raiz = conOrigen(GITHUB, 'fix/12-x');
+  for (const tipo of ['Bug', 'Feature', null]) {
+    const r = pushCon(raiz, 'git push -u origin fix/12-x', raiz, ticketVer(raiz, { issue: { ...ISSUE_OK, tipo, padre: null } }));
+    assert.ok(!negado(r), String(tipo));
+  }
 });
 
 test('push-con-issue only warns for a branch already on the remote before the guard existed', () => {

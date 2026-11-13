@@ -62,7 +62,7 @@ const DEFECTOS = {
     prefijoBloqueo: '[BLOQ]',
   },
   git: {
-    ramaBase: 'develop',
+    ramaBase: 'develop', // con proveedor github, main (ver cargar)
     prefijos: ['feature', 'bugfix', 'hotfix', 'spec'],
     prefijosLegados: [], // se reconocen al comparar nombres de rama, pero no se piden
     orgGithub: null,
@@ -160,6 +160,8 @@ function cargar() {
     },
     git: {
       ...cfg.git,
+      // GitHub va trunk-based sobre main; develop queda como defecto de Jira.
+      ramaBase: crudo.git?.ramaBase ?? (proveedor === 'github' ? 'main' : cfg.git.ramaBase),
       carpetas: carpetas.length ? carpetas : ['.'],
       prefijosSlug: [...cfg.git.prefijos, ...cfg.git.prefijosLegados],
     },

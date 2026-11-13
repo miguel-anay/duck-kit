@@ -27,6 +27,13 @@ afterEach(() => {
 
 const GITHUB = { tickets: { proveedor: 'github' }, git: { prefijos: ['feat', 'fix'] } };
 
+test('git.ramaBase defaults to main with GitHub and to develop with Jira; an explicit value wins', () => {
+  assert.equal(cargarCon({ tickets: { proveedor: 'github' } }).git.ramaBase, 'main');
+  assert.equal(cargarCon({}).git.ramaBase, 'develop');
+  assert.equal(cargarCon({ tickets: { proveedor: 'github' }, git: { ramaBase: 'develop' } }).git.ramaBase, 'develop');
+  assert.equal(cargarCon({ git: { ramaBase: 'main' } }).git.ramaBase, 'main');
+});
+
 // Regression: Jira behavior before the provider existed.
 
 test('without tickets section the provider is jira and any ABC-123 key matches', () => {

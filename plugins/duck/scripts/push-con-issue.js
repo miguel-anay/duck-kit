@@ -3,7 +3,7 @@
 //   1. git push de una rama con prefijo de cfg.git.prefijos: la rama que queda en el remoto
 //      tiene que llevar su clave (<prefijo>/<N>-<slug> con GitHub, <prefijo>/<CLAVE>-<n>-<slug>
 //      con Jira). Con GitHub, ademas, `ticket.js ver` tiene que confirmar que el issue existe,
-//      esta abierto y cuelga de una HU.
+//      esta abierto y, si es un Task, cuelga de una HU.
 //   2. gh pr create (GitHub): el cuerpo referencia el issue de la rama con Closes #N o Refs #N.
 //
 // Visto en un proyecto real: una rama sin issue se publico con su PR, y renombrarla despues hizo
@@ -92,7 +92,8 @@ function revisarIssue(clave, cfg) {
       : { aviso: `Aviso: no se pudo verificar el issue ${clave} en GitHub; el push sale sin esa revisión.` };
   }
   if (!issue.abierto) return { problema: `el issue ${clave} está cerrado` };
-  if (!issue.padre) return { problema: `el issue ${clave} no cuelga de ninguna HU` };
+  // Un Task es un sub-issue por definicion; un Bug o una Feature sueltos son issues de primer nivel.
+  if (!issue.padre && issue.tipo === 'Task') return { problema: `el issue ${clave} es un Task y no cuelga de ninguna HU` };
   return {};
 }
 
