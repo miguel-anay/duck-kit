@@ -7,6 +7,8 @@
 //   3. git branch -D                  (METODO.md, paso 11: "-d, nunca -D")
 //   4. mergear-pr.js fuera del modo flujo sin --a-pedido (METODO.md, «El merge»): la regla de
 //      permiso que instala /duck:iniciar lo deja pasar sin preguntar, y este es su limite
+//   5. gh pr merge, siempre: mergea sin mirar el CI ni el head verificado. El merge va por
+//      mergear-pr.js, que si lo hace
 //
 // Lee el JSON del hook por stdin y responde con una decision de permiso.
 // No usa jq. Sin .claude/duck.json no hace nada (ver config.js).
@@ -22,6 +24,12 @@ hook((evento, cfg) => {
   for (const tramo of partirEnTramos(comando)) {
     const motivo = revisar(tramo, cfg.git.ramaBase, evento.cwd ?? process.cwd());
     if (motivo) return denegar(motivo);
+    // Solo cuando gh es el comando del tramo: un grep que menciona «gh pr merge» no mergea.
+    if (/^\s*(?:\w+=\S*\s+)*gh(?:\s+(?:-R|--repo)[=\s]+\S+)*\s+pr\s+merge\b/.test(tramo)) {
+      return denegar('gh pr merge no revisa el CI ni el head verificado. El merge va por '
+        + 'node <plugin>/scripts/mergear-pr.js <carpeta> <N> <sha>, con --a-pedido si el dueño pidió ese '
+        + 'merge (en modo flujo no hace falta). METODO.md, «El merge».');
+    }
     if (/\bnode\s+["']?[^\s"']*mergear-pr\.js\b/.test(tramo) && !/\s--a-pedido\b/.test(tramo)
       && leerSesion(cfg, evento.session_id).modo !== 'flujo') {
       return denegar('mergear-pr.js fuera del modo flujo. En modo tarea el dueño pide el merge de ESE PR '
