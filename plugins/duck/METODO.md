@@ -68,9 +68,10 @@ justo antes del primer push de la rama, y bloquea si `origin/<base>` se movió.
 10. **Merge sobre el PR** —API de GitHub o botón—, con merge commit. **Nunca `git merge` local y nunca
     `git push origin <base>`:** el merge local necesitaría justo ese push, así que no hay excepción.
     (`guard-git.js` lo hace cumplir; `mergear-pr.js` es la vía por la API, y se niega si la base del PR
-    no es `<base>`, si el head cambió desde que se verificó o si algún check no terminó en éxito.
+    no es `<base>`, si el head cambió desde que se verificó, si algún check no terminó en éxito o
+    `skipped`, si el status del commit no es verde o si la API no devolvió los checks.
     El agente lo corre solo en modo flujo; en modo tarea, con `--a-pedido` y solo después del
-    «mergealo» del dueño para ese PR. `guard-git.js` niega el resto.)
+    «mergealo» del dueño para ese PR. `guard-git.js` niega el resto, y `gh pr merge` siempre.)
 11. **Borrar la rama local**, que ya cumplió:
 
     ```bash
@@ -234,7 +235,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 
 | Regla | Pieza |
 |---|---|
-| No `push` a `<base>` (salvo el primero, con el remoto sin `<base>`), no `merge` local, no `git branch -D`, no `mergear-pr.js` fuera del modo flujo sin `--a-pedido` | `guard-git.js` (deniega) |
+| No `push` a `<base>` (salvo el primero, con el remoto sin `<base>`), no `merge` local, no `git branch -D`, no `mergear-pr.js` fuera del modo flujo sin `--a-pedido`, no `gh pr merge` | `guard-git.js` (deniega) |
 | Primer push con la base atrasada: rebase antes | `push-sobre-develop-al-dia.js` (deniega; avisa si ya estaba publicada) |
 | Ninguna rama de trabajo sale sin su issue; el PR lo referencia | `push-con-issue.js` (deniega el push y `gh pr create`; avisa si la rama ya estaba publicada) |
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |

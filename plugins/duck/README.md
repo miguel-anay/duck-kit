@@ -19,7 +19,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
 | Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (`mono-repo` o `multi-repo`, siempre con el nombre `docs`; o la ruta de `docs` en `duck.json`) y crea la misma serie en los dos casos: PRD, diseño, ADR, specs, seguridad, despliegue, guías, manuales, convenciones, IA (agentes, con `install-agents.sh`/`.ps1` que los copia a `.claude/agents/`), plantillas, ODD y changelog, sin pisar nada. Nombres y plantillas en inglés. |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
-| Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`. |
+| Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`, y `gh pr merge` siempre (no mira el CI). |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
 | Hook `push-con-issue` | `scripts/push-con-issue.js` | Una rama de trabajo no sale sin su issue: deniega el `git push` de una rama de `git.prefijos` sin clave en el nombre y, con GitHub, si el issue no existe, está cerrado o no cuelga de una HU (`ticket.js ver`). Deniega `gh pr create` sin `Closes #N` o `Refs #N` del issue de la rama en el cuerpo. Una rama que ya estaba publicada solo recibe un aviso. |
@@ -38,7 +38,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hooks `titulo`, `sesion-inicio` | `scripts/titulo.js`, `scripts/sesion-inicio.js` | Título de la terminal con el ticket; qué quedó abierto al arrancar. Una sesión continuada (compactada o retomada) hereda las tareas, el modo y la historia de la anterior. |
 | Status line | `scripts/sticker.js` | El sticker de la tarea de esta sesión. **No lo puede declarar un plugin**: lo instala `instalar.ps1`. |
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |
-| Utilidades | `scripts/inventario.js`, `scripts/mergear-pr.js`, `scripts/config.js` | Inventario local para `/duck:estado`; merge de PR por la API; el cargador único de `duck.json`. |
+| Utilidades | `scripts/inventario.js`, `scripts/mergear-pr.js`, `scripts/config.js` | Inventario local para `/duck:estado`; merge de PR por la API (`mergear-pr.js <carpeta> <N> <sha>`: una carpeta de `git.repos`, `.` en un proyecto de un solo repo, o la carpeta `docs` cuando es su propio repo); el cargador único de `duck.json`. |
 
 ## Instalación
 

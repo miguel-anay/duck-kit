@@ -55,6 +55,22 @@ test('guard-git lets the agent run mergear-pr.js only in flow mode or with --a-p
   assert.ok(!negado(correr('guard-git.js', raiz, bash('grep -n fallar /x/scripts/mergear-pr.js'))));
 });
 
+test('guard-git denies gh pr merge in every mode and points to mergear-pr.js', () => {
+  const raiz = proyecto(GITHUB);
+  for (const modo of [null, 'flujo']) {
+    if (modo) escribirSesion(raiz, 's1', { modo, tareas: {} });
+    for (const c of ['gh pr merge 7 --merge', 'cd app && gh pr merge 7 -m --match-head-commit abc', 'gh -R org/app pr merge 7', 'GH_TOKEN=x gh pr merge 7']) {
+      const r = correr('guard-git.js', raiz, bash(c));
+      assert.ok(negado(r), `${modo}: ${c}`);
+      assert.match(JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason, /mergear-pr\.js/);
+    }
+  }
+  // Read-only gh pr commands still pass.
+  for (const c of ['gh pr view 7 --json state', 'gh pr checks 7', 'gh pr list --search merge', 'grep -n "gh pr merge" METODO.md']) {
+    assert.ok(!negado(correr('guard-git.js', raiz, bash(c))), c);
+  }
+});
+
 test('mergear-pr.js ignores --a-pedido when reading its arguments', () => {
   const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, orgGithub: 'org', repos: { app: 'app' } } });
   const r = spawnSync('node', [path.join(SCRIPTS, 'mergear-pr.js'), '--a-pedido', 'app', '7', 'corto'], {
