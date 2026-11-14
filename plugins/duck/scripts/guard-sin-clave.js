@@ -6,7 +6,8 @@
 // sin clave en el nombre, o sin la marca del modo. Un hook no puede preguntar; la denegacion
 // obliga al agente a hacerlo.
 //
-// Pasan las ramas spike/ (las cuida guard-spike.js) y lo que cae fuera de git.repos. Igual que
+// Pasan las ramas spike/ (las cuida guard-spike.js), las que no son de trabajo (prefijo fuera de
+// git.prefijos: release/, dependabot/, chore/…) y lo que cae fuera de git.repos. Igual que
 // guard-git.js compara texto literal del comando: es una red, no un sandbox.
 
 const path = require('path');
@@ -23,6 +24,8 @@ hook((evento, cfg) => {
     if (cd) cwd = path.resolve(cwd, cd[1]);
     const nueva = ramaQueSeCrea(tramo, cwd, cfg);
     if (!nueva?.repo || nueva.rama.startsWith('spike/')) continue;
+    // Solo las ramas de trabajo (prefijo de git.prefijos), como push-con-issue.js.
+    if (!cfg.git.prefijos.some((p) => nueva.rama.startsWith(`${p}/`))) continue;
     if (claveDeRama(nueva.rama, cfg, nueva.dir) && MARCA.test(tramo)) continue;
     return denegar(nueva.rama);
   }

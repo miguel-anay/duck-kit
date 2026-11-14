@@ -22,11 +22,11 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`, y `gh pr merge` siempre (no mira el CI). |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
-| Hook `push-con-issue` | `scripts/push-con-issue.js` | Una rama de trabajo no sale sin su issue: deniega el `git push` de una rama de `git.prefijos` sin clave en el nombre y, con GitHub, si el issue no existe, está cerrado o no cuelga de una HU (`ticket.js ver`). Deniega `gh pr create` sin `Closes #N` o `Refs #N` del issue de la rama en el cuerpo. Una rama que ya estaba publicada solo recibe un aviso. |
+| Hook `push-con-issue` | `scripts/push-con-issue.js` | Una rama de trabajo no sale sin su issue: deniega el `git push` de una rama de `git.prefijos` sin clave en el nombre y, con GitHub, si el issue no existe, está cerrado o es un `Task` que no cuelga de una HU (`ticket.js ver`; un Bug o una Feature sueltos pasan). Deniega `gh pr create` sin `Closes #N` o `Refs #N` del issue de la rama en el cuerpo. Una rama que ya estaba publicada solo recibe un aviso. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
 | Hook `plan-con-existente` | `scripts/plan-con-existente.js` | Deniega escribir el plan de la historia (`odd.diseno`) sin la sección `## Lo que ya existe`: antes de proponer, el analista busca en los repos si ya está implementado. Sin `odd.diseno` no hace nada. |
 | Hook `guard-adr` | `scripts/guard-adr.js` | Deniega editar un ADR (`NNNN-titulo.md` en la carpeta `adr`) que está `Status: Accepted` en la rama base (`origin/HEAD`), salvo su línea Status (`Superseded by NNNN`, `Deprecated`). Un ADR nuevo o `Proposed` en la base sigue editable en su PR. También cuida los worktrees del repo de docs. Sin `adr` no hace nada. |
-| Hook `guard-sin-clave` | `scripts/guard-sin-clave.js` | Ninguna rama de trabajo nace sin `/duck:tomar`: deniega crear una rama en `git.repos` sin clave en el nombre o sin la marca `DUCK_MODO=tarea\|flujo`, que pone `/duck:tomar` después de preguntar el modo. Pasan las `spike/`. |
+| Hook `guard-sin-clave` | `scripts/guard-sin-clave.js` | Ninguna rama de trabajo nace sin `/duck:tomar`: deniega crear una rama de `git.prefijos` en `git.repos` sin clave en el nombre o sin la marca `DUCK_MODO=tarea\|flujo`, que pone `/duck:tomar` después de preguntar el modo. Pasan las `spike/` y las que no son de trabajo (`release/`, `dependabot/`, `chore/`…). |
 | Hook `estado-tarea` | `scripts/estado-tarea.js` | Anota el estado real que dejó cada transición de Jira o movida de GitHub, In Review incluido (para el sticker y el panel). Con GitHub, al tomar un issue crea el archivo de historia de la sesión, así el panel lo muestra sin correr `/duck:estado`. |
 | Hook `tarea-por-commit` | `scripts/tarea-por-commit.js` | Un commit en la rama de una tarea la anota en la sesión: retomar trabajo ya En Proceso también llega al panel. |
 | Hook `panel-al-cerrar` | `scripts/panel-al-cerrar.js` | Pide el panel al agente cuando una tarea queda finalizada. |
@@ -158,7 +158,7 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 
 | Campo | Por defecto | Qué hace |
 |---|---|---|
-| `ramaBase` | `develop` | Rama de integración: contra ella se rebasa, se abre el PR y se mide «al día». |
+| `ramaBase` | `develop` (`main` con GitHub) | Rama de integración: contra ella se rebasa, se abre el PR y se mide «al día». |
 | `prefijos` | `["feature","bugfix","hotfix","spec"]` | Prefijos de rama de trabajo. El hook de push solo mira estas ramas. |
 | `prefijosLegados` | `[]` | Prefijos viejos que se reconocen al comparar nombres de rama (para que `docs/x` y `feature/x` sean el mismo slug), pero que ya no se piden. |
 | `orgGithub` | `null` | Organización de GitHub. La usan `mergear-pr.js` y `cierre-finalizado.js`. |

@@ -241,7 +241,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 | Una clave, una rama (mismo nombre en todos los repos) | `rama-reusada.js` (avisa) |
 | Spike sin remoto, sin Jira, sin clave | `guard-spike.js` (deniega mientras la sesión está en spike) |
 | El plan mira el código antes de proponer: sección `## Lo que ya existe` | `plan-con-existente.js` (deniega escribir el plan sin ella) |
-| Toda rama de trabajo pasa por `/duck:tomar`, que pregunta tarea o flujo | `guard-sin-clave.js` (deniega la rama sin clave o sin `DUCK_MODO`) |
+| Toda rama de trabajo pasa por `/duck:tomar`, que pregunta tarea o flujo | `guard-sin-clave.js` (deniega la rama de `git.prefijos` sin clave o sin `DUCK_MODO`) |
 | El estado de Jira es un hecho, no una promesa | `estado-tarea.js`, `cierre-finalizado.js` |
 | La historia sigue a sus sub-tareas | `historia-sigue-subtareas.js` (recuerda) |
 | El panel se pide solo al cerrar una tarea | `panel-al-cerrar.js` |
@@ -319,7 +319,7 @@ reconozcan la rama— con el número del issue que entrega: en
 una HU de varios repos, el de **su** sub-issue en cada repo. El cuerpo de cada commit termina con
 `Refs #N`. El título del PR es un Conventional Commit terminado en el `(#N)` de la HU. `Closes #N` solo en
 el PR que termina el issue o su sub-issue; un PR parcial lleva `Refs #N`. `push-con-issue.js` lo hace cumplir: sin `#N` en la
-rama, o con un issue inexistente, cerrado o sin HU, el push se deniega; sin `Closes #N` o `Refs #N` en el cuerpo, `gh pr create` también.
+rama, o con un issue inexistente, cerrado o un `Task` sin HU, el push se deniega; sin `Closes #N` o `Refs #N` en el cuerpo, `gh pr create` también.
 
 **El merge (paso 10).** Un agente no mergea su propio PR salvo que el dueño lo pida **para ese PR**
 («mergealo»). En modo tarea, la autorización del paso 6 lo cubre solo si lo dice; un «dale» sin merge
