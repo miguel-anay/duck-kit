@@ -174,6 +174,20 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 | `adr` | `null` | Carpeta de los ADR, relativa a la raíz: `docs/adr`. Con valor, `guard-adr.js` no deja editar un ADR aceptado en la rama base salvo su línea Status. Dentro de un repo se compara con el final de la carpeta (`adr` dentro del repo `docs`), así que también vale en un worktree. `null` = sin guardia. |
 | `acli` | `acli` | Cómo invocar el CLI de Atlassian para el refresco de Jira del panel. `acli` a secas se ejecuta directo; una ruta (admite `%VARIABLES%` de Windows) se resuelve con PowerShell, y si no existe se cae a `acli` del PATH. |
 
+### `trabajo`, `commits` y `norma`
+
+Para un proyecto cuya unidad de trabajo no es el ticket sino algo propio (una spec de sdd-kit, por ejemplo). Sin `trabajo.clave` ni `trabajo.rama` la unidad es el ticket del proveedor, como siempre.
+
+| Campo | Por defecto | Qué hace |
+|---|---|---|
+| `trabajo.id` | `null` | Nombre de la unidad (`spec`). Solo descriptivo. |
+| `trabajo.clave` | `null` | Plantilla de la clave, con `{NNN}`: `SPEC-{NNN}`. Es la clave de la sesión, el panel y los commits; la de Jira (`jira.proyecto`) queda para el ticket que se transiciona. |
+| `trabajo.rama` | `null` | Plantilla de la rama de trabajo, con `{tipo}` (uno de `git.prefijos`), `{NNN}`, `{slug}` y `{clave}`: `{tipo}/spec-{NNN}-{slug}`. La misma rama vale en todos los repos de `git.repos`. Solo esos marcadores: uno desconocido, o una rama sin `{NNN}` ni `{clave}`, apaga `trabajo` (vuelve la clave del ticket) y `sesion-inicio.js` lo avisa. |
+| `trabajo.fuente` | `null` | Dónde vive la unidad, relativo a la raíz: `docs/specs/{NNN}-{slug}/spec.md`. Si no está en disco al hacer push, `push-con-issue.js` avisa sin frenar. |
+| `commits.formato` | `null` | Formato del mensaje de commit que escriben `/duck:tomar` y los agentes: `SPEC-{NNN}: {descripcion}`. Lo valida el proyecto (su `commit-msg`), no duck. |
+| `norma.archivo` | `null` | La norma del proyecto de la que salieron `trabajo` y `commits` (la propone `/duck:iniciar`). |
+| `norma.hash` | `null` | Hash de esa norma cuando se aprobaron los campos. |
+
 ### `odd`
 
 | Campo | Por defecto | Qué hace |
