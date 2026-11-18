@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { SCRIPTS, temporales, GITHUB, JIRA, proyecto, correr, contexto, repo, leerSesion, escribirSesion, repoGithub, commit } = require('./helpers');
+const { SCRIPTS, temporales, GITHUB, JIRA, proyecto, correr, contexto, repo, leerSesion, escribirSesion, repoGithub, commit, SPEC } = require('./helpers');
 
 // --- sesion-inicio ---
 
@@ -133,4 +133,12 @@ test('inventario inherits the previous session from the transcript Claude Code k
   const r = spawnSync('node', [path.join(SCRIPTS, 'inventario.js'), 'nueva-2'], {
     cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz, CLAUDE_CONFIG_DIR: config }, encoding: 'utf8' });
   assert.deepEqual(Object.keys(JSON.parse(r.stdout).sesion), ['org/app#12']);
+});
+
+test('sesion-inicio (trabajo propio) maps branches to the unit key and warns on a broken template', () => {
+  const raiz = proyecto(SPEC);
+  repo(raiz, 'feature/spec-002-base');
+  assert.match(contexto(correr('sesion-inicio.js', raiz, {})), /feature\/spec-002-base -> SPEC-002/);
+  const rota = proyecto({ ...SPEC, trabajo: { ...SPEC.trabajo, rama: '{tipo}/{foo}-{NNN}' } });
+  assert.match(contexto(correr('sesion-inicio.js', rota, {})), /duck\.json: trabajo\.rama usa \{foo\}/);
 });

@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { GITHUB, JIRA, proyecto, correr, contexto, git, repo, bash, commit } = require('./helpers');
+const { GITHUB, JIRA, proyecto, correr, contexto, git, repo, bash, commit, SPEC } = require('./helpers');
 
 // --- rama-reusada ---
 
@@ -49,4 +49,18 @@ test('rama-reusada (jira) still warns on a reused key', () => {
   repo(raiz, 'main');
   git(raiz, 'branch', 'feature/ABC-1-viejo');
   assert.match(contexto(correr('rama-reusada.js', raiz, bash('git checkout -b feature/ABC-1-nuevo', raiz))), /ABC-1 ya se uso/);
+});
+
+test('rama-reusada (trabajo propio) accepts the same branch in every repo and warns on another slug', () => {
+  const raiz = proyecto({ ...SPEC, git: { ...SPEC.git, repos: { api: 'api', docs: 'docs' } } });
+  for (const carpeta of ['api', 'docs']) {
+    fs.mkdirSync(path.join(raiz, carpeta));
+    repo(path.join(raiz, carpeta), 'main');
+  }
+  git(path.join(raiz, 'docs'), 'branch', 'feature/spec-002-base');
+  const docs = path.join(raiz, 'api');
+  assert.equal(correr('rama-reusada.js', raiz, bash('git checkout -b feature/spec-002-base', docs)).stdout, '');
+  const r = correr('rama-reusada.js', raiz, bash('git checkout -b feature/spec-002-otra', docs));
+  assert.match(contexto(r), /SPEC-002 ya se uso antes/);
+  assert.match(contexto(r), /docs: feature\/spec-002-base/);
 });
