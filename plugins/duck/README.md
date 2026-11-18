@@ -235,6 +235,7 @@ El kit no sabe nada de ningún proyecto. Lo propio de cada uno vive **en ese pro
 | Qué | Dónde | Ejemplo |
 |---|---|---|
 | Clave de Jira, transiciones, estados, rama base, repos | `.claude/duck.json` | `plantillas/duck.ejemplo.json` |
+| La norma propia del proyecto cuando la unidad no es el ticket (rama `tipo/spec-NNN-slug`, commits `SPEC-NNN: …`, spec en el repo de docs): `trabajo`, `commits`, `norma` | `.claude/duck.json` (lo propone `/duck:iniciar` leyendo la norma; sin norma, pregunta si adoptar la de duck o una externa) | `plantillas/duck.spec.ejemplo.json` |
 | Qué repositorio y prefijo corresponde a cada tipo de ticket, el orden de la serie, si exige plan o spec mergeada, mapa de carpetas, comandos de test por alcance, reglas de repositorio que no se negocian, trampas de «verde que no es verde», quién lee los comentarios de cierre | El archivo que nombre `convenciones` en `duck.json` | `plantillas/convenciones.ejemplo.md` |
 | Skills propias (redactar tickets con los campos obligatorios de ese Jira, por ejemplo) | `.claude/skills/` del proyecto | — |
 

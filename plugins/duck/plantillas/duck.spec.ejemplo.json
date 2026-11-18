@@ -1,0 +1,28 @@
+{
+  "jira": {
+    "proyecto": "PROJ"
+  },
+  "git": {
+    "ramaBase": "develop",
+    "prefijos": ["feature", "fix", "hotfix", "refactor"],
+    "orgGithub": "mi-org",
+    "repos": {
+      "Proyecto.Docs": "Proyecto.Docs",
+      "Proyecto.Service": "Proyecto.Service"
+    }
+  },
+  "trabajo": {
+    "id": "spec",
+    "clave": "SPEC-{NNN}",
+    "rama": "{tipo}/spec-{NNN}-{slug}",
+    "fuente": "Proyecto.Docs/specs/{NNN}-{slug}/spec.md"
+  },
+  "commits": {
+    "formato": "SPEC-{NNN}: {descripcion}"
+  },
+  "norma": {
+    "archivo": "Proyecto.Docs/convenciones/convenciones.md",
+    "hash": "sha256:<lo calcula /duck:iniciar con norma.js hash>"
+  },
+  "convenciones": ".claude/duck/convenciones.md"
+}
