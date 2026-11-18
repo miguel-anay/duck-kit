@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, derivaDeNorma } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -26,8 +26,13 @@ hook((evento, cfg) => {
 function procesar(cfg) {
   const ramas = ramasAbiertas(cfg);
   const pendientes = pendientesDeCerrar(cfg);
-  // Una plantilla de trabajo rota no frena nada, pero no puede pasar en silencio.
-  const odd = [...(cfg.trabajo.error ? [`duck.json: ${cfg.trabajo.error}. Mientras tanto la clave es la del ticket; corregilo con /duck:iniciar.`] : []), ...reglaOdd(cfg)];
+  // Una plantilla de trabajo rota o una norma que cambio no frenan nada, pero no pueden pasar en silencio.
+  const deriva = derivaDeNorma(cfg);
+  const odd = [
+    ...(cfg.trabajo.error ? [`duck.json: ${cfg.trabajo.error}. Mientras tanto la clave es la del ticket; corregilo con /duck:iniciar.`] : []),
+    ...(deriva ? [deriva] : []),
+    ...reglaOdd(cfg),
+  ];
 
   // Sesion limpia y sin regla de ODD: nada de ruido en el contexto.
   if (!ramas.length && !pendientes.length && !odd.length) return;
