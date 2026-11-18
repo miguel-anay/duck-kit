@@ -192,7 +192,7 @@ function compilarTrabajo(t, prefijos) {
   if (!t.clave || !t.rama) return apagado('trabajo necesita clave y rama');
   for (const campo of ['clave', 'rama']) {
     const malo = marcadores(t[campo]).find((m) => !MARCADORES[campo].includes(m));
-    if (malo) return apagado(`trabajo.${campo} usa {${malo}}, que no existe (vale: ${MARCADORES[campo].map((m) => `{${m}}`).join(' ')})`);
+    if (malo !== undefined) return apagado(`trabajo.${campo} usa {${malo}}, que no existe (vale: ${MARCADORES[campo].map((m) => `{${m}}`).join(' ')})`);
   }
   if (!marcadores(t.clave).includes('NNN')) return apagado('trabajo.clave necesita {NNN}');
   const enRama = marcadores(t.rama);

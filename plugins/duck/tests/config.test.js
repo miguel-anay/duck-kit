@@ -221,3 +221,9 @@ test('without trabajo the unit key is the provider key, as before', () => {
   assert.equal(github.trabajo.propio, false);
   assert.equal(claveDeRama('feat/12-x', github), '#12');
 });
+
+test('trabajo: an empty placeholder is unknown too', () => {
+  const cfg = cargarCon({ ...SPEC, trabajo: { clave: 'S-{NNN}{}', rama: '{tipo}/{clave}-{slug}' } });
+  assert.equal(cfg.trabajo.propio, false);
+  assert.match(cfg.trabajo.error, /usa {}/);
+});
