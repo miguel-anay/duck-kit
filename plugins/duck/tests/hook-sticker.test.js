@@ -1,7 +1,7 @@
 // Run: node --test plugins/duck/tests/*.test.js
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { GITHUB, JIRA, proyecto, correr, git, repo, escribirSesion } = require('./helpers');
+const { GITHUB, JIRA, proyecto, correr, git, repo, escribirSesion, SPEC } = require('./helpers');
 
 // --- sticker ---
 
@@ -28,4 +28,12 @@ test('sticker (jira) still completes bare numbers with jira.proyecto', () => {
   const raiz = proyecto({ ...JIRA, jira: { proyecto: 'PROY' } });
   const r = correr('sticker.js', raiz, { session_id: 's1', session_name: '618 detalle', cwd: raiz });
   assert.ok(r.stdout.includes('PROY-618 #'));
+});
+
+test('sticker (trabajo propio) paints unit keys from the name and the branch, not Jira numbers', () => {
+  const raiz = proyecto(SPEC);
+  repo(raiz, 'feature/spec-002-base');
+  const r = correr('sticker.js', raiz, { session_id: 's1', session_name: 'SPEC-7 detalle 618', cwd: raiz });
+  for (const clave of ['SPEC-7 #', 'SPEC-002 ~']) assert.ok(r.stdout.includes(clave), clave);
+  assert.ok(!r.stdout.includes('GPDEV'), r.stdout);
 });

@@ -26,7 +26,8 @@ hook((evento, cfg) => {
 function procesar(cfg) {
   const ramas = ramasAbiertas(cfg);
   const pendientes = pendientesDeCerrar(cfg);
-  const odd = reglaOdd(cfg);
+  // Una plantilla de trabajo rota no frena nada, pero no puede pasar en silencio.
+  const odd = [...(cfg.trabajo.error ? [`duck.json: ${cfg.trabajo.error}. Mientras tanto la clave es la del ticket; corregilo con /duck:iniciar.`] : []), ...reglaOdd(cfg)];
 
   // Sesion limpia y sin regla de ODD: nada de ruido en el contexto.
   if (!ramas.length && !pendientes.length && !odd.length) return;

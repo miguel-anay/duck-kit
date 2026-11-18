@@ -142,7 +142,7 @@ function leerEstado(sesion, cfg) {
 // GitHub: solo #N y owner/repo#N escritos enteros; el numero suelto queda para Jira.
 function ticketsDelNombre(nombre, cfg, desde) {
   if (!nombre) return [];
-  if (cfg.tickets.proveedor === 'github') return clavesEnTexto(nombre, cfg, desde);
+  if (cfg.tickets.proveedor === 'github' || cfg.trabajo.propio) return clavesEnTexto(nombre, cfg, desde);
   const claves = [];
   for (const m of String(nombre).matchAll(/\b([A-Z][A-Z0-9]+)-(\d+)\b/gi)) {
     claves.push(`${m[1].toUpperCase()}-${m[2]}`);

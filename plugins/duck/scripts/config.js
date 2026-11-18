@@ -84,6 +84,16 @@ const DEFECTOS = {
   // Carpeta de los ADR, relativa a la raiz (docs/adr). Con valor, guard-adr.js no deja editar un ADR
   // aceptado en la rama base salvo su linea Status. null = sin guardia.
   adr: null,
+  // La unidad de trabajo propia del proyecto, cuando no es el ticket (#42). Plantillas con
+  // marcadores, nada de expresiones regulares: clave admite {NNN}; rama admite {tipo} (uno de
+  // git.prefijos), {NNN}, {slug} y {clave}. Ejemplo (una spec de sdd-kit):
+  // { id: 'spec', clave: 'SPEC-{NNN}', rama: '{tipo}/spec-{NNN}-{slug}', fuente: 'docs/specs/{NNN}-{slug}/spec.md' }.
+  // Sin rama ni clave, la unidad es el ticket del proveedor, como siempre. fuente la leen los prompts.
+  trabajo: { id: null, clave: null, rama: null, fuente: null },
+  // Formato del mensaje de commit que escriben /duck:tomar y los agentes. Lo valida el proyecto, no duck.
+  commits: { formato: null },
+  // El archivo de la norma del proyecto del que salieron trabajo y commits, y su hash al aprobarlos.
+  norma: { archivo: null, hash: null },
 };
 
 function existe(ruta) {
@@ -146,11 +156,13 @@ function cargar() {
   const proyecto = cfg.jira.proyecto ? String(cfg.jira.proyecto) : null;
   const fuente = proyecto ? `${escapar(proyecto)}-\\d+` : '[A-Z][A-Z0-9]+-\\d+';
   const carpetas = Object.keys(cfg.git.repos);
+  const prefijosSlug = [...cfg.git.prefijos, ...cfg.git.prefijosLegados];
 
   return {
     ...cfg,
     raiz,
     tickets: { ...cfg.tickets, proveedor },
+    trabajo: { ...cfg.trabajo, ...compilarTrabajo(cfg.trabajo, prefijosSlug) },
     jira: {
       ...cfg.jira,
       proyecto,
@@ -163,10 +175,63 @@ function cargar() {
       // GitHub va trunk-based sobre main; develop queda como defecto de Jira.
       ramaBase: crudo.git?.ramaBase ?? (proveedor === 'github' ? 'main' : cfg.git.ramaBase),
       carpetas: carpetas.length ? carpetas : ['.'],
-      prefijosSlug: [...cfg.git.prefijos, ...cfg.git.prefijosLegados],
+      prefijosSlug,
     },
     dirEstado: path.join(raiz, '.claude', 'estado', 'sesiones'),
   };
+}
+
+const MARCADORES = { clave: ['NNN'], rama: ['tipo', 'NNN', 'slug', 'clave'] };
+
+// Las plantillas de trabajo como expresiones regulares. propio: false cuando no hay plantillas o
+// alguna no sirve; entonces la unidad es el ticket del proveedor y error dice por que (lo muestra
+// sesion-inicio). Un hook no frena por una plantilla rota, igual que por un duck.json roto.
+function compilarTrabajo(t, prefijos) {
+  const apagado = (error = null) => ({ propio: false, error });
+  if (!t?.clave && !t?.rama) return apagado();
+  if (!t.clave || !t.rama) return apagado('trabajo necesita clave y rama');
+  for (const campo of ['clave', 'rama']) {
+    const malo = marcadores(t[campo]).find((m) => !MARCADORES[campo].includes(m));
+    if (malo !== undefined) return apagado(`trabajo.${campo} usa {${malo}}, que no existe (vale: ${MARCADORES[campo].map((m) => `{${m}}`).join(' ')})`);
+  }
+  if (!marcadores(t.clave).includes('NNN')) return apagado('trabajo.clave necesita {NNN}');
+  const enRama = marcadores(t.rama);
+  if (!enRama.includes('NNN') && !enRama.includes('clave')) return apagado('trabajo.rama necesita {NNN} o {clave}');
+
+  // El primer {NNN} (suelto o dentro de {clave}) captura el numero y el primer {slug} el slug; los
+  // siguientes los repiten.
+  let capturado = false;
+  let conSlug = false;
+  const numero = () => (capturado ? '\\k<n>' : ((capturado = true), '(?<n>\\d+)'));
+  const slug = () => (conSlug ? '\\k<slug>' : ((conSlug = true), '(?<slug>[\\w.-]+)'));
+  const armar = (plantilla, reemplazo) => String(plantilla).split(/(\{[^}]*\})/).map((p) => (/^\{.*\}$/.test(p) ? reemplazo(p.slice(1, -1)) : escapar(p))).join('');
+  const claveFuente = armar(t.clave, () => '\\d+');
+  const fuenteRama = armar(t.rama, (m) =>
+    m === 'tipo' ? `(?:${prefijos.map(escapar).join('|')})`
+      : m === 'slug' ? slug()
+        : m === 'clave' ? armar(t.clave, numero)
+          : numero()
+  );
+  return {
+    propio: true,
+    error: null,
+    claveFuente,
+    reClave: new RegExp(claveFuente),
+    reClaveExacta: new RegExp(`^${claveFuente}$`),
+    reRama: new RegExp(`^${fuenteRama}$`),
+  };
+}
+
+// La ruta de la fuente (la spec) de una rama de trabajo propia, relativa a la raiz, o null.
+function fuenteDeRama(rama, cfg) {
+  if (!cfg.trabajo.propio || !cfg.trabajo.fuente) return null;
+  const g = String(rama).match(cfg.trabajo.reRama)?.groups;
+  if (!g) return null;
+  return String(cfg.trabajo.fuente).replace(/\{NNN\}/g, g.n).replace(/\{slug\}/g, g.slug ?? '{slug}');
+}
+
+function marcadores(plantilla) {
+  return [...String(plantilla ?? '').matchAll(/\{([^}]*)\}/g)].map((m) => m[1]);
 }
 
 // Corre fn(evento, cfg, entradaCruda) con el JSON que Claude Code manda por stdin, y sale con 0.
@@ -242,6 +307,10 @@ function deducirEstado(evento, cfg, { soloSubtareas = false } = {}) {
 // owner/repo#N del repo de esa carpeta; si no se sabe el repo queda #N.
 function claveDeRama(rama, cfg, carpeta) {
   if (!rama) return null;
+  if (cfg.trabajo.propio) {
+    const n = String(rama).match(cfg.trabajo.reRama)?.groups.n;
+    return n ? cfg.trabajo.clave.replace(/\{NNN\}/g, n) : null;
+  }
   if (cfg.tickets.proveedor !== 'github') return String(rama).match(cfg.jira.reClave)?.[0] ?? null;
   const prefijos = cfg.git.prefijosSlug.map(escapar).join('|');
   const m = String(rama).match(new RegExp(`^(?:${prefijos})/(\\d+)(?:-|$)`));
@@ -252,6 +321,7 @@ function claveDeRama(rama, cfg, carpeta) {
 // GitHub: #N y owner/repo#N; no cuenta &#123; (entidad HTML) ni x#5 (pegado a una palabra).
 // Con carpeta, el #N suelto se completa con el repo de esa carpeta, como en claveDeRama.
 function clavesEnTexto(texto, cfg, carpeta) {
+  if (cfg.trabajo.propio) return [...new Set(String(texto ?? '').match(new RegExp(cfg.trabajo.claveFuente, 'g')) || [])];
   const github = cfg.tickets.proveedor === 'github';
   const patron = github ? /(?<![\w&#/.-])(?:[\w.-]+\/[\w.-]+)?#\d+\b/g : new RegExp(cfg.jira.claveFuente, 'g');
   // GitHub no distingue mayusculas en owner/repo: la clave canonica va en minusculas.
@@ -528,6 +598,7 @@ module.exports = {
   partirEnTramos,
   deducirEstado,
   claveDeRama,
+  fuenteDeRama,
   ramaQueSeCrea,
   pushDe,
   clavesEnTexto,
