@@ -32,18 +32,22 @@ function procesar(evento, cfg) {
 
   anotarEstadoSesion(evento?.session_id, clave, cfg);
   if (cfg.tickets.proveedor === 'github') return emitir(textoGithub(repo, numero, clave, cfg));
+  // Una unidad propia (SPEC-002) solo toca Jira por su enlace; sin enlace no hay ticket que mover.
+  const jira = cfg.trabajo.propio ? enlaceDe(evento?.session_id, clave, cfg) : clave;
+  if (!jira) return;
+  const nombre = jira === clave ? clave : `${jira} (${clave})`;
 
   const e = cfg.jira.estados;
   const ids = cfg.jira.transiciones.finalizado;
   const conocida = ids.length ? ` aunque la conocida es ${ids.map((i) => `"${i}"`).join(' / ')}, ` : ' ';
   const texto =
-    `El PR ${repo}#${numero} se mergeo. ${clave} tiene que pasar a ${e.finalizado}. ` +
+    `El PR ${repo}#${numero} se mergeo. ${nombre} tiene que pasar a ${e.finalizado}. ` +
     'La transicion se hace con listJiraIssueTransitions sobre el issue y usando ' +
     'el id real que devuelva esa consulta: los ids difieren entre tipos de ' +
     `issue,${conocida}eso sirve ` +
     'para reconocerla, no para saltarse la consulta. Si el cambio toca varios ' +
     'repositorios, transicionar recien cuando entro el ultimo. Excepcion: si ' +
-    `${clave} es una Historia (un PR de spec o de bitacora del diseño lleva la ` +
+    `${jira} es una Historia (un PR de spec o de bitacora del diseño lleva la ` +
     `clave de la historia), NO pasa a ${e.finalizado}: la historia sigue a sus ` +
     `sub-tareas (${e.historiaDesarrollo}, y ${e.historiaPruebas} cuando solo quedan ${cfg.jira.prefijoAnalisis}).`;
 
@@ -155,6 +159,16 @@ function buscarClaveEnRamaActual(carpeta, cfg) {
     return claveDeRama(rama, cfg, carpeta);
   } catch {
     return null; // sin repo local o sin git, no es motivo para fallar
+  }
+}
+
+// El ticket de Jira enlazado a la unidad en la sesion (lo anota estado-tarea.js desde enlace.js), o null.
+function enlaceDe(sesion, unidad, cfg) {
+  if (!sesion) return null;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(cfg.dirEstado, `${sesion}.json`), 'utf8')).enlaces?.[unidad] ?? null;
+  } catch {
+    return null;
   }
 }
 
