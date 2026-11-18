@@ -767,8 +767,15 @@ function heredarSesionAnterior(cfg, sesion, transcript) {
   if (!anterior || anterior === sesion || !fs.existsSync(path.join(cfg.dirEstado, `${anterior}.json`))) return;
 
   // flujoAutorizado viaja con el modo: una sesion continuada sigue la serie que la persona eligio.
-  const { tareas, modo, spike, flujoAutorizado } = leerSesion(cfg, anterior);
-  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}), ...(flujoAutorizado ? { flujoAutorizado } : {}) });
+  // enlaces (unidad -> Jira) tambien: sin ellos cierre-finalizado.js no sabria que ticket mover.
+  const { tareas, modo, spike, flujoAutorizado, enlaces } = leerSesion(cfg, anterior);
+  guardarSesion(cfg, sesion, {
+    tareas,
+    modo,
+    ...(spike ? { spike } : {}),
+    ...(flujoAutorizado ? { flujoAutorizado } : {}),
+    ...(enlaces ? { enlaces } : {}),
+  });
   const historia = (id) => path.join(cfg.dirEstado, `${id}-historia.json`);
   if (fs.existsSync(historia(anterior)) && !fs.existsSync(historia(sesion))) {
     fs.copyFileSync(historia(anterior), historia(sesion));

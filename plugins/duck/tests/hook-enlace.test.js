@@ -62,3 +62,15 @@ test('cierre-finalizado asks to transition the linked Jira issue, and nothing in
   escribirSesion(raiz, 's1', { tareas: {}, modo: 'tarea', enlaces: { 'SPEC-002': 'GPDEV-123' } });
   assert.match(contexto(correr('cierre-finalizado.js', raiz, merge('{"merged": true}', cmd))), /^El PR app#3 se mergeo\. GPDEV-123 \(SPEC-002\) tiene que pasar a Finalizado/);
 });
+
+test('a continued session keeps the links of the session it continues', () => {
+  const raiz = proyecto(SPEC);
+  escribirSesion(raiz, 'vieja-1', { tareas: {}, modo: 'tarea', enlaces: { 'SPEC-002': 'GPDEV-123' } });
+  const ruta = path.join(raiz, 'transcript.jsonl');
+  fs.writeFileSync(ruta, JSON.stringify({ type: 'user', message: { content:
+    'If you need specific details from before compaction, read the full transcript at: /home/u/.claude/projects/p/vieja-1.jsonl\nContinue' } }) + '\n');
+  correr('estado-tarea.js', raiz, { ...transicion('GPDEV-123', 'En Proceso'), session_id: 'nueva-2', transcript_path: ruta });
+  const nueva = leerSesion(raiz, 'nueva-2');
+  assert.deepEqual(nueva.enlaces, { 'SPEC-002': 'GPDEV-123' });
+  assert.equal(nueva.tareas['SPEC-002'].estado, 'En Proceso');
+});
