@@ -278,7 +278,7 @@ function leerArgClaves(argv) {
       return lista
         .split(',')
         .map((c) => (GITHUB ? c.trim().toLowerCase() : c.trim())) // GitHub: owner/repo canonico en minusculas
-        .filter((c) => (GITHUB ? clavesEnTexto(c, cfg)[0] === c : cfg.jira.reClaveExacta.test(c)));
+        .filter((c) => (GITHUB ? clavesEnTexto(c, cfg)[0] === c : (cfg.trabajo.propio ? cfg.trabajo : cfg.jira).reClaveExacta.test(c)));
     }
   }
   return null;
@@ -320,6 +320,7 @@ function contieneClave(texto, clave) {
 }
 
 function ramaDeLaClave(rama, clave, repo) {
+  if (cfg.trabajo.propio) return claveDeRama(rama, cfg) === clave;
   if (!GITHUB) return contieneClave(rama, clave);
   const n = numeroEnRepo(clave, repo);
   return n !== null && claveDeRama(rama, cfg) === `#${n}`;

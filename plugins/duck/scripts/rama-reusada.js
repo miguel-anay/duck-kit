@@ -48,7 +48,9 @@ function compararConLoExistente(clave, nueva, cfg) {
   const github = cfg.tickets.proveedor === 'github';
   const numero = github ? clave.split('#')[1] : null;
   const exacta = new RegExp(`${escapar(clave)}(?!\\d)`);
-  const patrones = github ? [`*/${numero}-*`, `*/${numero}`] : [`*${clave}*`];
+  // Con trabajo propio la rama no lleva la clave tal cual (spec-002 vs SPEC-002): se la reconoce por claveDeRama.
+  const propio = cfg.trabajo.propio;
+  const patrones = propio ? [] : github ? [`*/${numero}-*`, `*/${numero}`] : [`*${clave}*`];
   const base = cfg.git.ramaBase;
   const otras = []; // { repo, rama } con otro slug
   const enBase = [];
@@ -61,7 +63,7 @@ function compararConLoExistente(clave, nueva, cfg) {
     const cwd = path.join(cfg.raiz, repo);
     if (!fs.existsSync(cwd)) continue;
     if (github && repoGithub(cwd) !== repoNueva) continue;
-    const esDeLaClave = (rama) => (github ? claveDeRama(rama, cfg, cwd) === clave : exacta.test(rama));
+    const esDeLaClave = (rama) => (github || propio ? claveDeRama(rama, cfg, cwd) === clave : exacta.test(rama));
 
     for (const rama of correr(cwd, ['branch', '-a', '--format=%(refname:short)', '--list', ...patrones])) {
       const limpia = rama.replace(/^origin\//, '');

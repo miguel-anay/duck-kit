@@ -15,6 +15,12 @@ afterEach(() => {
 
 const GITHUB = { tickets: { proveedor: 'github' }, git: { prefijos: ['feat', 'fix'], ramaBase: 'main' } };
 const JIRA = { git: { ramaBase: 'main' } };
+// A project whose work unit is its own spec, not the ticket (Cavali, #42).
+const SPEC = {
+  jira: { proyecto: 'GPDEV' },
+  git: { ramaBase: 'main', prefijos: ['feature', 'fix', 'hotfix', 'refactor'] },
+  trabajo: { id: 'spec', clave: 'SPEC-{NNN}', rama: '{tipo}/spec-{NNN}-{slug}', fuente: 'docs/specs/{NNN}-{slug}/spec.md' },
+};
 
 function proyecto(duck) {
   const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-hooks-'));
@@ -143,4 +149,4 @@ function ghCierra(raiz, cierra) {
   return { DUCK_GH: script };
 }
 
-module.exports = { SCRIPTS, temporales, GITHUB, JIRA, proyecto, correr, contexto, ENV_GIT, git, repo, leerSesion, escribirSesion, mover, transicionJira, bash, negado, merge, repoGithub, ticketFalso, ghFalso, issueCreado, prCreado, commit, ghCierra };
+module.exports = { SCRIPTS, temporales, GITHUB, JIRA, SPEC, proyecto, correr, contexto, ENV_GIT, git, repo, leerSesion, escribirSesion, mover, transicionJira, bash, negado, merge, repoGithub, ticketFalso, ghFalso, issueCreado, prCreado, commit, ghCierra };
