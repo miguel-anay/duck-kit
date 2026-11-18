@@ -39,6 +39,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Status line | `scripts/sticker.js` | El sticker de la tarea de esta sesión. **No lo puede declarar un plugin**: lo instala `instalar.ps1`. |
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |
 | Utilidades | `scripts/inventario.js`, `scripts/mergear-pr.js`, `scripts/config.js` | Inventario local para `/duck:estado`; merge de PR por la API (`mergear-pr.js <carpeta> <N> <sha>`: una carpeta de `git.repos`, `.` en un proyecto de un solo repo, o la carpeta `docs` cuando es su propio repo); el cargador único de `duck.json`. |
+| Trabajo propio | `scripts/enlace.js`, `scripts/norma.js` | Con `trabajo` en `duck.json`: `enlace.js <unidad> <jira>` enlaza la unidad (`SPEC-002`) con el ticket de Jira que la sigue (`GPDEV-123`), y `estado-tarea.js` anota el enlace en la sesión desde su línea de éxito; las transiciones de ese ticket se anotan con la clave de la unidad y el merge pide mover ese ticket. Sin enlace, la unidad no toca Jira. `norma.js hash <archivo>` da el hash que guarda `norma.hash`; `norma.js revisar` (y `sesion-inicio.js`) avisan si la norma cambió. |
 
 ## Instalación
 
@@ -186,7 +187,7 @@ Para un proyecto cuya unidad de trabajo no es el ticket sino algo propio (una sp
 | `trabajo.fuente` | `null` | Dónde vive la unidad, relativo a la raíz: `docs/specs/{NNN}-{slug}/spec.md`. Si no está en disco al hacer push, `push-con-issue.js` avisa sin frenar. |
 | `commits.formato` | `null` | Formato del mensaje de commit que escriben `/duck:tomar` y los agentes: `SPEC-{NNN}: {descripcion}`. Lo valida el proyecto (su `commit-msg`), no duck. |
 | `norma.archivo` | `null` | La norma del proyecto de la que salieron `trabajo` y `commits` (la propone `/duck:iniciar`). |
-| `norma.hash` | `null` | Hash de esa norma cuando se aprobaron los campos. |
+| `norma.hash` | `null` | Hash de esa norma cuando se aprobaron los campos (`norma.js hash <archivo>`, sin importar los finales de línea). Si la norma cambia o desaparece, `sesion-inicio.js` y `/duck:estado` avisan; nunca frenan. |
 
 ### `odd`
 
@@ -200,7 +201,7 @@ Para un proyecto cuya unidad de trabajo no es el ticket sino algo propio (una sp
 
 Todo lo que escriben los hooks va a `<proyecto>/.claude/estado/`:
 
-- `sesiones/<session_id>.json` — tareas que la sesión confirmó con Jira, modo (`tarea`/`flujo`/`spike`).
+- `sesiones/<session_id>.json` — tareas que la sesión confirmó con Jira, modo (`tarea`/`flujo`/`spike`) y, con `trabajo`, los enlaces unidad → ticket de Jira (`enlaces`).
 - `sesiones/<session_id>-historia.json` — lo que el panel dibuja de Jira (lo escribe `/duck:estado`).
 - `sesiones/<session_id>-vista.json` — cache del sticker para el título.
 - `ultimo-contexto-stop.json` — volcado de diagnóstico del último `Stop`.
