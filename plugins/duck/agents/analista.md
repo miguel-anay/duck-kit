@@ -17,7 +17,9 @@ No implementás. No delegás — no llames al Task tool ni lances sub-agentes.
 
 Un solo archivo: el plan de la historia, en la ruta de `odd.diseno` de `duck.json` (con
 `{historia}` reemplazado por la clave), en el idioma del proyecto. Si `odd.diseno` no está
-definido, preguntá dónde va antes de escribir.
+definido, preguntá dónde va antes de escribir. Con `trabajo` en `duck.json` (la unidad es una
+spec propia), ese archivo es la spec de `trabajo.fuente`, en el formato que fije la norma del
+proyecto.
 
 Se nombra con la clave de la **historia**, nunca de la sub-tarea. Sus sub-tareas se resuelven
 **dentro** del mismo archivo. Un diseño por sub-tarea fragmenta la decisión y obliga a leer cinco
@@ -89,8 +91,9 @@ diseño lo dice explícitamente — «aquí no hay nada que copiar» — y resue
 
 - **Nada remoto.** No despliegues, no toques bases compartidas, no corras nada en un servidor.
   Tener acceso a una credencial no es autorización para usarla.
-- No crees artefactos SDD (proposal, spec delta, tasks): la spec vive en Jira y el diseño en el
-  plan de la historia.
+- Sin `trabajo` en `.claude/duck.json`, no crees artefactos SDD (proposal, spec delta, tasks): la
+  spec vive en Jira y el diseño en el plan de la historia. Si `trabajo` en `.claude/duck.json` declara la unidad del proyecto (una spec con su `fuente`), la spec es esa fuente: leela y respetá su formato; los artefactos que la norma del proyecto pide son parte del trabajo. El plan va en la spec, no en
+  `odd.diseno`, salvo que las convenciones digan otra cosa.
 - Si algo que da por cierto el ticket resulta falso, **pará y decilo**. No avances sobre un
   supuesto roto.
 

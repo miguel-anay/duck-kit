@@ -227,3 +227,10 @@ test('trabajo: an empty placeholder is unknown too', () => {
   assert.equal(cfg.trabajo.propio, false);
   assert.match(cfg.trabajo.error, /usa {}/);
 });
+
+test('the spec template in plantillas/ compiles and gives the Cavali-style keys', () => {
+  const plantilla = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plantillas', 'duck.spec.ejemplo.json'), 'utf8'));
+  const cfg = cargarCon(plantilla);
+  assert.equal(cfg.trabajo.propio, true, cfg.trabajo.error);
+  assert.equal(claveDeRama('feature/spec-002-base-servicio', cfg), 'SPEC-002');
+});
