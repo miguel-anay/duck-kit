@@ -341,11 +341,27 @@ function numeroEnRepo(clave, repo) {
 // falsos positivos: un commit puede mencionar otra clave en el cuerpo
 // («alias de PROY-672»), y eso no es entregar esa tarea.
 function mergeadaEnBase(cwd, clave, repo) {
+  if (cfg.trabajo.propio) return mergeadaEnBasePropia(cwd, clave);
   if (GITHUB) return mergeadaEnBaseGithub(cwd, clave, repo);
   const salida = git(cwd, ['log', `origin/${BASE}`, `--grep=${clave}`, '--format=%s']);
   const reScope = new RegExp('\\(' + escapar(clave) + '\\)');
   const reMerge = new RegExp('^Merge pull request #\\d+ from \\S+/' + escapar(clave) + '(?!\\d)');
   return salida.split('\n').some((asunto) => reScope.test(asunto) || reMerge.test(asunto));
+}
+
+// Trabajo propio: la clave abre el asunto (SPEC-3: x, el formato de commit de sdd-kit) o va de
+// scope (feat(SPEC-3): x), o el merge de un PR viene de una rama de esa clave, que no la lleva tal
+// cual (spec-003-slug): por eso el grep no distingue mayusculas y la rama se lee con claveDeRama.
+function mergeadaEnBasePropia(cwd, clave) {
+  const salida = git(cwd, ['log', `origin/${BASE}`, '-i', `--grep=${clave.replace(/\d+$/, '')}`, '--format=%s']);
+  const n = Number(clave.match(/(\d+)$/)?.[1]);
+  const reClave = new RegExp(`^${escapar(clave)}(?!\\d)|\\(${escapar(clave)}\\)`);
+  return salida.split('\n').some((asunto) => {
+    if (reClave.test(asunto)) return true;
+    const rama = asunto.match(/^Merge pull request #\d+ from [^/\s]+\/(\S+)/)?.[1];
+    const deRama = rama && claveDeRama(rama, cfg);
+    return Boolean(deRama) && Number(deRama.match(/(\d+)$/)?.[1]) === n && deRama.replace(/\d+$/, '') === clave.replace(/\d+$/, '');
+  });
 }
 
 // GitHub: el issue se referencia en el mensaje (Refs #N, Fixes #N y demas palabras de cierre, o
