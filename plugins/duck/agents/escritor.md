@@ -70,7 +70,8 @@ el último commit local.
 - **Nada remoto.** No despliegues, no toques bases compartidas, no corras nada en un servidor.
   Encontrar una credencial en un archivo local **no es autorización para usarla**.
 - Si un formateador toca archivos que no son tuyos, formateá **solo los tuyos, por nombre**.
-- No crees artefactos SDD. La spec vive en Jira y el diseño en el plan de la historia.
+- Sin `trabajo` en `.claude/duck.json`, no crees artefactos SDD: la spec vive en Jira y el diseño en
+  el plan de la historia. Si `trabajo` en `.claude/duck.json` declara la unidad del proyecto (una spec con su `fuente`), la spec es esa fuente: leela y respetá su formato; los artefactos que la norma del proyecto pide son parte del trabajo. Los commits siguen `commits.formato` (`SPEC-002: …`).
 
 ## Qué devolvés
 

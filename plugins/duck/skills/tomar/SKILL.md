@@ -1,7 +1,7 @@
 ---
 name: tomar
-description: Arranca una tarea de Jira o un issue de GitHub (modo tarea) o una historia entera (modo flujo) — lee el ticket, revisa el otro carril, crea la rama y la pone En Proceso
-argument-hint: <CLAVE>-nnn | #N | owner/repo#N [slug]
+description: Arranca una tarea de Jira, un issue de GitHub o la unidad propia del proyecto, como una spec (modo tarea) o una historia entera (modo flujo) — lee el ticket, revisa el otro carril, crea la rama y la pone En Proceso
+argument-hint: <CLAVE>-nnn | #N | owner/repo#N | SPEC-NNN [slug]
 allowed-tools: Bash, Read, Write, Glob, Grep, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__transitionJiraIssue, mcp__atlassian__discover, mcp__atlassian__executeRead
 disable-model-invocation: true
 ---
@@ -11,6 +11,8 @@ Arranque de `$1`. Slug propuesto por quien llama: `$2` — puede venir vacío.
 > **Configuración.** Los valores propios del proyecto salen de `.claude/duck.json`: `<CLAVE>` es la clave de Jira (`jira.proyecto`), `<base>` la rama base (`git.ramaBase`, por defecto `<base>`), los repositorios son las carpetas de `git.repos`, y los nombres de estado, los de `jira.estados`. Lo propio de cada proyecto —qué repositorio y prefijo corresponde a cada tipo de ticket, el orden de la serie, si exige plan o spec mergeada— está en el archivo `convenciones` de `duck.json`, si lo hay: leelo antes de empezar.
 
 > **Con GitHub.** Si `duck.json` tiene `"tickets": {"proveedor": "github"}`, los pasos son los mismos pero cada operación de Jira se hace como dice la sección «Proveedor GitHub», al final.
+
+> **Con trabajo propio.** Si `duck.json` tiene `trabajo` (la unidad es, por ejemplo, una spec y no el ticket), los pasos cambian como dice la sección «Trabajo propio», al final. Manda sobre lo que diga este archivo de Jira o GitHub para la clave, la rama y el commit.
 
 Esto es **preparación, no implementación**. Al terminar, la rama existe y el ticket está `En Proceso`. No escribas código, no edites archivos del proyecto, no abras un PR.
 
@@ -237,3 +239,22 @@ Con `"tickets": {"proveedor": "github"}` se sigue la convención de GitHub (la `
 | 8. Reporte | «Estado en el Project: In Progress», con la línea que imprimió `ticket.js mover` |
 
 Lo que sigue después del arranque, también según la convención: el cuerpo de cada commit termina con `Refs #N`; el título del PR es un Conventional Commit terminado en el `(#N)` de la HU; `Closes #N` solo en el PR que termina el issue o su sub-issue, los parciales `Refs #N`. El resto (In Review, Done, Blocked, merge) está en la sección 8 de `METODO.md`.
+
+## Trabajo propio
+
+Con `trabajo` en `duck.json` la unidad de trabajo es la del proyecto (ejemplo: `"clave": "SPEC-{NNN}"`, `"rama": "{tipo}/spec-{NNN}-{slug}"`, `"fuente": "docs/specs/{NNN}-{slug}/spec.md"`), no el ticket. Las plantillas son la norma del proyecto aprobada en `/duck:iniciar`: no inventes otro formato. Jira es opcional y llega solo por el enlace. Los pasos de arriba valen con estas equivalencias:
+
+| Paso | Con trabajo propio |
+|---|---|
+| Clave | `$1` es la clave de `trabajo.clave` (`SPEC-002`) o solo su número (`002`, se completa con la plantilla). En adelante `<clave>` es la completa. **PARÁ** si no encaja con la plantilla |
+| 0. Modo | Se pregunta igual, siempre. Recomendado: **tarea** para una spec suelta; **flujo** si la spec declara sub-unidades en el orden que fijen las convenciones |
+| 1. Leer | La fuente: `trabajo.fuente` con `{NNN}` (y `{slug}` buscando la carpeta que empiece por `<NNN>-`). Leé objetivo, alcance y criterios. Si su encabezado (frontmatter) trae `jira: <CLAVE-JIRA>`, leé ese ticket como en el paso 1 (sus mismas paradas). **PARÁ** si la fuente no existe: la spec se escribe y se aprueba antes, con el proceso del proyecto, no en este comando |
+| 2. Repos y rama | La rama sale de `trabajo.rama`: `{tipo}` es uno de `git.prefijos` según el tipo de cambio que diga la norma (`feature`, `fix`, `hotfix`, `refactor`…); `{NNN}` y `{slug}` son los de la fuente (el slug es el de la carpeta de la spec, no uno nuevo). **La misma rama en cada repositorio de `git.repos` que la spec toque**: la norma lo pide así y `rama-reusada.js` lo acepta |
+| 3. Plan | La spec es el plan. `odd.diseno` no aplica salvo que las convenciones digan otra cosa |
+| 4. Radar | `git -C <repo> log origin/<base> --oneline -i --grep="<clave>"` y `git -C <repo> branch -a` filtrando las ramas cuya clave (según la plantilla) sea `<clave>`. Mismo criterio de reuso: misma rama en varios repos está bien; otro tipo u otro slug, PARÁ |
+| 5 y 6. Base y rama | `<base>` es `git.ramaBase` de la norma. `DUCK_MODO=<modo> git -C <repo> switch -c <rama de la plantilla>` en cada repo |
+| 7. Enlace y estado | Con `jira:` en la spec: `node "${CLAUDE_PLUGIN_ROOT}/scripts/enlace.js" <clave> <CLAVE-JIRA>` (imprime `Enlace <clave> -> <CLAVE-JIRA>`, que es lo que lee el hook) y **después** el paso 7 sobre ese ticket de Jira: el panel lo muestra como `<clave>`. Sin `jira:`, no hay ticket que mover: no toques Jira |
+| Commits | El mensaje sigue `commits.formato` (`SPEC-{NNN}: {descripcion}` → `SPEC-002: add base service`). Lo valida el hook del proyecto (`commit-msg`), no duck: si lo rechaza, corregí el mensaje, no lo saltees con `--no-verify` |
+| Spike | La rama de salida es la de la plantilla; el commit con la clave sigue `commits.formato` |
+| 8. Reporte | La fuente leída, la rama en cada repo, y el enlace con Jira o «sin Jira» |
+

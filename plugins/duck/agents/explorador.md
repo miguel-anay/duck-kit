@@ -42,4 +42,5 @@ que se aparta de una regla que esas convenciones declaran, es un hallazgo, no el
   Encontrar una cadena de conexión en un archivo local no es autorización para usarla.
 - No leas secretos: archivos de configuración local, `.env`, claves. Si necesitás saber qué
   configura un valor, mirá el nombre de la clave, no el valor.
-- No crees artefactos SDD.
+- No crees artefactos (tampoco los SDD): mapeás, no escribís. Con `trabajo` en `.claude/duck.json`,
+  la spec de `trabajo.fuente` es parte del mapa.
