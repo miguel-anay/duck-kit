@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, revisionDe, cuandoDe, AGENTES_PRUEBA } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, derivaDeNorma, pruebasDe, revisionDe, cuandoDe, AGENTES_PRUEBA } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -26,9 +26,11 @@ hook((evento, cfg) => {
 function procesar(cfg) {
   const ramas = ramasAbiertas(cfg);
   const pendientes = pendientesDeCerrar(cfg);
-  // Una plantilla de trabajo rota no frena nada, pero no puede pasar en silencio.
+  // Una plantilla de trabajo rota o una norma que cambio no frenan nada, pero no pueden pasar en silencio.
+  const deriva = derivaDeNorma(cfg);
   const reglas = [
     ...(cfg.trabajo.error ? [`duck.json: ${cfg.trabajo.error}. Mientras tanto la clave es la del ticket; corregilo con /duck:iniciar.`] : []),
+    ...(deriva ? [deriva] : []),
     ...reglaOdd(cfg),
     ...reglaPruebas(cfg),
   ];
