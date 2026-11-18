@@ -222,6 +222,22 @@ function compilarTrabajo(t, prefijos) {
   };
 }
 
+// Hash de la norma del proyecto, sin importar los finales de linea: un checkout de Windows no es un cambio.
+function hashNorma(ruta) {
+  const texto = fs.readFileSync(ruta, 'utf8').replace(/\r\n/g, '\n');
+  return `sha256:${require('crypto').createHash('sha256').update(texto).digest('hex')}`;
+}
+
+// Aviso si la norma de la que salio duck.json cambio o ya no esta; null si sigue igual o no hay hash.
+function derivaDeNorma(cfg) {
+  const { archivo, hash } = cfg.norma || {};
+  if (!archivo || !hash) return null;
+  const ruta = path.join(cfg.raiz, archivo);
+  if (!existe(ruta)) return `${archivo} no está: la norma de la que salió duck.json se movió o se borró. Corré /duck:iniciar.`;
+  if (hashNorma(ruta) === hash) return null;
+  return `${archivo} cambió desde que se aprobó duck.json: corré /duck:iniciar para revisar trabajo, commits y ramas.`;
+}
+
 // La ruta de la fuente (la spec) de una rama de trabajo propia, relativa a la raiz, o null.
 function fuenteDeRama(rama, cfg) {
   if (!cfg.trabajo.propio || !cfg.trabajo.fuente) return null;
@@ -567,8 +583,8 @@ function heredarSesionAnterior(cfg, sesion, transcript) {
   const anterior = inicio.match(/read the full transcript at:\s*\S*?[\\/]([A-Za-z0-9_-]+)\.jsonl/)?.[1];
   if (!anterior || anterior === sesion || !fs.existsSync(path.join(cfg.dirEstado, `${anterior}.json`))) return;
 
-  const { tareas, modo, spike } = leerSesion(cfg, anterior);
-  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}) });
+  const { tareas, modo, spike, enlaces } = leerSesion(cfg, anterior);
+  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}), ...(enlaces ? { enlaces } : {}) });
   const historia = (id) => path.join(cfg.dirEstado, `${id}-historia.json`);
   if (fs.existsSync(historia(anterior)) && !fs.existsSync(historia(sesion))) {
     fs.copyFileSync(historia(anterior), historia(sesion));
@@ -599,6 +615,8 @@ module.exports = {
   deducirEstado,
   claveDeRama,
   fuenteDeRama,
+  hashNorma,
+  derivaDeNorma,
   ramaQueSeCrea,
   pushDe,
   clavesEnTexto,
