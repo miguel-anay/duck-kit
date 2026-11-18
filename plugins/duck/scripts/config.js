@@ -583,8 +583,8 @@ function heredarSesionAnterior(cfg, sesion, transcript) {
   const anterior = inicio.match(/read the full transcript at:\s*\S*?[\\/]([A-Za-z0-9_-]+)\.jsonl/)?.[1];
   if (!anterior || anterior === sesion || !fs.existsSync(path.join(cfg.dirEstado, `${anterior}.json`))) return;
 
-  const { tareas, modo, spike } = leerSesion(cfg, anterior);
-  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}) });
+  const { tareas, modo, spike, enlaces } = leerSesion(cfg, anterior);
+  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}), ...(enlaces ? { enlaces } : {}) });
   const historia = (id) => path.join(cfg.dirEstado, `${id}-historia.json`);
   if (fs.existsSync(historia(anterior)) && !fs.existsSync(historia(sesion))) {
     fs.copyFileSync(historia(anterior), historia(sesion));
