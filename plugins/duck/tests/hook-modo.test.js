@@ -20,10 +20,10 @@ const sesionDe = (raiz) => path.join(raiz, '.claude', 'estado', 'sesiones', 's1.
 test('modo-elegido marks flow or task mode from the answer to the mode question, keeping the tasks', () => {
   const raiz = proyecto(JIRA);
   escribirSesion(raiz, 's1', { tareas: TAREAS, modo: 'tarea' });
-  correr('modo-elegido.js', raiz, respondio('Modo flujo (Recomendado)'));
+  correr('modo-elegido.js', raiz, respondio('Modo flujo'));
   assert.equal(leerSesion(raiz, 's1').modo, 'flujo');
   assert.deepEqual(Object.keys(leerSesion(raiz, 's1').tareas), ['ABC-1']);
-  correr('modo-elegido.js', raiz, respondio('modo tarea'));
+  correr('modo-elegido.js', raiz, respondio('Modo tarea'));
   assert.equal(leerSesion(raiz, 's1').modo, 'tarea');
 });
 
@@ -31,6 +31,9 @@ test('modo-elegido ignores an answer that names no mode, an unrelated question a
   const sinCambio = [
     respondio('Todavía no, esperá'),
     respondio('No quiero modo flujo'),
+    respondio('Modo flujo no, gracias'),
+    respondio('Modo tarea, nada de modo flujo todavía'),
+    { ...respondio('Modo flujo: sí, mergealo', '¿Mergeo el PR 40?'), tool_input: { questions: [{ question: '¿Mergeo el PR 40?', options: [{ label: 'Modo flujo: sí, mergealo' }, { label: 'No' }] }] } },
     { ...respondio('Modo flujo'), tool_name: 'Bash' },
     { ...respondio('Sí, como en modo flujo', '¿Mergeo el PR 40?'), tool_input: { questions: [{ question: '¿Mergeo el PR 40?', options: [{ label: 'Sí' }, { label: 'No' }] }] } },
   ];
@@ -42,16 +45,25 @@ test('modo-elegido ignores an answer that names no mode, an unrelated question a
   }
 });
 
-test('modo-elegido takes the mode the answer starts with, and a bare flujo typed as the answer', () => {
+test('modo-elegido takes the chosen option as labelled, or the bare word typed as the answer', () => {
   for (const [respuesta, modo] of [
-    ['Modo tarea, nada de modo flujo todavía', 'tarea'],
+    ['tarea', 'tarea'],
     ['flujo', 'flujo'],
-    ['MODO FLUJO', 'flujo'],
+    ['Flujo.', 'flujo'],
   ]) {
     const raiz = proyecto(JIRA);
     escribirSesion(raiz, 's1', { tareas: TAREAS, modo: modo === 'flujo' ? 'tarea' : 'flujo', flujoAutorizado: 'x' });
     correr('modo-elegido.js', raiz, respondio(respuesta));
     assert.equal(leerSesion(raiz, 's1').modo, modo, respuesta);
+  }
+  // The chosen option, with whatever the skill appended to its label.
+  for (const etiqueta of ['Modo flujo (Recomendado)', 'modo flujo']) {
+    const raiz = proyecto(JIRA);
+    escribirSesion(raiz, 's1', { tareas: TAREAS, modo: 'tarea' });
+    const evento = respondio(etiqueta);
+    evento.tool_input.questions[0].options = [{ label: 'Modo tarea' }, { label: etiqueta }];
+    correr('modo-elegido.js', raiz, evento);
+    assert.equal(leerSesion(raiz, 's1').modo, 'flujo', etiqueta);
   }
 });
 
@@ -63,6 +75,8 @@ test('modo-elegido reads the mode only as the argument of /duck:tomar, in any ca
     ['/duck:tomar ABC-1 desde-spike flujo', 'flujo'],
     ['/duck:tomar ABC-1', 'tarea'],
     ['/duck:tomar ABC-1 pero no en flujo todavia', 'tarea'],
+    ['/duck:tomar ABC-1 flujo no', 'tarea'],
+    ['/duck:tomar ABC-1 mi-slug flujo', 'tarea'],
     ['pasá la sesión a modo flujo y mergeá', 'tarea'],
     ['explicame /duck:tomar ABC-1 flujo', 'tarea'],
   ]) {
@@ -168,28 +182,42 @@ test('guard-modo keeps the flow mode the person chose, and forgets the authoriza
 
 // --- leaving a spike in flow mode ---
 
-test('from a spike, modo-elegido only notes the request and guard-modo lets /duck:tomar apply it once', () => {
+test('from a spike, modo-elegido only notes the request and /duck:tomar can apply it once, even rewriting the whole file', () => {
   const raiz = proyecto(JIRA);
   const archivo = sesionDe(raiz);
+  const aFlujo = escribir(archivo, '{"tareas":{},"modo":"flujo"}');
   escribirSesion(raiz, 's1', { tareas: {}, modo: 'spike', spike: { tema: 'x' } });
-  assert.ok(negado(correr('guard-modo.js', raiz, escribir(archivo, '{"tareas":{},"modo":"flujo"}'))));
+  assert.ok(negado(correr('guard-modo.js', raiz, aFlujo)));
 
   correr('modo-elegido.js', raiz, escribio('/duck:tomar ABC-1 desde-spike flujo'));
   assert.equal(leerSesion(raiz, 's1').modo, 'spike');
-  assert.equal(leerSesion(raiz, 's1').modoPedido.modo, 'flujo');
-  assert.ok(!negado(correr('guard-modo.js', raiz, escribir(archivo, '{"tareas":{},"modo":"flujo"}'))));
+  assert.ok(!negado(correr('guard-modo.js', raiz, aFlujo)));
 
-  // /duck:tomar leaves the spike in flow mode: the request becomes the authorization, once.
-  escribirSesion(raiz, 's1', { tareas: {}, modo: 'flujo', modoPedido: leerSesion(raiz, 's1').modoPedido });
-  correr('guard-modo.js', raiz, despues(escribir(archivo, '{}')));
+  // /duck:tomar leaves the spike writing the file from scratch: the request becomes the authorization.
+  escribirSesion(raiz, 's1', { tareas: {}, modo: 'flujo' });
+  assert.equal(correr('guard-modo.js', raiz, despues(aFlujo)).stdout, '');
   assert.equal(leerSesion(raiz, 's1').modo, 'flujo');
   assert.ok(leerSesion(raiz, 's1').flujoAutorizado);
-  assert.equal('modoPedido' in leerSesion(raiz, 's1'), false);
 
-  escribirSesion(raiz, 's1', { tareas: {}, modo: 'tarea', modoPedido: { modo: 'flujo', fecha: new Date().toISOString() } });
-  assert.ok(negado(correr('guard-modo.js', raiz, escribir(archivo, '{"tareas":{},"modo":"flujo"}'))));
+  // Once: back in task mode, the same request does not open flow again.
+  escribirSesion(raiz, 's1', { tareas: {}, modo: 'tarea' });
+  correr('guard-modo.js', raiz, despues(aFlujo));
+  assert.ok(negado(correr('guard-modo.js', raiz, aFlujo)));
+  escribirSesion(raiz, 's1', { tareas: {}, modo: 'flujo' });
+  correr('guard-modo.js', raiz, despues(aFlujo));
+  assert.equal(leerSesion(raiz, 's1').modo, 'tarea');
+});
 
-  const hace1h = new Date(Date.now() - 3600 * 1000).toISOString();
-  escribirSesion(raiz, 's1', { tareas: {}, modo: 'spike', modoPedido: { modo: 'flujo', fecha: hace1h } });
-  assert.ok(negado(correr('guard-modo.js', raiz, escribir(archivo, '{"tareas":{},"modo":"flujo"}'))));
+test('a request to leave the spike in flow mode expires after 30 minutes, and a task request never opens flow', () => {
+  const raiz = proyecto(JIRA);
+  const aFlujo = escribir(sesionDe(raiz), '{"tareas":{},"modo":"flujo"}');
+  const pedido = path.join(raiz, '.claude', 'estado', 'sesiones', 's1.pedido');
+  escribirSesion(raiz, 's1', { tareas: {}, modo: 'spike', spike: { tema: 'x' } });
+  correr('modo-elegido.js', raiz, escribio('/duck:tomar ABC-1 desde-spike flujo'));
+  const fs = require('fs');
+  fs.writeFileSync(pedido, JSON.stringify({ modo: 'flujo', fecha: new Date(Date.now() - 3600 * 1000).toISOString() }));
+  assert.ok(negado(correr('guard-modo.js', raiz, aFlujo)));
+
+  correr('modo-elegido.js', raiz, escribio('/duck:tomar ABC-1 desde-spike tarea'));
+  assert.ok(negado(correr('guard-modo.js', raiz, aFlujo)));
 });

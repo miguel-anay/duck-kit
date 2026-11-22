@@ -103,7 +103,7 @@ Salí del spike en el estado de la sesión (párrafo «Antes del paso 7», más 
 
 No hay nada que enmendar de lo compartido: el spike nunca se empujó, así que reescribir su historia es seguro. La rama `spike/<tema>` queda como respaldo hasta que la tarea esté mergeada; después se borra con `-d` si se deja (nunca `-D`; si se niega, que la borre la persona).
 
-**Antes del paso 7**, en el estado de la sesión poné `"modo": "tarea"` y **borrá la clave `spike`**. Poné `"flujo"` solo si la persona escribió `flujo` en `$3`: `modo-elegido.js` lo dejó anotado en `modoPedido`, y `guard-modo.js` deja pasar esa escritura mientras la sesión siga en spike; sin ese pedido la deniega. Mientras siga en spike el guardia deniega la transición, el push y los commits con clave. Hacelo antes del commit con clave, que también lo bloquearía.
+**Antes del paso 7**, en el estado de la sesión poné `"modo": "tarea"` y **borrá la clave `spike`**. Poné `"flujo"` solo si la persona escribió `flujo` en `$3`: `modo-elegido.js` lo dejó anotado, y `guard-modo.js` deja pasar esa escritura, una vez y durante 30 minutos, mientras la sesión siga en spike; sin ese pedido la deniega. Mientras siga en spike el guardia deniega la transición, el push y los commits con clave. Hacelo antes del commit con clave, que también lo bloquearía.
 
 Después seguí con el paso 7 (transición a `En Proceso`: esa es la primera vez que Jira se entera) y el 8.
 

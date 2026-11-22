@@ -22,10 +22,9 @@
 // No es un sandbox: quien copie tambien "flujoAutorizado" se lo salta. Es la red para el descuido.
 
 const path = require('path');
-const { hook, leerSesion, guardarSesion } = require('./config');
+const { hook, leerSesion, guardarSesion, leerPedido, borrarPedido } = require('./config');
 
 const MODO_FLUJO = /["']modo["']\s*:\s*["']flujo["']/;
-const VIGENCIA_PEDIDO_MS = 30 * 60 * 1000;
 const COMO_SE_ACTIVA =
   'El modo flujo no lo activa el agente: lo marca duck cuando la persona lo elige en la pregunta de /duck:tomar, o con '
   + '`flujo` como argumento de ese comando. Si hace falta mergear algo que la serie no cubria, pedile a la persona el '
@@ -40,7 +39,7 @@ hook((evento, cfg) => {
     if (conSesion) revisarComoQuedo(cfg, sesion);
     return;
   }
-  if (!escribeFlujo(evento, cfg) || (conSesion && saleDeSpike(leerSesion(cfg, sesion)))) return;
+  if (!escribeFlujo(evento, cfg) || (conSesion && saleDeSpike(cfg, sesion))) return;
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: COMO_SE_ACTIVA },
@@ -63,29 +62,26 @@ function escribeFlujo(evento, cfg) {
   return nuevos.some((texto) => MODO_FLUJO.test(String(texto ?? '')) || /^["']?flujo["']?$/.test(String(texto ?? '').trim()));
 }
 
-// Saliendo de un spike con /duck:tomar … desde-spike flujo.
-function saleDeSpike({ modo, modoPedido }) {
-  return modo === 'spike' && pedidoVigente(modoPedido);
-}
-
-function pedidoVigente(modoPedido) {
-  return modoPedido?.modo === 'flujo' && Date.now() - Date.parse(modoPedido.fecha) < VIGENCIA_PEDIDO_MS;
+// Saliendo de un spike con /duck:tomar … desde-spike flujo: la persona lo pidio hace poco.
+function saleDeSpike(cfg, sesion) {
+  return leerSesion(cfg, sesion).modo === 'spike' && leerPedido(cfg, sesion) === 'flujo';
 }
 
 function revisarComoQuedo(cfg, sesion) {
-  const { modoPedido, flujoAutorizado, ...almacen } = leerSesion(cfg, sesion);
+  const { flujoAutorizado, ...almacen } = leerSesion(cfg, sesion);
   if (almacen.modo === 'spike') return; // el pedido sigue esperando a que /duck:tomar salga del spike
+
+  // Fuera del spike el pedido se gasta: sirve una vez, para la salida que la persona pidio.
+  const pedido = leerPedido(cfg, sesion);
+  borrarPedido(cfg, sesion);
 
   if (almacen.modo !== 'flujo') {
     // Fuera del flujo no queda nada con que volver a entrar.
-    if (flujoAutorizado || modoPedido) guardarSesion(cfg, sesion, almacen);
+    if (flujoAutorizado) guardarSesion(cfg, sesion, almacen);
     return;
   }
-  if (flujoAutorizado) {
-    if (modoPedido) guardarSesion(cfg, sesion, { ...almacen, flujoAutorizado });
-    return;
-  }
-  if (pedidoVigente(modoPedido)) {
+  if (flujoAutorizado) return;
+  if (pedido === 'flujo') {
     // Salio del spike en flujo, como la persona pidio: el pedido pasa a ser la autorizacion.
     guardarSesion(cfg, sesion, { ...almacen, flujoAutorizado: new Date().toISOString() });
     return;

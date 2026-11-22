@@ -554,6 +554,32 @@ function enFlujo(almacen) {
   return almacen?.modo === 'flujo' && Boolean(almacen.flujoAutorizado);
 }
 
+// --- Pedido de modo al salir de un spike: <dirEstado>/<session_id>.pedido = { modo, fecha } ---
+// Va en su propio archivo, y sin .json: /duck:tomar reescribe el estado de la sesion al salir del
+// spike y se lo llevaria puesto, y las skills buscan el estado como «el .json mas reciente».
+
+const VIGENCIA_PEDIDO_MS = 30 * 60 * 1000;
+const archivoPedido = (cfg, sesion) => path.join(cfg.dirEstado, `${sesion}.pedido`);
+
+function guardarPedido(cfg, sesion, modo) {
+  fs.mkdirSync(cfg.dirEstado, { recursive: true });
+  fs.writeFileSync(archivoPedido(cfg, sesion), JSON.stringify({ modo, fecha: new Date().toISOString() }) + '\n');
+}
+
+// El modo que la persona pidio hace poco para la salida del spike, o null.
+function leerPedido(cfg, sesion) {
+  try {
+    const { modo, fecha } = JSON.parse(fs.readFileSync(archivoPedido(cfg, sesion), 'utf8'));
+    return Date.now() - Date.parse(fecha) < VIGENCIA_PEDIDO_MS ? modo : null;
+  } catch {
+    return null;
+  }
+}
+
+function borrarPedido(cfg, sesion) {
+  fs.rmSync(archivoPedido(cfg, sesion), { force: true });
+}
+
 // Lo que la sesion tiene anotado, sin las tareas vencidas. Sin archivo: vacio, modo tarea.
 function leerSesion(cfg, sesion) {
   let almacen = { tareas: {}, modo: 'tarea' };
@@ -659,6 +685,9 @@ module.exports = {
   tareasVigentes,
   leerSesion,
   enFlujo,
+  guardarPedido,
+  leerPedido,
+  borrarPedido,
   guardarSesion,
   heredarSesionAnterior,
 };
