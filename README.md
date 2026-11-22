@@ -190,7 +190,7 @@ Claude los usa solo; no hace falta invocarlos. Cada uno hace una cosa y devuelve
 
 ### Pruebas por repositorio
 
-Los tres últimos son agentes de pruebas. Corren antes del merge, después de `duck:verificador`, y
+Los tres últimos son agentes de pruebas. Corren antes del merge, con la suite del cambio en verde, y
 **cada repositorio elige cuáles usa**. En un proyecto de varios repos, la API puede correr los tres
 y el repo de docs ninguno:
 
@@ -216,7 +216,10 @@ Qué tener en cuenta:
 - **No reemplazan la prueba en vivo.** Corren en local, sobre el código; probar la aplicación desplegada
   es otro paso.
 
-El detalle está en [METODO.md §9](plugins/duck/METODO.md).
+- **Con gentle-ai no se revisa dos veces.** Si el cambio pasa por la revisión nativa de gentle-ai o por
+  Judgment Day, `duck:adversario` no corre. Los otros dos sí.
+
+El detalle está en [METODO.md §9](plugins/duck/METODO.md), y el encaje con gentle-ai en §7.
 
 ## Glosario
 

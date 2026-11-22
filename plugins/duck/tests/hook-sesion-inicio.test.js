@@ -43,6 +43,18 @@ test('sesion-inicio says nothing about test agents when no repo has test types',
   assert.equal(correr('sesion-inicio.js', raiz, {}).stdout, '');
 });
 
+test('sesion-inicio tells an ODD project when duck:adversario gives way to a gentle-ai review', () => {
+  const conOdd = proyecto({ ...JIRA, odd: { tareas: 'odd/tasks' }, pruebas: { defecto: ['adversarial', 'fuzz'] } });
+  const texto = contexto(correr('sesion-inicio.js', conOdd, {}));
+  assert.match(texto, /revision nativa de gentle-ai o Judgment Day.*duck:adversario no se lanza/);
+
+  const sinOdd = proyecto({ ...JIRA, pruebas: { defecto: ['adversarial', 'fuzz'] } });
+  assert.doesNotMatch(contexto(correr('sesion-inicio.js', sinOdd, {})), /gentle-ai/);
+
+  const sinAdversarial = proyecto({ ...JIRA, odd: { tareas: 'odd/tasks' }, pruebas: { defecto: ['fuzz'] } });
+  assert.doesNotMatch(contexto(correr('sesion-inicio.js', sinAdversarial, {})), /Judgment Day/);
+});
+
 // --- continued sessions inherit the previous session's tasks ---
 
 function transcript(raiz, anterior) {
