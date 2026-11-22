@@ -242,6 +242,17 @@ function partirEnTramos(comando) {
     .filter(Boolean);
 }
 
+// Los tramos de un comando con la carpeta en que corre cada uno: un `cd <dir>` vale para los que le
+// siguen. Sin esto un hook mira el cwd de la sesion, que con `cd repo && git push` no es el repo.
+function tramosConCwd(comando, cwd) {
+  let actual = cwd;
+  return partirEnTramos(comando).map((tramo) => {
+    const cd = tramo.match(/^cd\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/);
+    if (cd) actual = path.resolve(actual, cd[1] ?? cd[2] ?? cd[3]);
+    return { tramo, cwd: actual };
+  });
+}
+
 // Estado en que aterrizo una transicion de Jira, con los NOMBRES de la configuracion
 // (cfg.jira.estados), o null si no se puede saber.
 //
@@ -554,6 +565,27 @@ function enFlujo(almacen) {
   return almacen?.modo === 'flujo' && Boolean(almacen.flujoAutorizado);
 }
 
+// La HU de la sesion (<session_id>-historia.json) cuyo numero es `numero` y que vive en OTRO repo
+// del proyecto que `repoPropio`, como owner/repo#N, o null. Es el caso del PR de bitacora del
+// plan: la rama del repo de docs lleva el numero de una HU que es un issue de otro repo. Una HU
+// de un repo ajeno al proyecto no cuenta.
+function historiaEnOtroRepo(cfg, sesion, numero, repoPropio) {
+  if (!sesion || !/^[A-Za-z0-9_-]+$/.test(sesion)) return null;
+  let datos;
+  try {
+    datos = JSON.parse(fs.readFileSync(path.join(cfg.dirEstado, `${sesion}-historia.json`), 'utf8'));
+  } catch {
+    return null; // la sesion no tiene historia anotada
+  }
+  const delProyecto = cfg.git.carpetas.map((carpeta) => repoDe(path.join(cfg.raiz, carpeta))).filter((r) => r && r !== repoPropio);
+  const bloques = Array.isArray(datos?.historias) ? datos.historias : [datos];
+  return (
+    bloques
+      .map((b) => String(b?.historia?.clave ?? '').toLowerCase())
+      .find((h) => delProyecto.some((repo) => h === `${repo}#${numero}`)) ?? null
+  );
+}
+
 // --- Pedido de modo al salir de un spike: <dirEstado>/<session_id>.pedido = { modo, fecha } ---
 // Va en su propio archivo, y sin .json: /duck:tomar reescribe el estado de la sesion al salir del
 // spike y se lo llevaria puesto, y las skills buscan el estado como «el .json mas reciente».
@@ -660,6 +692,8 @@ module.exports = {
   cargar,
   hook,
   partirEnTramos,
+  tramosConCwd,
+  historiaEnOtroRepo,
   deducirEstado,
   claveDeRama,
   ramaQueSeCrea,

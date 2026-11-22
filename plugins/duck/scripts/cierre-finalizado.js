@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, escapar, claveDeRama, clavesEnTexto, referenciaIssue, TICKET_JS } = require('./config');
+const { hook, escapar, claveDeRama, clavesEnTexto, referenciaIssue, historiaEnOtroRepo, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => procesar(evento, cfg));
 
@@ -29,6 +29,14 @@ function procesar(evento, cfg) {
 
   const clave = buscarClave(comando, respuesta, repo, numero, cfg);
   if (!clave) return; // sin clave no se inventa una, se sale en silencio
+
+  if (cfg.tickets.proveedor === 'github') {
+    // El numero de la rama puede ser la HU de la sesion en OTRO repo (el PR de bitacora del plan,
+    // en el repo de docs): completarlo con el repo del PR nombraria un issue ajeno.
+    const [repoDeLaClave, n] = clave.split('#');
+    const historia = historiaEnOtroRepo(cfg, evento?.session_id, n, repoDeLaClave);
+    if (historia) return emitir(textoBitacora(repo, numero, historia, cfg));
+  }
 
   anotarEstadoSesion(evento?.session_id, clave, cfg);
   if (cfg.tickets.proveedor === 'github') return emitir(textoGithub(repo, numero, clave, cfg));
@@ -60,6 +68,18 @@ function textoGithub(repo, numero, clave, cfg) {
     `${clave} es la historia (el issue padre, con sub-issues), no pasa a ${fin}: cuando todas sus ` +
     `sub-issues estan cerradas pasa a ${cfg.github.estados.pruebas} (\`mover ${clave} pruebas\`), y ` +
     `${fin} lo decide una persona cuando la prueba.`
+  );
+}
+
+// Un PR que lleva la clave de la historia (spec o bitacora del plan) no finaliza nada.
+function textoBitacora(repo, numero, historia, cfg) {
+  const e = cfg.github.estados;
+  return (
+    `El PR ${repo}#${numero} se mergeo. Lleva la clave de la historia ${historia}, que vive en otro repositorio: ` +
+    `es un PR de bitacora o de spec y no finaliza nada, ni la historia ni ningun issue de ${repo}. ` +
+    `${historia} pasa a ${e.pruebas} solo cuando todos sus sub-issues estan cerrados ` +
+    `(\`node "${TICKET_JS}" ver ${historia}\`, y entonces \`node "${TICKET_JS}" mover ${historia} pruebas\`); ` +
+    `${e.finalizado} lo decide una persona cuando la prueba.`
   );
 }
 

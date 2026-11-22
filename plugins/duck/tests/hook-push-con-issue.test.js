@@ -207,6 +207,32 @@ test('push-sobre-develop-al-dia blocks the first push of a branch behind origin/
   }
 });
 
+test('the push hooks follow a cd in the command: the session cwd is not where the push runs', () => {
+  // The project root is not a repository; the repo is in app/, as when the agent works from the root.
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, repos: { app: 'app' } } });
+  const app = path.join(raiz, 'app');
+  fs.mkdirSync(app);
+  repo(app, 'main');
+  const remoto = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-origen-'));
+  temporales.push(remoto);
+  git(app, 'init', '-q', '--bare', remoto);
+  git(app, 'remote', 'add', 'origin', remoto);
+  git(app, 'push', '-q', 'origin', 'main');
+  git(app, 'switch', '-q', '-c', 'feat/sin-issue');
+  git(app, 'switch', '-q', 'main');
+  git(app, 'commit', '-q', '--allow-empty', '-m', 'otra tarea');
+  git(app, 'push', '-q', 'origin', 'main');
+  git(app, 'switch', '-q', 'feat/sin-issue');
+
+  for (const c of ['cd app && git push', `cd "${app}" && git add -A && git push -q -u origin HEAD`, 'cd app; git push']) {
+    assert.ok(negado(pushCon(raiz, c)), c);
+    assert.match(motivo(pushCon(raiz, c)), /feat\/sin-issue no lleva el número/, c);
+    assert.ok(negado(correr('push-sobre-develop-al-dia.js', raiz, bash(c, raiz))), c);
+  }
+  // A cd that leaves the repo again is followed too.
+  assert.ok(!negado(pushCon(raiz, 'cd app && cd .. && git push')));
+});
+
 test('push-sobre-develop-al-dia warns, without blocking, when it cannot reach the remote', () => {
   const raiz = conOrigen(GITHUB, 'feat/1-x');
   git(raiz, 'remote', 'set-url', 'origin', path.join(raiz, 'no-existe'));

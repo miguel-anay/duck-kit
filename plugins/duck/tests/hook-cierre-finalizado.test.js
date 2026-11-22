@@ -99,3 +99,40 @@ test('cierre-finalizado ignores a mergear-pr.js that refused', () => {
     tool_response: { stdout: '', stderr: 'mergear-pr: el check build no termino en success\n' } };
   assert.equal(correr('cierre-finalizado.js', raiz, evento).stdout, '');
 });
+
+// --- a plan-log PR keyed by a story that lives in another repository ---
+
+// A project with app/ (origin org/app) and docs/ (origin org/FactuFacil.docs), and the story of the session.
+function conHistoria(clave) {
+  const raiz = proyecto({ ...GITHUB, git: { ...GITHUB.git, prefijos: ['feat', 'fix', 'docs'], repos: { app: 'app', docs: 'FactuFacil.docs' } } });
+  for (const [carpeta, nombre] of [['app', 'app'], ['docs', 'FactuFacil.docs']]) {
+    fs.mkdirSync(path.join(raiz, carpeta));
+    repo(path.join(raiz, carpeta), 'main');
+    git(path.join(raiz, carpeta), 'remote', 'add', 'origin', `https://github.com/org/${nombre}.git`);
+  }
+  if (clave) {
+    const sesiones = path.join(raiz, '.claude', 'estado', 'sesiones');
+    fs.mkdirSync(sesiones, { recursive: true });
+    fs.writeFileSync(path.join(sesiones, 's1-historia.json'), JSON.stringify({ historias: [{ historia: { clave, titulo: '' }, subtareas: [] }] }));
+  }
+  return raiz;
+}
+const bitacoraMergeada = { session_id: 's1', tool_name: 'Bash', tool_input: { command: 'node /x/scripts/mergear-pr.js docs 174 abc' },
+  tool_response: { stdout: 'FactuFacil.docs #174 mergeado: ' + 'a'.repeat(40) + ' (docs/46-bitacora)\n' } };
+
+test('cierre-finalizado (github) does not send the docs issue to Done when the branch number is the story of the session in another repo', () => {
+  const raiz = conHistoria('org/app#46');
+  const texto = contexto(correr('cierre-finalizado.js', raiz, bitacoraMergeada));
+  assert.match(texto, /^El PR FactuFacil\.docs#174 se mergeo\. Lleva la clave de la historia org\/app#46/);
+  assert.doesNotMatch(texto, /factufacil\.docs#46/i);
+  assert.doesNotMatch(texto, /mover \S+ finalizado/);
+  assert.match(texto, /mover org\/app#46 pruebas/);
+  assert.equal(fs.existsSync(path.join(raiz, '.claude', 'estado', 'sesiones', 's1.json')), false);
+});
+
+test('cierre-finalizado (github) keeps the issue of the PR repo when the session has no such story', () => {
+  for (const clave of [null, 'org/app#47', 'evil/x#46']) {
+    const texto = contexto(correr('cierre-finalizado.js', conHistoria(clave), bitacoraMergeada));
+    assert.match(texto, /org\/factufacil\.docs#46 tiene que pasar a Done/, String(clave));
+  }
+});
