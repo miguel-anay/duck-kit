@@ -88,7 +88,10 @@ const DEFECTOS = {
   // 'propiedades', 'fuzz'. defecto vale para el proyecto de un solo repo y para toda carpeta que
   // repos no nombre; repos: carpeta -> lista, y una lista vacia apaga las pruebas de ese repo.
   // Vacio = ninguna: los agentes de pruebas no se usan hasta que el proyecto los pide.
-  pruebas: { defecto: [], repos: {} },
+  // revision: quien hace la lectura a ciegas del cambio cuando el proyecto usa tambien gentle-ai
+  // (METODO.md §7). 'duck' = duck:adversario; 'gentle-ai' = su revision nativa o Judgment Day, y
+  // el tipo adversarial no corre en ningun repo; 'auto' = duck:adversario cede si gentle-ai revisa.
+  pruebas: { defecto: [], repos: {}, revision: 'auto' },
 };
 
 // Los tipos que duck conoce, en el orden en que corren, y el agente de cada uno.
@@ -143,7 +146,16 @@ function pruebasDe(cfg, carpeta) {
   const { defecto, repos } = cfg.pruebas || {};
   const propia = repos && repos[carpeta];
   const lista = Array.isArray(propia) ? propia : Array.isArray(defecto) ? defecto : [];
-  return Object.keys(AGENTES_PRUEBA).filter((tipo) => lista.includes(tipo));
+  const sinAdversarial = revisionDe(cfg) === 'gentle-ai';
+  return Object.keys(AGENTES_PRUEBA).filter((tipo) => lista.includes(tipo) && !(sinAdversarial && tipo === 'adversarial'));
+}
+
+// Quien hace la revision a ciegas: 'duck', 'gentle-ai' o 'auto'. Lo que no sea uno de los dos
+// primeros es 'auto', que es lo que duck hacia antes de que existiera el campo.
+function revisionDe(cfg) {
+  const valor = cfg.pruebas && cfg.pruebas.revision;
+  const elegido = typeof valor === 'string' ? valor.trim().toLowerCase() : '';
+  return elegido === 'duck' || elegido === 'gentle-ai' ? elegido : 'auto';
 }
 
 // Devuelve la configuracion normalizada, o null si no hay duck.json legible.
@@ -460,6 +472,36 @@ function carpetaDe(dir, cfg) {
   return cfg.git.carpetas.includes('.') ? '.' : null;
 }
 
+// --- Pruebas corridas: .claude/estado/pruebas.json = { <rama>: { <tipo>: fecha ISO } } ---
+// Por rama y no por sesion: el push puede salir en otra sesion que la que corrio los agentes.
+
+const VIGENCIA_PRUEBAS_DIAS = 30;
+
+function archivoPruebas(cfg) {
+  return path.join(path.dirname(cfg.dirEstado), 'pruebas.json');
+}
+
+function leerPruebas(cfg) {
+  try {
+    const datos = JSON.parse(fs.readFileSync(archivoPruebas(cfg), 'utf8'));
+    return datos && typeof datos === 'object' && !Array.isArray(datos) ? datos : {};
+  } catch {
+    return {};
+  }
+}
+
+// Anota que el agente de `tipo` corrio para `rama`, y suelta las ramas que nadie toca hace un mes.
+function anotarPrueba(cfg, rama, tipo) {
+  const limite = Date.now() - VIGENCIA_PRUEBAS_DIAS * 24 * 3600 * 1000;
+  const vigentes = Object.entries(leerPruebas(cfg)).filter(([, tipos]) =>
+    Object.values(tipos || {}).some((fecha) => Date.parse(fecha) > limite)
+  );
+  const datos = Object.fromEntries(vigentes);
+  datos[rama] = { ...datos[rama], [tipo]: new Date().toISOString() };
+  fs.mkdirSync(path.dirname(archivoPruebas(cfg)), { recursive: true });
+  fs.writeFileSync(archivoPruebas(cfg), JSON.stringify(datos, null, 2) + '\n');
+}
+
 // --- Estado de la sesion: <dirEstado>/<session_id>.json = { tareas, modo, ... } ---
 
 const ID_SESION = /^[A-Za-z0-9_-]+$/;
@@ -549,6 +591,10 @@ module.exports = {
   pushDe,
   clavesEnTexto,
   pruebasDe,
+  revisionDe,
+  leerPruebas,
+  anotarPrueba,
+  carpetaDe,
   AGENTES_PRUEBA,
   referenciaIssue,
   estadosDe,

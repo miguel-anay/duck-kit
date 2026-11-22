@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe } = require('../scripts/config');
+const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe } = require('../scripts/config');
 
 const temporales = [];
 
@@ -186,4 +186,22 @@ test('without a pruebas section no repo has test types', () => {
   const cfg = cargarCon({ git: { repos: { api: 'x-api' } } });
   assert.deepEqual(pruebasDe(cfg, 'api'), []);
   assert.deepEqual(pruebasDe(cfg, '.'), []);
+});
+
+test('pruebas.revision picks who does the blind review; anything else is auto', () => {
+  assert.equal(revisionDe(cargarCon({})), 'auto');
+  assert.equal(revisionDe(cargarCon({ pruebas: { revision: 'duck' } })), 'duck');
+  assert.equal(revisionDe(cargarCon({ pruebas: { revision: 'Gentle-AI' } })), 'gentle-ai');
+  assert.equal(revisionDe(cargarCon({ pruebas: { revision: 'ambas' } })), 'auto');
+  assert.equal(revisionDe(cargarCon({ pruebas: { revision: ['duck'] } })), 'auto');
+});
+
+test('with pruebas.revision gentle-ai no repo runs the adversarial type; the other types stay', () => {
+  const cfg = cargarCon({
+    pruebas: { revision: 'gentle-ai', defecto: ['adversarial'], repos: { api: ['adversarial', 'fuzz'] } },
+  });
+  assert.deepEqual(pruebasDe(cfg, 'api'), ['fuzz']);
+  assert.deepEqual(pruebasDe(cfg, '.'), []);
+  const duck = cargarCon({ pruebas: { revision: 'duck', defecto: ['adversarial', 'fuzz'] } });
+  assert.deepEqual(pruebasDe(duck, '.'), ['adversarial', 'fuzz']);
 });

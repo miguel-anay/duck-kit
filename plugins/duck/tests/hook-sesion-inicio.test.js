@@ -55,6 +55,19 @@ test('sesion-inicio tells an ODD project when duck:adversario gives way to a gen
   assert.doesNotMatch(contexto(correr('sesion-inicio.js', sinAdversarial, {})), /Judgment Day/);
 });
 
+test('sesion-inicio names the one reviewer the project chose in pruebas.revision', () => {
+  const pruebas = { defecto: ['adversarial', 'fuzz'] };
+  const deDuck = contexto(correr('sesion-inicio.js', proyecto({ ...JIRA, pruebas: { ...pruebas, revision: 'duck' } }), {}));
+  assert.match(deDuck, /- \.: duck:adversario, duck:fuzz/);
+  assert.match(deDuck, /la hace duck:adversario.*no inicies la revision nativa de gentle-ai ni Judgment Day/);
+  assert.match(deDuck, /gentle-ai review mode disable --scope clone/);
+
+  const deGentle = contexto(correr('sesion-inicio.js', proyecto({ ...JIRA, pruebas: { ...pruebas, revision: 'gentle-ai' } }), {}));
+  assert.match(deGentle, /- \.: duck:fuzz$/m);
+  assert.doesNotMatch(deGentle, /duck:adversario, /);
+  assert.match(deGentle, /la hace gentle-ai.*duck:adversario no se lanza/);
+});
+
 // --- continued sessions inherit the previous session's tasks ---
 
 function transcript(raiz, anterior) {

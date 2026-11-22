@@ -213,13 +213,82 @@ Qué tener en cuenta:
   ciegos de quien escribió el código. La sesión principal reproduce cada fallo y decide si es real.
 - **`duck:propiedades` y `duck:fuzz` no instalan nada.** Si el repo no tiene la librería o el arnés,
   avisan y proponen cuál agregar; sumarla es decisión del proyecto.
+- **Si te olvidás de alguno, duck avisa en el push.** No lo bloquea: te dice qué agentes de los que
+  pide ese repo no corrieron para la rama.
 - **No reemplazan la prueba en vivo.** Corren en local, sobre el código; probar la aplicación desplegada
   es otro paso.
 
-- **Con gentle-ai no se revisa dos veces.** Si el cambio pasa por la revisión nativa de gentle-ai o por
-  Judgment Day, `duck:adversario` no corre. Los otros dos sí.
+- **Con gentle-ai no se revisa dos veces.** Cada proyecto elige quién hace la revisión: ver
+  [duck y gentle-ai trabajan juntos](#duck-y-gentle-ai-trabajan-juntos).
 
 El detalle está en [METODO.md §9](plugins/duck/METODO.md), y el encaje con gentle-ai en §7.
+
+## duck y gentle-ai trabajan juntos
+
+No son rivales ni hacen lo mismo: cada uno cubre una capa, y duck funciona con gentle-ai o sin él.
+
+| | gentle-ai | duck |
+|---|---|---|
+| Qué resuelve | **Cómo** se ejecuta una tarea | **Dónde** vive el trabajo y **cómo** sale al remoto |
+| Qué trae | ODD (test-first, cuándo delegar), revisión nativa, Judgment Day, memoria entre sesiones (Engram) | Una rama por ticket, el estado en Jira o GitHub, la puerta antes del push, el merge sobre el PR |
+| Cómo lo hace cumplir | Instrucciones y su propio flujo de revisión | Hooks que bloquean el comando (guards) |
+
+Donde los dos tienen algo que decir, ya está decidido quién manda, así que no chocan:
+
+| Tema | Quién decide |
+|---|---|
+| Cuándo delegar en un agente | gentle-ai (ODD) |
+| A qué agente | duck: `duck:explorador`, `duck:escritor`, `duck:verificador`, `duck:analista` |
+| La rama y el PR | duck: la rama la crea `/duck:tomar` y va un PR por tarea |
+| El documento de la tarea | gentle-ai lleva su bitácora; duck, el plan versionado de la historia |
+| Test-first | Los dos dicen lo mismo |
+| Memoria | Engram guarda decisiones; duck guarda en qué tarea y rama está la sesión |
+| La revisión del cambio | **La elegís vos, por proyecto** |
+
+### Elegir quién revisa
+
+Los dos traen agentes que leen el cambio a ciegas buscando fallos: gentle-ai, su revisión nativa y
+Judgment Day; duck, `duck:adversario`. Podés usar los de cualquiera de los dos. Lo que no conviene es
+pagar las dos lecturas del mismo código, y eso se configura con `revision` dentro de `pruebas`, en el
+`.claude/duck.json` de cada proyecto.
+
+**Revisa duck.** Claude lanza `duck:adversario` y no inicia la revisión de gentle-ai:
+
+```json
+"pruebas": {
+  "revision": "duck",
+  "defecto": ["adversarial"]
+}
+```
+
+Con esta opción apagá la revisión nativa en cada repo del proyecto, porque ese interruptor es tuyo y
+duck no lo toca: `gentle-ai review mode disable --scope clone`.
+
+**Revisa gentle-ai.** `duck:adversario` no corre en ningún repo; los otros agentes de pruebas sí:
+
+```json
+"pruebas": {
+  "revision": "gentle-ai",
+  "repos": { "api": ["propiedades", "fuzz"] }
+}
+```
+
+**Automático** (por defecto, no hace falta escribirlo). `duck:adversario` corre salvo que ese cambio
+vaya a pasar por la revisión de gentle-ai; entonces cede:
+
+```json
+"pruebas": {
+  "revision": "auto",
+  "defecto": ["adversarial"],
+  "repos": { "api": ["adversarial", "propiedades", "fuzz"], "docs": [] }
+}
+```
+
+En los tres casos `duck:propiedades` y `duck:fuzz` corren igual, y antes de la revisión de gentle-ai:
+generan entradas, que es algo que una lectura del código no hace.
+
+Para que ODD de gentle-ai use las rutas y los agentes de duck, el proyecto declara además `odd.tareas`
+en `duck.json`. El detalle está en [METODO.md §7](plugins/duck/METODO.md).
 
 ## Glosario
 
@@ -228,6 +297,8 @@ El detalle está en [METODO.md §9](plugins/duck/METODO.md), y el encaje con gen
 - **Modo tarea / flujo / spike**: una sub-tarea por vez; una historia completa en secuencia; una prueba
   local sin ticket.
 - **La puerta**: el único momento en que duck pide permiso; todo lo anterior es local.
+- **gentle-ai**: otro kit para Claude Code, con su flujo de ejecución (ODD), su revisión y su memoria
+  (Engram). duck convive con él; no lo necesita.
 - **Tipos de prueba**: `adversarial`, `propiedades` y `fuzz`; lo que cada repo corre antes del merge,
   además de su suite.
 

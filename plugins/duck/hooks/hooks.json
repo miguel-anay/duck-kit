@@ -26,6 +26,12 @@
           },
           {
             "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/push-con-pruebas.js\"",
+            "if": "Bash(*git*push*)",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-spike.js\"",
             "timeout": 10
           },
@@ -130,6 +136,16 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/historia-sigue-subtareas.js\"",
             "if": "Bash(*ticket.js*mover*)",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/pruebas-anota.js\"",
             "timeout": 10
           }
         ]

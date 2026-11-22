@@ -94,6 +94,7 @@ Si `gh` no está, no tiene sesión o no tiene acceso a la organización, se dice
 8. **Reglas que no se negocian.** Si los `CLAUDE.md` de los repos ya las tienen, **no las copies**: proponé dejar en convenciones solo lo que no esté ahí. ¿Hay algo más?
 9. **Quién lee los comentarios de cierre** en el ticket (PM, QA, negocio…).
 10. **Tipos de prueba por repo.** Además de la suite, ¿qué corre cada repo antes del merge: `adversarial`, `propiedades`, `fuzz`, o ninguno? Proponé `adversarial` para los repos de código (no necesita nada instalado) y ninguno para el de docs; `propiedades` y `fuzz` solo donde ya veas la librería o el arnés en las dependencias, porque sus agentes no la instalan. La respuesta es `pruebas` en `duck.json`: `defecto` si todos los repos corren lo mismo, `repos` para el que difiere.
+11. **Quién revisa a ciegas.** Solo si el proyecto usa también gentle-ai (hay `odd.tareas`, o `gentle-ai` está en el PATH) y algún repo quedó con `adversarial`: ¿la revisión del cambio la hace `duck:adversario`, la hace gentle-ai, o cede duck cuando gentle-ai revisa? Es `pruebas.revision`: `duck`, `gentle-ai` o `auto`; proponé `auto`. Si elige `duck`, decile que apagar la revisión nativa es suyo: `gentle-ai review mode disable --scope clone` en cada repo. No lo corras vos.
 
 Si la persona dice «no sé», «después» o «dejalo», esa sección queda fuera del archivo: no la inventes.
 
