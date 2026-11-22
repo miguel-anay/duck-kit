@@ -43,6 +43,8 @@
     "diseno": "docs/disenos/{historia}.md"
   },
   "pruebas": {
+    "cuando": "siempre",
+    "riesgo": [],
     "revision": "auto",
     "defecto": ["adversarial"],
     "repos": {

@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe } = require('../scripts/config');
+const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe, cuandoDe } = require('../scripts/config');
 
 const temporales = [];
 
@@ -204,4 +204,11 @@ test('with pruebas.revision gentle-ai no repo runs the adversarial type; the oth
   assert.deepEqual(pruebasDe(cfg, '.'), []);
   const duck = cargarCon({ pruebas: { revision: 'duck', defecto: ['adversarial', 'fuzz'] } });
   assert.deepEqual(pruebasDe(duck, '.'), ['adversarial', 'fuzz']);
+});
+
+test('pruebas.cuando is siempre unless the project asks for riesgo', () => {
+  assert.equal(cuandoDe(cargarCon({})), 'siempre');
+  assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: 'Riesgo' } })), 'riesgo');
+  assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: 'nunca' } })), 'siempre');
+  assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: ['riesgo'] } })), 'siempre');
 });

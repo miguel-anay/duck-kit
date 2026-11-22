@@ -396,6 +396,19 @@ la sesión qué agentes le tocan a cada repositorio, y un cambio corre solo los 
 **Cuándo.** Con el cambio implementado y su suite en verde, antes de empezar el cierre (sección 2), sobre los archivos de código
 y de tests del cambio. Una tarea que no toca código no corre ninguno.
 
+**No hace falta en todo cambio.** Con `"cuando": "siempre"` (por defecto), todo cambio de código corre
+los agentes de su repositorio. Con `"cuando": "riesgo"`, solo el que toca lo que estos agentes buscan:
+validaciones, parseo, cálculos, permisos o datos que entran de afuera. Son dos decisiones, y las toman
+dos distintos:
+
+- **Si hay riesgo, lo dice una señal, no quien escribió el código.** `push-con-pruebas.js` mira el
+  cambio de la rama: rutas que el proyecto nombró en `pruebas.riesgo`, rutas cuyo nombre lo delata
+  (`validators/`, `pagos/`, `auth`…) y código agregado que parsea, valida o arma consultas. Si
+  encuentra algo y faltan agentes, avisa y dice el motivo. Es una heurística: lo delicado que no tenga
+  un nombre que lo delate se agrega a `pruebas.riesgo`.
+- **Qué técnica aplica, lo decide el agente.** Dado que hay riesgo, de los agentes de ese repositorio
+  se lanzan los que sirven para lo que cambió, y el reporte dice cuáles no y por qué.
+
 **La revisión adversarial tiene tres roles.** El hilo principal lanza `duck:adversario` **dos veces en
 paralelo**, cada uno con la lista de archivos del cambio y nada de la conversación, para que no hereden
 los puntos ciegos de quien lo escribió. Después hace de **juez**: intenta reproducir cada fallo y lo

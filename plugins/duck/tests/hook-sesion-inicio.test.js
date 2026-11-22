@@ -78,6 +78,13 @@ test('sesion-inicio still says gentle-ai reviews when adversarial was the only t
   assert.equal(correr('sesion-inicio.js', sinAdversarial, {}).stdout, '');
 });
 
+test('sesion-inicio tells a cuando-riesgo project to run the test agents only for risky changes', () => {
+  const conRiesgo = proyecto({ ...JIRA, pruebas: { cuando: 'riesgo', defecto: ['fuzz'] } });
+  assert.match(contexto(correr('sesion-inicio.js', conRiesgo, {})), /solo si el cambio toca/);
+  const siempre = proyecto({ ...JIRA, pruebas: { defecto: ['fuzz'] } });
+  assert.doesNotMatch(contexto(correr('sesion-inicio.js', siempre, {})), /solo si el cambio toca/);
+});
+
 // --- continued sessions inherit the previous session's tasks ---
 
 function transcript(raiz, anterior) {

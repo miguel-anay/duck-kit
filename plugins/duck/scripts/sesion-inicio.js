@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, revisionDe, AGENTES_PRUEBA } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, revisionDe, cuandoDe, AGENTES_PRUEBA } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -147,6 +147,13 @@ function reglaPruebas(cfg) {
     ...porRepo.map(({ repo, agentes }) => `- ${repo}: ${agentes.join(', ')}`),
     '- Ninguno corrige codigo de la aplicacion: lo que encuentran lo reproduce la sesion principal y lo ' +
       'arregla duck:escritor, con un test por fallo aceptado.',
+    ...(cuandoDe(cfg) === 'riesgo'
+      ? [
+          '- No en todo cambio (pruebas.cuando = riesgo): corren solo si el cambio toca validaciones, parseo, ' +
+            'calculos, permisos o datos que entran de afuera. Si no toca nada de eso no se lanzan, y lo decis ' +
+            'en el reporte. Si toca, elegi de los agentes de ese repo los que apliquen a lo que cambio.',
+        ]
+      : []),
     ...reglaRevision(cfg, porRepo),
   ];
 }

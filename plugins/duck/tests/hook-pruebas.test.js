@@ -8,11 +8,12 @@ const { JIRA, proyecto, correr, contexto, git, repo, bash, negado } = require('.
 const PRUEBAS = { defecto: ['adversarial', 'fuzz'] };
 
 // A repo on `rama`, branched from main, whose only change is `archivo`.
-function ramaCon(dir, rama, archivo) {
+function ramaCon(dir, rama, archivo, contenido = 'x\n') {
   fs.mkdirSync(dir, { recursive: true });
   repo(dir, 'main');
   git(dir, 'checkout', '-q', '-b', rama);
-  fs.writeFileSync(path.join(dir, archivo), 'x\n');
+  fs.mkdirSync(path.dirname(path.join(dir, archivo)), { recursive: true });
+  fs.writeFileSync(path.join(dir, archivo), contenido);
   git(dir, 'add', archivo);
   git(dir, 'commit', '-q', '-m', 'cambio');
 }
@@ -187,4 +188,36 @@ test('push-con-pruebas checks the branch named in the push, not the one checked 
   ramaCon(raiz, 'feature/ABC-9-x', 'a.js');
   git(raiz, 'checkout', '-q', 'main');
   assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('git push origin feature/ABC-9-x', raiz))), /feature\/ABC-9-x/);
+});
+
+// --- pruebas.cuando: 'riesgo' ---
+
+const RIESGO = { cuando: 'riesgo', defecto: ['adversarial', 'fuzz'] };
+const avisoDe = (pruebas, archivo, contenido) => {
+  const raiz = proyecto({ ...JIRA, pruebas });
+  ramaCon(raiz, 'feature/ABC-1-x', archivo, contenido);
+  return correr('push-con-pruebas.js', raiz, bash('git push', raiz));
+};
+
+test('with cuando riesgo, push-con-pruebas is silent for a change that touches nothing risky', () => {
+  assert.equal(avisoDe(RIESGO, 'src/ui/saludo.js', "export const saludo = 'hola';\n").stdout, '');
+  assert.match(contexto(avisoDe({ ...RIESGO, cuando: 'siempre' }, 'src/ui/saludo.js', "export const saludo = 'hola';\n")), /duck:adversario/);
+});
+
+test('with cuando riesgo, push-con-pruebas warns and says why: a risky path, risky code, or a project path', () => {
+  const porRuta = contexto(avisoDe(RIESGO, 'src/validators/monto.js', 'export const ok = true;\n'));
+  assert.match(porRuta, /duck:adversario, duck:fuzz/);
+  assert.match(porRuta, /Motivo: .*src\/validators\/monto\.js/);
+
+  const porCodigo = contexto(avisoDe(RIESGO, 'src/util/carga.js', 'export const leer = (t) => JSON.parse(t);\n'));
+  assert.match(porCodigo, /Motivo: .*src\/util\/carga\.js.*JSON\.parse/);
+
+  const delProyecto = contexto(avisoDe({ ...RIESGO, riesgo: ['src/mesas'] }, 'src/mesas/abrir.js', 'export const abrir = 1;\n'));
+  assert.match(delProyecto, /Motivo: .*src\/mesas\/abrir\.js.*pruebas\.riesgo/);
+});
+
+test('with cuando riesgo, a branch that cannot be compared with the base still warns', () => {
+  const raiz = proyecto({ ...JIRA, git: { ramaBase: 'develop' }, pruebas: RIESGO });
+  ramaCon(raiz, 'feature/ABC-1-x', 'src/ui/saludo.js');
+  assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('git push', raiz))), /Motivo: no se pudo comparar/);
 });
