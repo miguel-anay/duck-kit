@@ -56,7 +56,7 @@ delegan en otros agentes y no tocan nada remoto.
 | `duck:propiedades` | Read, Glob, Grep, Edit, Write, Bash | El repositorio tiene `propiedades` en `pruebas` | Propiedades escritas y, de las que fallan, contraejemplo mínimo y semilla |
 | `duck:fuzz` | Read, Glob, Grep, Edit, Write, Bash | El repositorio tiene `fuzz` en `pruebas` | Objetivos, duración y semilla; por cada caída, la entrada mínima |
 
-Los tres de pruebas corren después de `duck:verificador` y antes de la puerta, solo sobre los
+Los tres de pruebas corren con la suite del cambio en verde y antes del cierre, solo sobre los
 archivos del cambio (METODO.md §9):
 
 - **`duck:adversario` no tiene Bash ni escritura, a propósito.** El hilo principal lo lanza dos veces
@@ -69,6 +69,9 @@ archivos del cambio (METODO.md §9):
   regresión la entrada mínima que rompe.
 - **Ninguno corrige código de la aplicación.** Cada fallo aceptado va a `duck:escritor`, que escribe
   primero el test y después el arreglo.
+- **Con gentle-ai, `duck:adversario` cede.** Si el cambio pasa por la revisión nativa o por Judgment Day,
+  no se lanza; `duck:propiedades` y `duck:fuzz` corren antes de esa revisión (METODO.md §7). Con
+  `odd.tareas` configurado, `sesion-inicio.js` lo dice al arrancar.
 
 Qué agentes corre cada repositorio sale de [`pruebas`](#pruebas) en `duck.json`, y `sesion-inicio.js`
 se lo dice a la sesión al arrancar. No hay guardia que lo exija: es una instrucción en el contexto.

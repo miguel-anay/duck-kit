@@ -139,12 +139,20 @@ function reglaPruebas(cfg) {
     .map((repo) => ({ repo, agentes: pruebasDe(cfg, repo).map((tipo) => AGENTES_PRUEBA[tipo]) }))
     .filter(({ agentes }) => agentes.length);
   if (!porRepo.length) return [];
+  // Con ODD hay otras dos lecturas a ciegas del mismo cambio (METODO.md §7): no se pagan dos veces.
+  const conGentle = cfg.odd && cfg.odd.tareas && porRepo.some(({ agentes }) => agentes.includes(AGENTES_PRUEBA.adversarial));
   return [
-    'Pruebas por repositorio (METODO.md §9). Despues de duck:verificador y antes del merge, un cambio ' +
-      'de codigo corre solo los agentes de su repositorio; los demas no se lanzan:',
+    'Pruebas por repositorio (METODO.md §9). Con el cambio implementado y su suite en verde, antes del ' +
+      'cierre, un cambio de codigo corre solo los agentes de su repositorio; los demas no se lanzan:',
     ...porRepo.map(({ repo, agentes }) => `- ${repo}: ${agentes.join(', ')}`),
     '- Ninguno corrige codigo de la aplicacion: lo que encuentran lo reproduce la sesion principal y lo ' +
       'arregla duck:escritor, con un test por fallo aceptado.',
+    ...(conGentle
+      ? [
+          '- Si ese cambio va a pasar por la revision nativa de gentle-ai o Judgment Day, duck:adversario no se lanza: ' +
+            'es la misma lectura a ciegas. duck:propiedades y duck:fuzz corren igual, y antes de esa revision.',
+        ]
+      : []),
   ];
 }
 

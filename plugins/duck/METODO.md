@@ -282,6 +282,10 @@ documento de ODD, el otro carril no la ve.
 | Commits por unidad de trabajo | Igual, dentro de la rama de la tarea. Push, PR y merge siguen la sección 2. |
 | Delegar a explorador / writer / verificador | ODD decide **cuándo**; duck, **a quién**: `duck:explorador`, `duck:escritor`, `duck:verificador`, y `duck:analista` para decidir el enfoque. |
 | Test-first si hay un test que corre | Igual. Lo aplica también `duck:escritor`. |
+| Verificador independiente (ODD lo pide solo para un cambio de alto riesgo) | Es `duck:verificador`, una sola vez: no se lanza otro además. Sin esa exigencia, lo que el método pide siempre es la suite en verde del cierre (sección 2), no un verificador por cambio. |
+| Revisión nativa (RDD: hasta cuatro revisores, según el riesgo que da `gentle-ai review assess`) | Corre sobre el cambio ya terminado, así que va **después** de `duck:propiedades` y `duck:fuzz`, cuyos arreglos cambian el código. Si el cambio va a pasar por ella, `duck:adversario` no se lanza: es la misma lectura a ciegas. Si no le toca o la persona la declina, el adversarial corre como diga `pruebas`. |
+| Judgment Day (dos jueces a ciegas, `jd-judge-a` y `jd-judge-b`) | Corre solo cuando alguien lo pide y mira también seguridad, rendimiento y estándares. Si corrió sobre ese mismo cambio, `duck:adversario` no se lanza. Nunca los dos. |
+| Memoria entre sesiones (Engram) | Guarda decisiones, descubrimientos y el espejo del documento de ODD. En qué tarea y rama está la sesión lo guarda duck en `.claude/estado/`, que es lo único que leen los hooks. Ninguna reemplaza a la otra: el estado de una tarea no se guarda en Engram, y una decisión no se busca en `.claude/estado/`. |
 
 **Variante de un solo documento (`odd.versionado: true`):** hay proyectos que no separan los dos
 roles: su documento de feature *es* el plan, vive versionado en el repo de docs con un nombre propio
@@ -363,7 +367,7 @@ un issue no tiene estado y nada lo puede seguir.
 
 ## 9. Pruebas por repositorio
 
-`duck:verificador` contesta si el cambio hace lo que pedía la historia. Hay tres tipos de prueba más,
+La suite y `duck:verificador` contestan si el cambio hace lo que pedía la historia. Hay tres tipos de prueba más,
 cada uno con su agente, y **cada repositorio elige cuáles corre** en `pruebas` de `duck.json`:
 
 | Tipo | Agente | Qué busca | Qué necesita el repositorio |
@@ -383,7 +387,7 @@ cada uno con su agente, y **cada repositorio elige cuáles corre** en `pruebas` 
 vacía apaga las pruebas de ese repositorio. Sin `pruebas`, ninguno corre. `sesion-inicio.js` le dice a
 la sesión qué agentes le tocan a cada repositorio, y un cambio corre solo los del suyo.
 
-**Cuándo.** Después de `duck:verificador` y antes de la puerta (sección 2), sobre los archivos de código
+**Cuándo.** Con el cambio implementado y su suite en verde, antes de empezar el cierre (sección 2), sobre los archivos de código
 y de tests del cambio. Una tarea que no toca código no corre ninguno.
 
 **La revisión adversarial tiene tres roles.** El hilo principal lanza `duck:adversario` **dos veces en
@@ -397,6 +401,11 @@ infraestructura), con el motivo, en una tabla.
 tiene `propiedades`, un fallo sobre un validador, un parser o un cálculo se fija como propiedad y no
 como ejemplo suelto. `duck:propiedades` y `duck:fuzz` no instalan su herramienta: si falta, devuelven
 `blocked` y agregar la dependencia lo decide el proyecto.
+
+**Con gentle-ai instalado.** Si ese cambio va a pasar por la revisión nativa de gentle-ai o por
+Judgment Day, la revisión adversarial se saltea y se dice así en el reporte (sección 7): las tres son
+lecturas a ciegas del mismo código. `duck:propiedades` y `duck:fuzz` corren igual, y antes de esa
+revisión: generan entradas, que es lo que una lectura no hace.
 
 **No es la prueba en vivo.** Estos tres corren en local, antes del merge. Probar la aplicación
 desplegada es otro paso, después.
