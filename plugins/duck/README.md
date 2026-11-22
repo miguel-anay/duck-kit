@@ -41,6 +41,38 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Mod `/duck` | `mod/` (cargado por `hooks/hooks.json`) | El panel lateral de la mesa de trabajo. |
 | Utilidades | `scripts/inventario.js`, `scripts/mergear-pr.js`, `scripts/config.js` | Inventario local para `/duck:estado`; merge de PR por la API (`mergear-pr.js <carpeta> <N> <sha>`: una carpeta de `git.repos`, `.` en un proyecto de un solo repo, o la carpeta `docs` cuando es su propio repo); el cargador único de `duck.json`. |
 
+## Agentes
+
+Viven en `agents/`. Todos leen el `CLAUDE.md` del repositorio y el archivo de `convenciones`, no
+delegan en otros agentes y no tocan nada remoto.
+
+| Agente | Herramientas | Cuándo se usa | Qué devuelve |
+|---|---|---|---|
+| `duck:analista` | Read, Grep, Glob, Write, Edit, MCP de Atlassian | Antes de escribir código, cuando el enfoque no está decidido | El diseño, escrito en el plan de la historia (`odd.diseno`) |
+| `duck:explorador` | Read, Grep, Glob | Entender algo exige leer 4 o más archivos | Un mapa corto con `ruta:línea` |
+| `duck:escritor` | Read, Edit, Write, Glob, Grep, Bash | Hay 2 o más archivos no triviales que tocar | Archivos tocados, salida de los comandos, `done` / `partial` / `blocked` |
+| `duck:verificador` | Read, Glob, Grep, Bash | Un cambio ya implementado | `pass` / `partial` / `fail` contra lo que pedía la historia |
+| `duck:adversario` | Read, Glob, Grep | El repositorio tiene `adversarial` en `pruebas` | Fallos numerados: `ruta:línea`, entrada exacta, gravedad y confianza |
+| `duck:propiedades` | Read, Glob, Grep, Edit, Write, Bash | El repositorio tiene `propiedades` en `pruebas` | Propiedades escritas y, de las que fallan, contraejemplo mínimo y semilla |
+| `duck:fuzz` | Read, Glob, Grep, Edit, Write, Bash | El repositorio tiene `fuzz` en `pruebas` | Objetivos, duración y semilla; por cada caída, la entrada mínima |
+
+Los tres de pruebas corren después de `duck:verificador` y antes de la puerta, solo sobre los
+archivos del cambio (METODO.md §9):
+
+- **`duck:adversario` no tiene Bash ni escritura, a propósito.** El hilo principal lo lanza dos veces
+  en paralelo, le pasa solo la lista de archivos de código y de tests, y después hace de juez:
+  reproduce cada fallo y lo deja aceptado o rechazado, con el motivo.
+- **`duck:propiedades` escribe solo tests.** Usa la librería de propiedades que el repositorio ya
+  tiene; si no hay, devuelve `blocked`. Una propiedad que falla se queda escrita con su contraejemplo.
+- **`duck:fuzz` corre local y con tope de tiempo**: el de las convenciones, o 60 segundos por objetivo.
+  Usa el arnés que el repositorio ya tiene; si no hay, devuelve `blocked`. Guarda como caso de
+  regresión la entrada mínima que rompe.
+- **Ninguno corrige código de la aplicación.** Cada fallo aceptado va a `duck:escritor`, que escribe
+  primero el test y después el arreglo.
+
+Qué agentes corre cada repositorio sale de [`pruebas`](#pruebas) en `duck.json`, y `sesion-inicio.js`
+se lo dice a la sesión al arrancar. No hay guardia que lo exija: es una instrucción en el contexto.
+
 ## Instalación
 
 ### Con el script
@@ -244,6 +276,8 @@ sobre sus ejemplos. Sin convenciones, el método funciona igual con valores gen�
 - `instalar.sh` se probó en Git Bash sobre Windows (sintaxis, y el paso del statusLine contra un
   `settings.json` temporal: idempotente, conserva las demás claves, no toca un JSON roto). **No se probó en
   Ubuntu ni macOS.**
+- `duck:adversario`, `duck:propiedades` y `duck:fuzz` no se ejercitaron todavía contra un proyecto real:
+  están probadas la lectura de `pruebas` y el aviso de `sesion-inicio.js`, no los agentes.
 - Con GitHub, `ticket.js` lee los primeros 10 Projects de cada issue y los primeros 50 sub-issues (sin paginar),
   y el panel lo invoca con `node`, que tiene que estar en el PATH.
 - Los nombres de estado se reconocen por el texto de la respuesta de Jira, con el nombre configurado
