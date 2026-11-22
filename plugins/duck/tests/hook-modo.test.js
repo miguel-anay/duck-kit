@@ -87,6 +87,20 @@ test('modo-elegido reads the mode only as the argument of /duck:tomar, in any ca
   }
 });
 
+test('modo-elegido tells the session which state file is its own, so no skill has to guess the most recent one', () => {
+  const raiz = proyecto(JIRA);
+  escribirSesion(raiz, 'otra-sesion', { tareas: TAREAS, modo: 'tarea' });
+  const texto = (r) => JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+  const porRespuesta = correr('modo-elegido.js', raiz, respondio('Modo flujo'));
+  assert.match(texto(porRespuesta), /modo flujo.*\.claude[\\/]estado[\\/]sesiones[\\/]s1\.json/);
+  assert.equal(JSON.parse(porRespuesta.stdout).hookSpecificOutput.hookEventName, 'PostToolUse');
+  const porComando = correr('modo-elegido.js', raiz, escribio('/duck:tomar ABC-1 tarea'));
+  assert.match(texto(porComando), /modo tarea.*s1\.json/);
+  assert.equal(JSON.parse(porComando.stdout).hookSpecificOutput.hookEventName, 'UserPromptSubmit');
+  assert.equal(leerSesion(raiz, 'otra-sesion').modo, 'tarea');
+  assert.equal(correr('modo-elegido.js', raiz, escribio('/duck:tomar ABC-1')).stdout, '');
+});
+
 test('modo-elegido leaves its authorization next to flow mode and removes it with task mode', () => {
   const raiz = proyecto(JIRA);
   escribirSesion(raiz, 's1', { tareas: TAREAS, modo: 'tarea' });

@@ -42,7 +42,7 @@ git -C <repo> switch -c spike/<tema> origin/<base>
 
 ## 4. Marcar la sesión en spike
 
-El estado de esta sesión es `.claude/estado/sesiones/<session_id>.json`: el `.json` **más reciente** de esa carpeta que **no** termine en `-vista.json` (si no existe, crealo con `{"tareas":{},"modo":"tarea"}`). Leelo y poné, sin tocar `tareas`:
+El estado de esta sesión es `.claude/estado/sesiones/${CLAUDE_SESSION_ID}.json` (si no existe, crealo con `{"tareas":{},"modo":"tarea"}`). Es el de **tu** sesión por su id, no «el `.json` más reciente» de la carpeta: con otra sesión abierta sobre el proyecto, el más reciente puede ser el de ella. Leelo y poné, sin tocar `tareas`:
 
 ```json
 "modo": "spike",

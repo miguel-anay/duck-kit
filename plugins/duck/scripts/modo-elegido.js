@@ -15,6 +15,7 @@
 //
 // Compara texto, como los demas guardias: reconoce la eleccion, no prueba quien la tecleo.
 
+const path = require('path');
 const { hook, leerSesion, guardarSesion, guardarPedido } = require('./config');
 
 hook((evento, cfg) => {
@@ -24,12 +25,21 @@ hook((evento, cfg) => {
   if (!modo) return;
 
   const { flujoAutorizado, ...almacen } = leerSesion(cfg, sesion);
+  const estado = path.relative(cfg.raiz, path.join(cfg.dirEstado, `${sesion}.json`));
   if (almacen.modo === 'spike') {
     guardarPedido(cfg, sesion, modo);
-    return;
+    return decir(evento, `duck: la persona pidió salir del spike en modo ${modo}. El estado de ESTA sesión es ${estado}.`);
   }
   guardarSesion(cfg, sesion, { ...almacen, modo, ...(modo === 'flujo' ? { flujoAutorizado: new Date().toISOString() } : {}) });
+  decir(evento, `duck: modo ${modo} marcado por elección de la persona. El estado de ESTA sesión es ${estado}; no lo busques como «el más reciente» de la carpeta, que puede ser de otra sesión.`);
 });
+
+// El agente necesita saber cual es SU archivo: el mas reciente de la carpeta puede ser de otra
+// sesion abierta sobre el mismo proyecto.
+function decir(evento, texto) {
+  const hookEventName = typeof evento?.prompt === 'string' ? 'UserPromptSubmit' : 'PostToolUse';
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext: texto } }));
+}
 
 const palabraDeModo = (texto) => String(texto ?? '').toLowerCase().replace(/[.,;:!]+$/, '');
 

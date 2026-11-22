@@ -65,7 +65,7 @@ Entran las sub-tareas `Pendiente` asignadas a la persona que corre el comando (l
 
 1. Corré los **pasos 1 a 7** de abajo sobre la **primera** sub-tarea de la serie. Solo esa pasa a `En Proceso`: las demás pasan cuando se toma cada una, porque el otro carril mira Jira y un `En Proceso` adelantado le miente.
 2. Pasá la **historia** `$1` a `jira.estados.historiaDesarrollo` si todavía no está ahí (`listJiraIssueTransitions` sobre la historia y la que aterriza en ese estado; el id se consulta, no se adivina).
-3. Comprobá que el modo flujo quedó marcado: el `.json` **más reciente** de `.claude/estado/sesiones/` que **no** termina en `-vista.json` ni en `-historia.json` tiene que decir `"modo": "flujo"` (lo escribió `modo-elegido.js` con la elección de la persona). Si no lo dice, **no lo escribas vos**: hacé la pregunta del paso 0 con `AskUserQuestion`, que es lo que lo marca.
+3. Comprobá que el modo flujo quedó marcado. El estado de **esta** sesión es `.claude/estado/sesiones/${CLAUDE_SESSION_ID}.json`: `modo-elegido.js` te dijo esa ruta cuando la persona eligió el modo. **Nunca** lo busques como «el `.json` más reciente» de la carpeta: con dos sesiones abiertas sobre el proyecto, el más reciente puede ser de la otra. Tiene que decir `"modo": "flujo"`. Si no lo dice, **no lo escribas vos**: hacé la pregunta del paso 0 con `AskUserQuestion`, que es lo que lo marca.
 4. En vez del reporte del paso 8, reportá:
    - `$1` — el `summary` de la historia, y que corre en **modo flujo**.
    - La serie, en orden, una línea por sub-tarea: clave, prefijo y título.
@@ -75,7 +75,7 @@ Entran las sub-tareas `Pendiente` asignadas a la persona que corre el comando (l
 
 Terminá ahí. El flujo en sí —implementar, PR, merge y cierre de cada sub-tarea, encadenando con `git fetch` y rama nueva desde `<base>` al día— lo corre la sesión según `METODO.md`, y para al primer rojo. **La serie termina con la bitácora del plan, no con la última sub-tarea.** Si la historia tiene plan (`odd.diseno`, o el documento de feature versionado), el último paso es un PR en el repositorio de docs que anota en el plan lo que la serie hizo: decisiones, desvíos y lo que quedó pendiente. Lleva **la clave de la historia** (rama `<prefijo>/$1-bitacora`, cuerpo con `Refs`, nunca `Closes`: no la finaliza), no necesita un issue nuevo y lo cubre la misma autorización del flujo, así que corre los pasos 1 a 11 y se mergea como las demás.
 
-**El modo flujo termina después de ese merge**: recién ahí devolvé `"modo": "tarea"` en el mismo archivo (volver a tarea sí lo escribís vos). Sin plan, termina al cerrar la última sub-tarea. Una vez en modo tarea no hay vuelta atrás por tu cuenta: lo que aparezca después se mergea a pedido de la persona. Si de la historia solo quedan sub-tareas `[ANALISIS]` sin finalizar, pasá la historia a `jira.estados.historiaPruebas` (transición consultada, no adivinada). Con todo finalizado tampoco se cierra sola: `jira.estados.historiaCerrada` lo decide una persona.
+**El modo flujo termina después de ese merge**: recién ahí devolvé `"modo": "tarea"` en el mismo archivo (volver a tarea sí lo escribís vos). Sin plan, termina al cerrar la última sub-tarea. «El mismo archivo» es el de esta sesión, el del paso 3. Una vez en modo tarea no hay vuelta atrás por tu cuenta: lo que aparezca después se mergea a pedido de la persona. Si de la historia solo quedan sub-tareas `[ANALISIS]` sin finalizar, pasá la historia a `jira.estados.historiaPruebas` (transición consultada, no adivinada). Con todo finalizado tampoco se cierra sola: `jira.estados.historiaCerrada` lo decide una persona.
 
 ## Salir de un spike: `/duck:tomar <clave> desde-spike`
 
@@ -103,7 +103,7 @@ Salí del spike en el estado de la sesión (párrafo «Antes del paso 7», más 
 
 No hay nada que enmendar de lo compartido: el spike nunca se empujó, así que reescribir su historia es seguro. La rama `spike/<tema>` queda como respaldo hasta que la tarea esté mergeada; después se borra con `-d` si se deja (nunca `-D`; si se niega, que la borre la persona).
 
-**Antes del paso 7**, en el estado de la sesión poné `"modo": "tarea"` y **borrá la clave `spike`**. Poné `"flujo"` solo si la persona escribió `flujo` en `$3`: `modo-elegido.js` lo dejó anotado, y `guard-modo.js` deja pasar esa escritura, una vez y durante 30 minutos, mientras la sesión siga en spike; sin ese pedido la deniega. Mientras siga en spike el guardia deniega la transición, el push y los commits con clave. Hacelo antes del commit con clave, que también lo bloquearía.
+**Antes del paso 7**, en el estado de **esta** sesión (`.claude/estado/sesiones/${CLAUDE_SESSION_ID}.json`, nunca «el más reciente» de la carpeta) poné `"modo": "tarea"` y **borrá la clave `spike`**. Poné `"flujo"` solo si la persona escribió `flujo` en `$3`: `modo-elegido.js` lo dejó anotado, y `guard-modo.js` deja pasar esa escritura, una vez y durante 30 minutos, mientras la sesión siga en spike; sin ese pedido la deniega. Mientras siga en spike el guardia deniega la transición, el push y los commits con clave. Hacelo antes del commit con clave, que también lo bloquearía.
 
 Después seguí con el paso 7 (transición a `En Proceso`: esa es la primera vez que Jira se entera) y el 8.
 
