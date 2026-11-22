@@ -244,13 +244,29 @@ function partirEnTramos(comando) {
 
 // Los tramos de un comando con la carpeta en que corre cada uno: un `cd <dir>` vale para los que le
 // siguen. Sin esto un hook mira el cwd de la sesion, que con `cd repo && git push` no es el repo.
+//
+// Solo se sigue un cd que se puede resolver leyendo el texto: una ruta literal que existe. Con
+// `cd -`, `~`, una variable, una sustitucion o una carpeta que no esta, se conserva la carpeta
+// anterior: adivinar una que no existe dejaria el push sin revisar.
 function tramosConCwd(comando, cwd) {
   let actual = cwd;
   return partirEnTramos(comando).map((tramo) => {
     const cd = tramo.match(/^cd\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/);
-    if (cd) actual = path.resolve(actual, cd[1] ?? cd[2] ?? cd[3]);
+    const destino = cd && (cd[1] ?? cd[2] ?? cd[3]);
+    if (destino && destino !== '-' && !/^~|[$`]/.test(destino)) {
+      const carpeta = path.resolve(actual, destino);
+      if (esCarpeta(carpeta)) actual = carpeta;
+    }
     return { tramo, cwd: actual };
   });
+}
+
+function esCarpeta(ruta) {
+  try {
+    return fs.statSync(ruta).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 // Estado en que aterrizo una transicion de Jira, con los NOMBRES de la configuracion

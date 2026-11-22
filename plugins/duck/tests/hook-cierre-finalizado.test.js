@@ -136,3 +136,9 @@ test('cierre-finalizado (github) keeps the issue of the PR repo when the session
     assert.match(texto, /org\/factufacil\.docs#46 tiene que pasar a Done/, String(clave));
   }
 });
+
+test('cierre-finalizado (github) keeps the docs issue when the PR says it closes its own #N, even with a story of that number', () => {
+  const raiz = conHistoria('org/app#46');
+  const evento = { ...bitacoraMergeada, tool_input: { command: 'node /x/scripts/mergear-pr.js docs 174 abc # docs/46-typo Closes #46' } };
+  assert.match(contexto(correr('cierre-finalizado.js', raiz, evento)), /org\/factufacil\.docs#46 tiene que pasar a Done/);
+});

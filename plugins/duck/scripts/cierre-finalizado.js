@@ -34,7 +34,9 @@ function procesar(evento, cfg) {
     // El numero de la rama puede ser la HU de la sesion en OTRO repo (el PR de bitacora del plan,
     // en el repo de docs): completarlo con el repo del PR nombraria un issue ajeno.
     const [repoDeLaClave, n] = clave.split('#');
-    const historia = historiaEnOtroRepo(cfg, evento?.session_id, n, repoDeLaClave);
+    // Salvo que el PR diga que cierra SU #N (palabra de cierre y el numero sin repo): ese es propio.
+    const cierraElPropio = new RegExp(`\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\\s+#${n}(?!\\d)`, 'i').test(`${comando}\n${respuesta}`);
+    const historia = cierraElPropio ? null : historiaEnOtroRepo(cfg, evento?.session_id, n, repoDeLaClave);
     if (historia) return emitir(textoBitacora(repo, numero, historia, cfg));
   }
 

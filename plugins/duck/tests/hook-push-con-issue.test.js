@@ -233,6 +233,23 @@ test('the push hooks follow a cd in the command: the session cwd is not where th
   assert.ok(!negado(pushCon(raiz, 'cd app && cd .. && git push')));
 });
 
+test('a cd the hook cannot resolve keeps the directory it had: the push is still checked', () => {
+  // The session cwd is the repository; these cd either return to it, stay in it or fail.
+  const raiz = conOrigen(GITHUB, 'feat/sin-issue');
+  fs.mkdirSync(path.join(raiz, 'sub'));
+  for (const c of [
+    'cd sub && ls && cd - && git push',
+    'cd "$(git rev-parse --show-toplevel)" && git push',
+    'cd $CLAUDE_PROJECT_DIR && git push',
+    'cd "$PWD" && git push',
+    'cd ~/no-existe-duck && git push',
+    'cd nope; git push',
+    'cd `pwd` && git push',
+  ]) {
+    assert.ok(negado(pushCon(raiz, c)), c);
+  }
+});
+
 test('push-sobre-develop-al-dia warns, without blocking, when it cannot reach the remote', () => {
   const raiz = conOrigen(GITHUB, 'feat/1-x');
   git(raiz, 'remote', 'set-url', 'origin', path.join(raiz, 'no-existe'));
