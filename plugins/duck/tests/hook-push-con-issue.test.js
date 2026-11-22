@@ -185,6 +185,33 @@ test('push-con-issue requires gh pr create to reference the issue of its head br
   }
 });
 
+test('push-con-issue (github) warns, without denying, when a plan PR of a session with several stories does not name them all', () => {
+  const duck = { ...GITHUB, git: { ...GITHUB.git, prefijos: ['feat', 'fix', 'docs'], repos: { app: 'app', docs: 'docs' } } };
+  const con = (claves, cuerpo) => {
+    const raiz = proyecto(duck);
+    const docs = repoDocs(raiz);
+    git(docs, 'branch', '-m', 'docs/148-plan');
+    const sesiones = path.join(raiz, '.claude', 'estado', 'sesiones');
+    fs.mkdirSync(sesiones, { recursive: true });
+    const historias = claves.map((clave) => ({ historia: { clave, titulo: '' }, subtareas: [] }));
+    fs.writeFileSync(path.join(sesiones, 's1-historia.json'), JSON.stringify({ historias }));
+    return correr('push-con-issue.js', raiz, bash(`cd docs && gh pr create --title "docs: planes" --body "${cuerpo}"`, raiz));
+  };
+  const tres = ['org/docs#148', 'org/app#199', 'org/app#200'];
+
+  const falta = con(tres, 'Refs #148\nRefs org/app#199');
+  assert.ok(!negado(falta));
+  assert.match(contexto(falta), /org\/app#200/);
+  assert.doesNotMatch(contexto(falta), /org\/app#199|#148/);
+  assert.match(contexto(falta), /Refs org\/app#200/);
+
+  // All named (own repo bare or qualified, any case), one story only, or a branch that is not a story: silent.
+  assert.equal(con(tres, 'Refs #148\nRefs org/app#199\nrefs Org/App#200').stdout, '');
+  assert.equal(con(tres, 'Refs org/docs#148, Refs org/app#199 y Refs org/app#200').stdout, '');
+  assert.equal(con(['org/docs#148'], 'Refs #148').stdout, '');
+  assert.equal(con(['org/app#199', 'org/app#200'], 'Refs #148').stdout, '');
+});
+
 test('hooks.json runs push-con-issue before Bash commands', () => {
   const hooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks.json'), 'utf8')).hooks;
   const bash = hooks.PreToolUse.find((h) => h.matcher === 'Bash').hooks;
