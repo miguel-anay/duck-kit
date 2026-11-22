@@ -21,6 +21,7 @@ const { execFileSync } = require('child_process');
 const { hook, deducirEstado, estadosDe, movidasDeGithub, leerSesion, guardarSesion, heredarSesionAnterior, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
+  if (evento?.tool_name === 'Bash' && /\benlace\.js\b/.test(evento?.tool_input?.command || '')) return anotarEnlaces(evento, cfg);
   const transiciones =
     cfg.tickets.proveedor === 'github'
       ? movidasDeSubtarea(evento, cfg)
@@ -74,6 +75,19 @@ function aTexto(valor) {
   return textos.length ? textos.join('\n') : JSON.stringify(valor);
 }
 
+// «Enlace SPEC-002 -> GPDEV-123»: lo que prueba el enlace es la linea de exito, no el comando.
+function anotarEnlaces(evento, cfg) {
+  const sesion = evento?.session_id;
+  if (!sesion || !cfg.trabajo.propio) return;
+  const enlaces = [...aTexto(evento?.tool_response).matchAll(/^Enlace (\S+) -> (\S+)$/gm)];
+  if (!enlaces.length) return;
+  heredarSesionAnterior(cfg, sesion, evento?.transcript_path);
+  const almacen = leerSesion(cfg, sesion);
+  almacen.enlaces = { ...almacen.enlaces };
+  for (const [, unidad, jira] of enlaces) almacen.enlaces[unidad] = jira;
+  guardarSesion(cfg, sesion, almacen);
+}
+
 function anotar(evento, cfg, clave, estado) {
   const sesion = evento?.session_id;
   if (!sesion) return;
@@ -86,7 +100,10 @@ function anotar(evento, cfg, clave, estado) {
 
   heredarSesionAnterior(cfg, sesion, evento?.transcript_path);
   const almacen = leerSesion(cfg, sesion);
-  almacen.tareas[clave] = { estado, desde: new Date().toISOString() };
+  // Un ticket de Jira enlazado a una unidad propia (enlace.js) se anota con la clave de la unidad,
+  // la misma que anotan el commit y el merge; la historia del panel sigue siendo la de Jira.
+  const unidad = Object.keys(almacen.enlaces || {}).find((u) => almacen.enlaces[u] === clave);
+  almacen.tareas[unidad || clave] = { estado, desde: new Date().toISOString() };
   guardarSesion(cfg, sesion, almacen);
   if (cfg.tickets.proveedor === 'github' && estado === cfg.github.estados.enProceso) sembrarHistoria(clave, sesion, cfg);
   actualizarHistoria(clave, estado, evento, cfg);
