@@ -95,6 +95,20 @@ test('pruebas-anota ignores other agents and the base branch', () => {
   assert.equal(fs.existsSync(path.join(raiz, '.claude', 'estado', 'pruebas')), false);
 });
 
+test('pruebas-anota records a finished run whose report merely uses the word blocked', () => {
+  const informes = [
+    'The traversal is blocked by the validator; no crash in 60 s. `done`',
+    'No blocked requests were found.',
+    'Possible states are `blocked` or `partial`; this run covered two of three targets. `partial`',
+  ];
+  for (const informe of informes) {
+    const raiz = proyecto({ ...JIRA, pruebas: PRUEBAS });
+    ramaCon(raiz, 'feature/ABC-1-x', 'a.js');
+    correr('pruebas-anota.js', raiz, lanzar('duck:fuzz', informe));
+    assert.deepEqual(anotado(raiz, 'feature/ABC-1-x'), ['fuzz'], informe);
+  }
+});
+
 // --- push-con-pruebas ---
 
 test('push-con-pruebas warns, never denies, naming the agents that have not run for the branch', () => {

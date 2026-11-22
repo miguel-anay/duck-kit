@@ -19,7 +19,7 @@ hook((evento, cfg) => {
   const tipo = Object.keys(AGENTES_PRUEBA).find((t) => AGENTES_PRUEBA[t] === agente);
   if (!tipo) return;
   // Sin libreria o sin arnes el agente devuelve `blocked`: no probo nada, y no se anota.
-  if (/\bblocked\b/.test(JSON.stringify(evento?.tool_response ?? ''))) return;
+  if (estadoDevuelto(evento?.tool_response) === 'blocked') return;
 
   const ramas = new Set();
   for (const carpeta of cfg.git.carpetas) {
@@ -28,3 +28,11 @@ hook((evento, cfg) => {
   }
   for (const rama of ramas) anotarPrueba(cfg, rama, tipo);
 });
+
+// El estado con que el agente cerro su reporte: el ultimo `done`, `partial` o `blocked` que escribio
+// entre comillas invertidas, que es como lo pide su contrato. La palabra suelta no cuenta: un
+// reporte que dice «la validacion lo dejo blocked» y cierra en `done` es una corrida hecha.
+function estadoDevuelto(respuesta) {
+  const estados = [...JSON.stringify(respuesta ?? '').matchAll(/`(done|partial|blocked)`/g)];
+  return estados.length ? estados[estados.length - 1][1] : null;
+}
