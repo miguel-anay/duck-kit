@@ -121,19 +121,30 @@ test('push-con-issue (github) accepts a docs branch keyed by the story of the se
   const sesiones = (raiz) => path.join(raiz, '.claude', 'estado', 'sesiones');
   const tickets = { 'org/app#96': { tipo: 'Feature', padre: null } };
 
-  const raiz = proyecto(duck);
-  repoDocs(raiz);
-  fs.mkdirSync(sesiones(raiz), { recursive: true });
-  fs.writeFileSync(path.join(sesiones(raiz), 's1-historia.json'), JSON.stringify(historia('org/app#96')));
-  assert.ok(!negado(correr('push-con-issue.js', raiz, bash('git -C docs push -u origin docs/96-bitacora', raiz), ticketsDe(raiz, tickets))));
+  // A project with the app repo (origin org/app) and the docs repo, and the story the session is on.
+  const con = (clave, tickets) => {
+    const raiz = proyecto(duck);
+    repoDocs(raiz);
+    fs.mkdirSync(path.join(raiz, 'app'));
+    repo(path.join(raiz, 'app'), 'main');
+    git(path.join(raiz, 'app'), 'remote', 'add', 'origin', 'https://github.com/org/app.git');
+    fs.mkdirSync(sesiones(raiz), { recursive: true });
+    fs.writeFileSync(path.join(sesiones(raiz), 's1-historia.json'), JSON.stringify(historia(clave)));
+    return correr('push-con-issue.js', raiz, bash('git -C docs push -u origin docs/96-bitacora', raiz), ticketsDe(raiz, tickets));
+  };
 
-  const otra = proyecto(duck);
-  repoDocs(otra);
-  fs.mkdirSync(sesiones(otra), { recursive: true });
-  fs.writeFileSync(path.join(sesiones(otra), 's1-historia.json'), JSON.stringify(historia('org/app#97')));
-  const r = correr('push-con-issue.js', otra, bash('git -C docs push -u origin docs/96-bitacora', otra), ticketsDe(otra, tickets));
-  assert.ok(negado(r));
-  assert.match(motivo(r), /org\/docs#96 no existe/);
+  assert.ok(!negado(con('org/app#96', tickets)));
+  assert.ok(!negado(con('ORG/App#96', tickets)));
+
+  const otroNumero = con('org/app#97', tickets);
+  assert.ok(negado(otroNumero));
+  assert.match(motivo(otroNumero), /org\/docs#96 no existe/);
+  // A story in a repo that is not part of the project does not count.
+  assert.ok(negado(con('evil/x#96', { 'evil/x#96': { tipo: 'Feature', padre: null } })));
+  // Nor does it override an issue of the docs repo that exists and is closed.
+  const cerrado = con('org/app#96', { ...tickets, 'org/docs#96': { abierto: false } });
+  assert.ok(negado(cerrado));
+  assert.match(motivo(cerrado), /org\/docs#96 está cerrado/);
 });
 
 test('push-con-issue only warns for a branch already on the remote before the guard existed', () => {

@@ -21,7 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, pushDe, claveDeRama, TICKET_JS } = require('./config');
+const { hook, partirEnTramos, pushDe, claveDeRama, repoDe, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -63,7 +63,7 @@ function revisarPush(rama, { dir, remoto }, cfg, sesion) {
   if (!problema) return null;
   // El PR de bitacora del plan vive en el repo de docs y lleva la clave de la historia, que puede
   // ser un issue de OTRO repo del proyecto: el #N de la rama es entonces el de la HU de la sesion.
-  if (clave && cfg.tickets.proveedor === 'github' && deLaHistoria(clave, cfg, sesion)) return null;
+  if (clave && /no existe$/.test(problema) && deLaHistoria(clave, dir, cfg, sesion)) return null;
 
   const enRemoto = git(dir, ['ls-remote', '--heads', remoto, rama], 20000);
   if (enRemoto) {
@@ -78,8 +78,10 @@ function revisarPush(rama, { dir, remoto }, cfg, sesion) {
   };
 }
 
-// Si la HU de la sesion tiene el mismo numero que la rama, vive en otro repo y sirve como issue.
-function deLaHistoria(clave, cfg, sesion) {
+// Si el numero de la rama es el de la HU de la sesion, que vive en OTRO repo del proyecto y sirve
+// como issue. Solo rescata un numero que en el repo de la rama no existe: un issue propio que
+// existe (cerrado, o un Task sin HU) manda, y una HU de un repo ajeno al proyecto no cuenta.
+function deLaHistoria(clave, dir, cfg, sesion) {
   if (!sesion || !/^[A-Za-z0-9_-]+$/.test(sesion)) return false;
   let datos;
   try {
@@ -87,12 +89,15 @@ function deLaHistoria(clave, cfg, sesion) {
   } catch {
     return false; // la sesion no tiene historia anotada
   }
-  const [repo, numero] = clave.split('#');
+  const numero = clave.split('#')[1];
+  const propio = repoDe(dir);
+  const delProyecto = cfg.git.carpetas.map((carpeta) => repoDe(path.join(cfg.raiz, carpeta))).filter((r) => r && r !== propio);
   const bloques = Array.isArray(datos?.historias) ? datos.historias : [datos];
-  const historias = bloques.map((b) => String(b?.historia?.clave ?? '').toLowerCase());
-  const otra = historias.find((h) => h.endsWith(`#${numero}`) && h.includes('/') && h !== `${repo}#${numero}`);
-  if (!otra) return false;
-  const { problema, aviso } = revisarIssue(otra, cfg);
+  const historia = bloques
+    .map((b) => String(b?.historia?.clave ?? '').toLowerCase())
+    .find((h) => delProyecto.some((repo) => h === `${repo}#${numero}`));
+  if (!historia) return false;
+  const { problema, aviso } = revisarIssue(historia, cfg);
   return !problema && !aviso;
 }
 

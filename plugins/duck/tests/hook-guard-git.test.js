@@ -48,8 +48,11 @@ test('guard-git lets the agent run mergear-pr.js only in flow mode or with --a-p
   assert.ok(negado(correr('guard-git.js', raiz, bash(`cd app && ${merge}`))));
   assert.ok(!negado(correr('guard-git.js', raiz, bash(`node /x/scripts/mergear-pr.js --a-pedido app 7 ${SHA}`))));
   // Flow mode: the series was authorized with its merges.
-  escribirSesion(raiz, 's1', { modo: 'flujo', tareas: {} });
+  escribirSesion(raiz, 's1', { modo: 'flujo', flujoAutorizado: new Date().toISOString(), tareas: {} });
   assert.ok(!negado(correr('guard-git.js', raiz, bash(merge))));
+  // Flow mode nobody chose (written by hand, without the authorization modo-elegido leaves) is not flow.
+  escribirSesion(raiz, 's1', { modo: 'flujo', tareas: {} });
+  assert.ok(negado(correr('guard-git.js', raiz, bash(merge))));
   // Other commands that only mention the script are not merges.
   escribirSesion(raiz, 's1', { modo: 'tarea', tareas: {} });
   assert.ok(!negado(correr('guard-git.js', raiz, bash('grep -n fallar /x/scripts/mergear-pr.js'))));

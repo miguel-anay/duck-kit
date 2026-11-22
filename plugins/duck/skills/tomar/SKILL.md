@@ -22,7 +22,7 @@ Los dos modos son los de `METODO.md` (tarea y flujo). **Lo decide la persona, si
 
 El modo elegido viaja en la creación de la rama (paso 6): `DUCK_MODO=<tarea|flujo> git … switch -c …`. Sin esa marca, `guard-sin-clave.js` deniega la rama.
 
-**El modo flujo lo marca duck, no vos.** Cuando la persona elige *modo flujo* en la pregunta, o escribe `flujo` en `$2`, el hook `modo-elegido.js` deja `"modo": "flujo"` en el estado de la sesión. No edites ese archivo para activarlo: `guard-modo.js` lo deniega. Por eso las opciones de la pregunta se llaman exactamente «Modo tarea» y «Modo flujo»: es el texto que el hook reconoce.
+**El modo flujo lo marca duck, no vos.** Cuando la persona elige *modo flujo* en la pregunta, o escribe `flujo` en `$2`, el hook `modo-elegido.js` deja `"modo": "flujo"` en el estado de la sesión. No edites ese archivo para activarlo: `guard-modo.js` lo deniega, y un flujo escrito a mano vuelve solo a tarea porque le falta la autorización que deja el hook. Por eso las opciones de la pregunta se llaman exactamente «Modo tarea» y «Modo flujo»: es el texto que el hook reconoce.
 
 | `issuetype` | Modo recomendado | Qué hace este comando |
 |---|---|---|

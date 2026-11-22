@@ -15,7 +15,7 @@
 
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { hook, partirEnTramos, leerSesion } = require('./config');
+const { hook, partirEnTramos, leerSesion, enFlujo } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -31,7 +31,7 @@ hook((evento, cfg) => {
         + 'merge (en modo flujo no hace falta). METODO.md, «El merge».');
     }
     if (/\bnode\s+["']?[^\s"']*mergear-pr\.js\b/.test(tramo) && !/\s--a-pedido\b/.test(tramo)
-      && leerSesion(cfg, evento.session_id).modo !== 'flujo') {
+      && !enFlujo(leerSesion(cfg, evento.session_id))) {
       return denegar('mergear-pr.js fuera del modo flujo. En modo tarea el dueño pide el merge de ESE PR '
         + '(«mergealo»): recién entonces se corre con --a-pedido. METODO.md, «El merge».');
     }

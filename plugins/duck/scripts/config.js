@@ -547,6 +547,13 @@ function barrerPruebasViejas(cfg) {
 
 const ID_SESION = /^[A-Za-z0-9_-]+$/;
 
+// Si la sesion esta en el modo flujo que la persona eligio. "modo": "flujo" solo no alcanza: lo que
+// vale es la autorizacion que modo-elegido.js deja al lado, y que guard-modo.js retira cuando la
+// sesion sale del flujo (METODO.md §3).
+function enFlujo(almacen) {
+  return almacen?.modo === 'flujo' && Boolean(almacen.flujoAutorizado);
+}
+
 // Lo que la sesion tiene anotado, sin las tareas vencidas. Sin archivo: vacio, modo tarea.
 function leerSesion(cfg, sesion) {
   let almacen = { tareas: {}, modo: 'tarea' };
@@ -597,8 +604,9 @@ function heredarSesionAnterior(cfg, sesion, transcript) {
   const anterior = inicio.match(/read the full transcript at:\s*\S*?[\\/]([A-Za-z0-9_-]+)\.jsonl/)?.[1];
   if (!anterior || anterior === sesion || !fs.existsSync(path.join(cfg.dirEstado, `${anterior}.json`))) return;
 
-  const { tareas, modo, spike } = leerSesion(cfg, anterior);
-  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}) });
+  // flujoAutorizado viaja con el modo: una sesion continuada sigue la serie que la persona eligio.
+  const { tareas, modo, spike, flujoAutorizado } = leerSesion(cfg, anterior);
+  guardarSesion(cfg, sesion, { tareas, modo, ...(spike ? { spike } : {}), ...(flujoAutorizado ? { flujoAutorizado } : {}) });
   const historia = (id) => path.join(cfg.dirEstado, `${id}-historia.json`);
   if (fs.existsSync(historia(anterior)) && !fs.existsSync(historia(sesion))) {
     fs.copyFileSync(historia(anterior), historia(sesion));
@@ -650,6 +658,7 @@ module.exports = {
   VIGENCIA_HORAS,
   tareasVigentes,
   leerSesion,
+  enFlujo,
   guardarSesion,
   heredarSesionAnterior,
 };

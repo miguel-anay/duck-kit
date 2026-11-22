@@ -119,9 +119,12 @@ cada una, encadena, y recién reporta al final o al primer tropiezo.
   termina con la serie, y la conversación siguiente vuelve a modo tarea. (`/duck:tomar <historia>` es
   esa activación: nombrar la historia nombra la serie.)
 - **Lo activa la persona, nunca el agente.** `modo-elegido.js` marca el modo en el estado de la sesión
-  cuando la persona elige *modo flujo* en la pregunta de `/duck:tomar`, o escribe `flujo` como argumento
-  de ese comando. `guard-modo.js` deniega que el agente escriba `"modo": "flujo"` en ese archivo. Volver a
-  modo tarea sí lo hace el agente, y es de una sola vía: después, lo que haga falta mergear se pide.
+  cuando la persona elige *Modo flujo* en la pregunta de `/duck:tomar`, o escribe `flujo` como argumento
+  de ese comando, y deja al lado la autorización (`flujoAutorizado`). Un `"modo": "flujo"` sin ella no
+  vale: `guard-git.js` no lo toma por flujo. `guard-modo.js` deniega que el agente lo escriba con Write
+  o Edit, y después de cada comando mira cómo quedó el archivo: si dice flujo sin autorización, lo
+  devuelve a tarea y avisa. Volver a modo tarea sí lo hace el agente, y es de una sola vía: al salir
+  del flujo la autorización se retira, y lo que haga falta mergear después se pide.
 - **La serie termina con la bitácora del plan.** Si la historia tiene plan (`odd.diseno`, o el documento
   de feature versionado), el último paso de la serie es un PR en el repositorio de docs que anota en el
   plan lo que la serie hizo. Lleva la clave de la historia, no la finaliza y no necesita un issue propio:
@@ -256,7 +259,7 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 | El panel se pide solo al cerrar una tarea | `panel-al-cerrar.js` |
 | Qué quedó abierto al arrancar | `sesion-inicio.js` |
 | Merge por la API con chequeos | `mergear-pr.js` |
-| El modo flujo lo activa la persona, no el agente | `modo-elegido.js` lo marca con su elección; `guard-modo.js` deniega escribirlo a mano |
+| El modo flujo lo activa la persona, no el agente | `modo-elegido.js` lo marca con su elección y deja la autorización; `guard-modo.js` deniega escribirlo a mano y devuelve a tarea un flujo sin autorización; `guard-git.js` solo mergea con el flujo autorizado |
 | ODD escribe su documento fuera de los repos y delega en duck | `sesion-inicio.js` (inyecta la regla si `odd.tareas` está) |
 | Qué agentes de pruebas corre cada repositorio, y quién revisa | `sesion-inicio.js` (lo dice al arrancar) |
 | Una rama no sale sin que alguien sepa qué pruebas le faltaron | `pruebas-anota.js` anota cada agente lanzado; `push-con-pruebas.js` **avisa** en el push, no bloquea |
@@ -328,7 +331,8 @@ proyecto, si la hay), no una traducción de Jira. Lo que no aparece acá queda i
 **La bitácora del plan cuando la HU vive en otro repo.** La rama del repo de docs lleva el número de la
 HU (`docs/96-bitacora`), y el cuerpo del PR la nombra completa (`Refs owner/repo#96`): un `#96` suelto
 enlazaría el issue 96 del repo de docs. `push-con-issue.js` busca primero ese número en el repo de la
-rama; si ahí no sirve y es el de la HU de la sesión en otro repo del proyecto, la deja salir.
+rama; si ahí no existe y es el de la HU de la sesión en otro repo del proyecto, la deja salir. Un issue
+del repo de docs con ese número que sí existe manda, aunque esté cerrado.
 
 **Tickets y claves.** La HU es un issue de tipo `Feature` o `Bug`; las tareas son sub-issues `Task` solo
 cuando una tiene su propio PR, otro repo u otra persona. Una HU de varios repos vive en el repo de

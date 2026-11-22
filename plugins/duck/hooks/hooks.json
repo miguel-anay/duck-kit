@@ -39,11 +39,6 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-sin-clave.js\"",
             "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-modo.js\"",
-            "timeout": 10
           }
         ]
       },
@@ -69,7 +64,12 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-adr.js\"",
             "timeout": 15
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-modo.js\"",
@@ -147,6 +147,11 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/historia-sigue-subtareas.js\"",
             "if": "Bash(*ticket.js*mover*)",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-modo.js\"",
+            "timeout": 10
           }
         ]
       },
@@ -166,6 +171,16 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/modo-elegido.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-modo.js\"",
             "timeout": 10
           }
         ]
