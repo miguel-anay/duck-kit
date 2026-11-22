@@ -22,6 +22,8 @@ Los dos modos son los de `METODO.md` (tarea y flujo). **Lo decide la persona, si
 
 El modo elegido viaja en la creación de la rama (paso 6): `DUCK_MODO=<tarea|flujo> git … switch -c …`. Sin esa marca, `guard-sin-clave.js` deniega la rama.
 
+**El modo flujo lo marca duck, no vos.** Cuando la persona elige *modo flujo* en la pregunta, o escribe `flujo` en `$2`, el hook `modo-elegido.js` deja `"modo": "flujo"` en el estado de la sesión. No edites ese archivo para activarlo: `guard-modo.js` lo deniega. Por eso las opciones de la pregunta se llaman exactamente «Modo tarea» y «Modo flujo»: es el texto que el hook reconoce.
+
 | `issuetype` | Modo recomendado | Qué hace este comando |
 |---|---|---|
 | `Sub-task`, `Task`, `Bug` | **tarea** | Los pasos 1 a 8 de abajo, sobre `$1` |
@@ -63,7 +65,7 @@ Entran las sub-tareas `Pendiente` asignadas a la persona que corre el comando (l
 
 1. Corré los **pasos 1 a 7** de abajo sobre la **primera** sub-tarea de la serie. Solo esa pasa a `En Proceso`: las demás pasan cuando se toma cada una, porque el otro carril mira Jira y un `En Proceso` adelantado le miente.
 2. Pasá la **historia** `$1` a `jira.estados.historiaDesarrollo` si todavía no está ahí (`listJiraIssueTransitions` sobre la historia y la que aterriza en ese estado; el id se consulta, no se adivina).
-3. Marcá el modo flujo para el sticker: el `PostToolUse` de la transición del paso 7 acaba de escribir el estado de esta sesión en `.claude/estado/sesiones/<session_id>.json`. Es el `.json` **más reciente** de esa carpeta que **no** termina en `-vista.json` ni en `-historia.json`: leelo, poné `"modo": "flujo"`, y guardalo sin tocar `tareas`.
+3. Comprobá que el modo flujo quedó marcado: el `.json` **más reciente** de `.claude/estado/sesiones/` que **no** termina en `-vista.json` ni en `-historia.json` tiene que decir `"modo": "flujo"` (lo escribió `modo-elegido.js` con la elección de la persona). Si no lo dice, **no lo escribas vos**: hacé la pregunta del paso 0 con `AskUserQuestion`, que es lo que lo marca.
 4. En vez del reporte del paso 8, reportá:
    - `$1` — el `summary` de la historia, y que corre en **modo flujo**.
    - La serie, en orden, una línea por sub-tarea: clave, prefijo y título.
@@ -71,7 +73,9 @@ Entran las sub-tareas `Pendiente` asignadas a la persona que corre el comando (l
    - La primera tomada: rama, repositorio y commit de `<base>`, y la transición usada.
    - Lo que encontró el radar.
 
-Terminá ahí. El flujo en sí —implementar, PR, merge y cierre de cada sub-tarea, encadenando con `git fetch` y rama nueva desde `<base>` al día— lo corre la sesión según `METODO.md`, y para al primer rojo. **El modo flujo termina con la serie**: al cerrar la última, devolvé `"modo": "tarea"` en el mismo archivo, y si de la historia solo quedan sub-tareas `[ANALISIS]` sin finalizar, pasá la historia a `jira.estados.historiaPruebas` (transición consultada, no adivinada). Con todo finalizado tampoco se cierra sola: `jira.estados.historiaCerrada` lo decide una persona.
+Terminá ahí. El flujo en sí —implementar, PR, merge y cierre de cada sub-tarea, encadenando con `git fetch` y rama nueva desde `<base>` al día— lo corre la sesión según `METODO.md`, y para al primer rojo. **La serie termina con la bitácora del plan, no con la última sub-tarea.** Si la historia tiene plan (`odd.diseno`, o el documento de feature versionado), el último paso es un PR en el repositorio de docs que anota en el plan lo que la serie hizo: decisiones, desvíos y lo que quedó pendiente. Lleva **la clave de la historia** (rama `<prefijo>/$1-bitacora`, cuerpo con `Refs`, nunca `Closes`: no la finaliza), no necesita un issue nuevo y lo cubre la misma autorización del flujo, así que corre los pasos 1 a 11 y se mergea como las demás.
+
+**El modo flujo termina después de ese merge**: recién ahí devolvé `"modo": "tarea"` en el mismo archivo (volver a tarea sí lo escribís vos). Sin plan, termina al cerrar la última sub-tarea. Una vez en modo tarea no hay vuelta atrás por tu cuenta: lo que aparezca después se mergea a pedido de la persona. Si de la historia solo quedan sub-tareas `[ANALISIS]` sin finalizar, pasá la historia a `jira.estados.historiaPruebas` (transición consultada, no adivinada). Con todo finalizado tampoco se cierra sola: `jira.estados.historiaCerrada` lo decide una persona.
 
 ## Salir de un spike: `/duck:tomar <clave> desde-spike`
 
@@ -99,7 +103,7 @@ Salí del spike en el estado de la sesión (párrafo «Antes del paso 7», más 
 
 No hay nada que enmendar de lo compartido: el spike nunca se empujó, así que reescribir su historia es seguro. La rama `spike/<tema>` queda como respaldo hasta que la tarea esté mergeada; después se borra con `-d` si se deja (nunca `-D`; si se niega, que la borre la persona).
 
-**Antes del paso 7**, en el estado de la sesión poné `"modo": "tarea"` (o `"flujo"` si la persona lo pidió, nombrando la serie) y **borrá la clave `spike`**: mientras siga en spike el guardia deniega la transición, el push y los commits con clave. Hacelo antes del commit con clave, que también lo bloquearía.
+**Antes del paso 7**, en el estado de la sesión poné `"modo": "tarea"` y **borrá la clave `spike`**. Poné `"flujo"` solo si la persona escribió `flujo` en `$3`: `modo-elegido.js` lo dejó anotado en `modoPedido`, y `guard-modo.js` deja pasar esa escritura mientras la sesión siga en spike; sin ese pedido la deniega. Mientras siga en spike el guardia deniega la transición, el push y los commits con clave. Hacelo antes del commit con clave, que también lo bloquearía.
 
 Después seguí con el paso 7 (transición a `En Proceso`: esa es la primera vez que Jira se entera) y el 8.
 
@@ -221,7 +225,7 @@ Con `"tickets": {"proveedor": "github"}` se sigue la convención de GitHub (la `
 | 1 y F1. Leer | `ticket.js ver <clave>`: `titulo`, `tipo`, `abierto`, `estado` (opción del campo Status del Project), `asignados`, `padre`, `hijas` con su estado. Una llamada trae la HU y sus sub-issues. Quién corre el comando: `gh api user --jq .login`. Dependencias, si la org las usa: `gh api repos/<owner>/<repo>/issues/<N>/dependencies/blocked_by` |
 | PARÁ si | `abierto: false` o estado `github.estados.finalizado`; no está asignado a quien corre; está en `github.estados.bloqueado`; lo bloquea un issue abierto. En flujo: la HU cerrada o sin sub-issues (crearlos es de `/tbd` o de una persona, con autorización) |
 | F2. Serie | Sub-issues abiertos, asignados a quien corre, en `github.estados.pendiente` (o Backlog). No hay `[ANALISIS]` ni `[BLOQ]`: lo bloqueado es el estado `Blocked`, y queda fuera con el motivo de su último comentario |
-| F3. HU | `ticket.js mover <HU> enProceso` si no está ahí. Al cerrar la serie: la HU pasa a `pruebas` (Testing) **solo** con todos sus sub-issues cerrados (`ver <HU>`, `hijas[].abierto`). Done y cerrar el issue de la HU los decide una persona cuando la prueba |
+| F3. HU | `ticket.js mover <HU> enProceso` si no está ahí. La bitácora del plan va en una rama `<prefijo>/N-bitacora` del repo de docs con el número de la HU, y el cuerpo del PR dice `Refs owner/repo#N` (con el repo, si la HU vive en otro: un `#N` suelto enlazaría el issue N del repo de docs). `push-con-issue.js` la deja salir porque N es la HU de la sesión. Al cerrar la serie: la HU pasa a `pruebas` (Testing) **solo** con todos sus sub-issues cerrados (`ver <HU>`, `hijas[].abierto`). Done y cerrar el issue de la HU los decide una persona cuando la prueba |
 | 2. Repo y prefijo | El repo es el del issue (`owner/repo` → la carpeta de `git.repos` con ese origin). Rama `<prefijo>/N-<slug>`, solo el número: `fix/` para un `Bug`, `feat/` para lo demás (tienen que estar en `git.prefijos`). Una HU de varios repos vive en el repo de documentación: en cada repo de código se ramifica con el número de **su** sub-issue `Task`, no con el de la HU |
 | 3. Plan | `odd.diseno` con `{historia}` = el número de la HU (`N`, sin `owner/repo#`). Si las HU del proyecto viven en más de un repo, `<repo>-N` (`docs-12`), porque `N` solo choca entre repos. El *qué* está en el documento de feature que enlaza el bloque de referencia de la HU (`Change:`) |
 | 4. Radar | `git -C <repo> log origin/<base> --oneline -E --grep="#N([^0-9]\|$)"`, `git -C <repo> branch -a --list "*/N-*"`, y las hermanas con `ticket.js ver <HU>` (una `In Progress` de otra persona es la misma parada) |
