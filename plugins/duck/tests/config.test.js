@@ -212,3 +212,70 @@ test('pruebas.cuando is siempre unless the project asks for riesgo', () => {
   assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: 'nunca' } })), 'siempre');
   assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: ['riesgo'] } })), 'siempre');
 });
+
+// --- trabajo: the project's own work unit (#42) ---
+
+const SPEC = {
+  jira: { proyecto: 'GPDEV' },
+  git: { prefijos: ['feature', 'fix', 'hotfix', 'refactor'] },
+  trabajo: { id: 'spec', clave: 'SPEC-{NNN}', rama: '{tipo}/spec-{NNN}-{slug}', fuente: 'docs/specs/{NNN}-{slug}/spec.md' },
+};
+
+test('trabajo: the branch key is built from the clave template', () => {
+  const cfg = cargarCon(SPEC);
+  assert.equal(claveDeRama('feature/spec-002-base-servicio-cavali', cfg), 'SPEC-002');
+  assert.equal(claveDeRama('refactor/spec-17-x', cfg), 'SPEC-17');
+  assert.equal(claveDeRama('feature/foo', cfg), null);
+  assert.equal(claveDeRama('chore/spec-002-x', cfg), null); // {tipo} is git.prefijos
+  assert.equal(claveDeRama('feature/GPDEV-12-x', cfg), null); // the Jira key is not the unit key
+  assert.equal(claveDeRama('feature/spec-002', cfg), null); // {slug} is required by the template
+});
+
+test('trabajo: text keys follow the clave template', () => {
+  const cfg = cargarCon(SPEC);
+  assert.deepEqual(clavesEnTexto('SPEC-002: add base, see SPEC-3 and SPEC-002', cfg), ['SPEC-002', 'SPEC-3']);
+  assert.deepEqual(clavesEnTexto('GPDEV-12 #4', cfg), []);
+});
+
+test('trabajo: the Jira tracker key stays on jira', () => {
+  const cfg = cargarCon(SPEC);
+  assert.equal(cfg.jira.reClaveExacta.test('GPDEV-12'), true);
+  assert.equal(cfg.jira.reClaveExacta.test('SPEC-002'), false);
+  assert.equal(cfg.trabajo.reClaveExacta.test('SPEC-002'), true);
+});
+
+test('trabajo: {clave} in the branch template', () => {
+  const cfg = cargarCon({ ...SPEC, trabajo: { clave: 'SPEC-{NNN}', rama: '{tipo}/{clave}-{slug}' } });
+  assert.equal(claveDeRama('fix/SPEC-9-login', cfg), 'SPEC-9');
+  assert.equal(claveDeRama('fix/spec-9-login', cfg), null);
+});
+
+test('trabajo: an unknown placeholder disables it and keeps the provider key', () => {
+  const cfg = cargarCon({ ...SPEC, trabajo: { ...SPEC.trabajo, rama: '{tipo}/{foo}-{NNN}' } });
+  assert.equal(cfg.trabajo.propio, false);
+  assert.match(cfg.trabajo.error, /\{foo\}/);
+  assert.equal(claveDeRama('feature/GPDEV-12-x', cfg), 'GPDEV-12');
+  assert.equal(claveDeRama('feature/spec-002-x', cfg), null);
+});
+
+test('trabajo: a branch template without {NNN} or {clave} is rejected', () => {
+  const cfg = cargarCon({ ...SPEC, trabajo: { clave: 'SPEC-{NNN}', rama: '{tipo}/{slug}' } });
+  assert.equal(cfg.trabajo.propio, false);
+  assert.match(cfg.trabajo.error, /\{NNN\}/);
+});
+
+test('without trabajo the unit key is the provider key, as before', () => {
+  const jira = cargarCon({ jira: { proyecto: 'PROY' } });
+  assert.equal(jira.trabajo.propio, false);
+  assert.equal(jira.trabajo.error, null);
+  assert.equal(claveDeRama('feature/PROY-12-login', jira), 'PROY-12');
+  const github = cargarCon(GITHUB);
+  assert.equal(github.trabajo.propio, false);
+  assert.equal(claveDeRama('feat/12-x', github), '#12');
+});
+
+test('trabajo: an empty placeholder is unknown too', () => {
+  const cfg = cargarCon({ ...SPEC, trabajo: { clave: 'S-{NNN}{}', rama: '{tipo}/{clave}-{slug}' } });
+  assert.equal(cfg.trabajo.propio, false);
+  assert.match(cfg.trabajo.error, /usa {}/);
+});

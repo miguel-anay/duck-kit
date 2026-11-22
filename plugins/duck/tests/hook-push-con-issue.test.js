@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { temporales, GITHUB, JIRA, proyecto, correr, contexto, git, repo, bash, negado, commit } = require('./helpers');
+const { temporales, GITHUB, JIRA, proyecto, correr, contexto, git, repo, bash, negado, commit, SPEC } = require('./helpers');
 
 // --- push-con-issue: no push or PR of a work branch without its issue ---
 
@@ -283,4 +283,18 @@ test('push-sobre-develop-al-dia warns, without blocking, when it cannot reach th
   const r = correr('push-sobre-develop-al-dia.js', raiz, bash('git push -u origin feat/1-x', raiz));
   assert.ok(!negado(r));
   assert.match(contexto(r), /no se pudo comprobar/);
+});
+
+test('push-con-issue (trabajo propio) needs the template branch and only warns when the spec is missing', () => {
+  const raiz = conOrigen(SPEC, 'feature/spec-002-base');
+  const falla = ticketVer(raiz, { error: 'no existe el issue' });
+  const sinSpec = pushCon(raiz, 'git push -u origin feature/spec-002-base', raiz, falla);
+  assert.ok(!negado(sinSpec));
+  assert.match(sinSpec.stdout, /no encuentro docs\/specs\/002-base\/spec\.md, la fuente de SPEC-002/);
+  fs.mkdirSync(path.join(raiz, 'docs', 'specs', '002-base'), { recursive: true });
+  fs.writeFileSync(path.join(raiz, 'docs', 'specs', '002-base', 'spec.md'), '# SPEC-002');
+  assert.equal(pushCon(raiz, 'git push -u origin feature/spec-002-base', raiz, falla).stdout, '');
+  const sinClave = pushCon(raiz, 'git push origin HEAD:refs/heads/feature/arreglo', raiz, falla);
+  assert.ok(negado(sinClave));
+  assert.match(motivo(sinClave), /\{tipo\}\/spec-\{NNN\}-\{slug\}/);
 });

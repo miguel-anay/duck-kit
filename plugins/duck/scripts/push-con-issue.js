@@ -21,7 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, tramosConCwd, historiaEnOtroRepo, historiasDeSesion, pushDe, claveDeRama, repoDe, escapar, TICKET_JS } = require('./config');
+const { hook, tramosConCwd, historiaEnOtroRepo, historiasDeSesion, pushDe, claveDeRama, fuenteDeRama, repoDe, escapar, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -53,6 +53,7 @@ function deTrabajo(rama, cfg) {
 }
 
 function formaDeRama(cfg) {
+  if (cfg.trabajo.propio) return cfg.trabajo.rama;
   return cfg.tickets.proveedor === 'github' ? '<prefijo>/<N>-<slug>' : '<prefijo>/<CLAVE>-<n>-<slug>';
 }
 
@@ -61,9 +62,11 @@ function revisarPush(rama, { dir, remoto }, cfg, sesion) {
   const clave = claveDeRama(rama, cfg, dir);
   const { problema, aviso } = !clave
     ? { problema: `la rama ${rama} no lleva el número de su issue (${formaDeRama(cfg)})` }
-    : cfg.tickets.proveedor === 'github'
-      ? revisarIssue(clave, cfg)
-      : {};
+    : cfg.trabajo.propio
+      ? revisarFuente(rama, clave, cfg)
+      : cfg.tickets.proveedor === 'github'
+        ? revisarIssue(clave, cfg)
+        : {};
   if (aviso) return { avisar: aviso };
   if (!problema) return null;
   // El PR de bitacora del plan vive en el repo de docs y lleva la clave de la historia, que puede
@@ -78,7 +81,7 @@ function revisarPush(rama, { dir, remoto }, cfg, sesion) {
     negar:
       `Push sin issue: ${problema}. Antes de publicar, la rama necesita su issue: si el trabajo no `
       + 'tiene uno, crealo (colgado de su HU) y renombrá la rama con '
-      + `\`git branch -m ${rama} <prefijo>/<N>-<slug>\`. Todavía no está en el remoto, así que el `
+      + `\`git branch -m ${rama} ${cfg.trabajo.propio ? cfg.trabajo.rama : '<prefijo>/<N>-<slug>'}\`. Todavía no está en el remoto, así que el `
       + 'renombre es local y no cierra ningún PR.',
   };
 }
@@ -91,6 +94,14 @@ function deLaHistoria(clave, dir, cfg, sesion) {
   if (!historia) return false;
   const { problema, aviso } = revisarIssue(historia, cfg);
   return !problema && !aviso;
+}
+
+// Con trabajo propio la unidad es un archivo (la spec), no un issue: si no esta en disco solo se
+// avisa. Puede vivir en otra rama del repo de docs que este checkout no tiene; frenar seria peor.
+function revisarFuente(rama, clave, cfg) {
+  const fuente = fuenteDeRama(rama, cfg);
+  if (!fuente || fs.existsSync(path.join(cfg.raiz, fuente))) return {};
+  return { aviso: `Aviso: no encuentro ${fuente}, la fuente de ${clave}. El push sale igual; revisá que la spec exista.` };
 }
 
 // { problema } si el issue no sirve, { aviso } si no se pudo consultar, {} si sirve.

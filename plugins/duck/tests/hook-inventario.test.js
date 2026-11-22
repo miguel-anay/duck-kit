@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { GITHUB, JIRA, proyecto, correr, contexto, git, repo, mover, merge, commit } = require('./helpers');
+const { GITHUB, JIRA, proyecto, correr, contexto, git, repo, mover, merge, commit, SPEC } = require('./helpers');
 
 // --- inventario ---
 
@@ -116,4 +116,21 @@ test('inventario lists the plugin skills that declare allowed-tools as commands,
   assert.ok(!r.comandos.includes('duck:evidencia-de-pruebas'));
   assert.ok(!r.comandos.includes('solo-saber'));
   for (const s of ['duck:tomar', 'duck:evidencia-de-pruebas', 'propio', 'solo-saber']) assert.ok(r.skills.includes(s), s);
+});
+
+test('inventario (trabajo propio) maps unit keys to template branches and to the base', () => {
+  const raiz = proyecto(SPEC);
+  repo(raiz, 'main', ['SPEC-3: x', 'Merge pull request #9 from org/feature/spec-004-y', 'chore: menciona SPEC-5 al pasar']);
+  git(raiz, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  git(raiz, 'checkout', '-q', '-b', 'feature/spec-001-base');
+  fs.writeFileSync(path.join(raiz, 'wip.txt'), 'wip');
+  git(raiz, 'add', 'wip.txt');
+  git(raiz, 'commit', '-q', '-m', 'wip');
+  const c = JSON.parse(correr('inventario.js', raiz, {}, { args: ['--claves', 'SPEC-001,SPEC-3,SPEC-4,SPEC-5,GPDEV-4'] }).stdout).claves;
+  assert.deepEqual(Object.keys(c), ['SPEC-001', 'SPEC-3', 'SPEC-4', 'SPEC-5']);
+  assert.equal(c['SPEC-4'].ubicacion, 'develop');
+  assert.equal(c['SPEC-5'].ubicacion, 'sin-rama');
+  assert.equal(c['SPEC-001'].ubicacion, 'rama');
+  assert.equal(c['SPEC-3'].ubicacion, 'develop');
+  assert.equal(JSON.parse(correr('inventario.js', raiz, {}).stdout).repos['.'].clave, 'SPEC-001');
 });

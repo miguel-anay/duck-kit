@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { temporales, GITHUB, JIRA, proyecto, correr, git, repo } = require('./helpers');
+const { temporales, GITHUB, JIRA, proyecto, correr, git, repo, SPEC } = require('./helpers');
 
 // --- guard-sin-clave ---
 
@@ -71,6 +71,19 @@ test('guard-sin-clave (single-repo project) ignores repos outside the root and c
     'DUCK_MODO=otro git switch -c feat/11-x',
     'DUCK_MODO=tarea true && git switch -c feat/11-x',
     'git switch --create=feat/11-x',
+  ]) {
+    assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, c))), c);
+  }
+});
+
+test('guard-sin-clave (trabajo propio) needs the project branch template and the mode mark', () => {
+  const raiz = proyecto({ ...SPEC, git: { ...SPEC.git, repos: { app: 'app' } } });
+  fs.mkdirSync(path.join(raiz, 'app'));
+  assert.ok(!negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, 'DUCK_MODO=tarea git -C app switch -c feature/spec-002-base-servicio-cavali'))));
+  for (const c of [
+    'DUCK_MODO=tarea git -C app switch -c feature/foo',
+    'DUCK_MODO=tarea git -C app switch -c feature/GPDEV-12-x',
+    'git -C app switch -c feature/spec-002-base-servicio-cavali',
   ]) {
     assert.ok(negadoPor(correr('guard-sin-clave.js', raiz, crear(raiz, c))), c);
   }
