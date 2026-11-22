@@ -26,6 +26,23 @@ test('sesion-inicio (jira) still asks for the JQL', () => {
   assert.match(texto, /Corre la JQL assignee = currentUser\(\) AND status = "En Proceso"/);
 });
 
+test('sesion-inicio names the test agents each repo runs, and only for repos that have any', () => {
+  const raiz = proyecto({
+    ...JIRA,
+    git: { ramaBase: 'main', repos: { api: 'x-api', web: 'x-web', docs: 'x-docs' } },
+    pruebas: { defecto: ['adversarial'], repos: { api: ['adversarial', 'propiedades', 'fuzz'], docs: [] } },
+  });
+  const texto = contexto(correr('sesion-inicio.js', raiz, {}));
+  assert.match(texto, /- api: duck:adversario, duck:propiedades, duck:fuzz/);
+  assert.match(texto, /- web: duck:adversario$/m);
+  assert.doesNotMatch(texto, /- docs:/);
+});
+
+test('sesion-inicio says nothing about test agents when no repo has test types', () => {
+  const raiz = proyecto({ ...JIRA, pruebas: { defecto: [], repos: { api: [] } } });
+  assert.equal(correr('sesion-inicio.js', raiz, {}).stdout, '');
+});
+
 // --- continued sessions inherit the previous session's tasks ---
 
 function transcript(raiz, anterior) {

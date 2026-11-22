@@ -19,6 +19,7 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Skill `duck:evidencia-de-pruebas` | `skills/evidencia-de-pruebas/` | El comentario de cierre de una sub-tarea (solo lo que otra persona debe saber o hacer). |
 | Skill `duck:estructura-docs` | `skills/estructura-docs/` | Decide dónde van los docs del proyecto (`mono-repo` o `multi-repo`, siempre con el nombre `docs`; o la ruta de `docs` en `duck.json`) y crea la misma serie en los dos casos: PRD, diseño, ADR, specs, seguridad, despliegue, guías, manuales, convenciones, IA (agentes, con `install-agents.sh`/`.ps1` que los copia a `.claude/agents/`), plantillas, ODD y changelog, sin pisar nada. Nombres y plantillas en inglés. |
 | Agentes `duck:analista`, `duck:escritor`, `duck:explorador`, `duck:verificador` | `agents/` | Ruta directa sin SDD: decidir, escribir, mapear, verificar. Leen las convenciones del proyecto (ver abajo). |
+| Agentes `duck:adversario`, `duck:propiedades`, `duck:fuzz` | `agents/` | Pruebas antes del merge: revisión adversarial, testing basado en propiedades y fuzzing. Cada repositorio corre solo los que nombra `pruebas` en `duck.json` (METODO.md §9). Ninguno corrige. |
 | Hook `guard-git` | `scripts/guard-git.js` | Deniega push/merge local a la rama base y `git branch -D`. Deja pasar el primer push de la base a un remoto que todavía no la tiene. Deniega `mergear-pr.js` fuera del modo flujo salvo con `--a-pedido`, y `gh pr merge` siempre (no mira el CI). |
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
@@ -173,6 +174,13 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 | `docs` | `null` | Carpeta de docs, relativa a la raíz: `docs` (dentro del repo, o la hermana con varios repos) o `../<repo>.docs` (repo aparte). La elige `/duck:iniciar` y la lee `estructura-docs`. `null` = la skill usa la `docs/` o `doc/` que exista, o crea `docs/`. |
 | `adr` | `null` | Carpeta de los ADR, relativa a la raíz: `docs/adr`. Con valor, `guard-adr.js` no deja editar un ADR aceptado en la rama base salvo su línea Status. Dentro de un repo se compara con el final de la carpeta (`adr` dentro del repo `docs`), así que también vale en un worktree. `null` = sin guardia. |
 | `acli` | `acli` | Cómo invocar el CLI de Atlassian para el refresco de Jira del panel. `acli` a secas se ejecuta directo; una ruta (admite `%VARIABLES%` de Windows) se resuelve con PowerShell, y si no existe se cae a `acli` del PATH. |
+
+### `pruebas`
+
+| Campo | Por defecto | Qué hace |
+|---|---|---|
+| `defecto` | `[]` | Tipos de prueba del proyecto de un solo repo y de toda carpeta que `repos` no nombre: `adversarial`, `propiedades`, `fuzz`. Vacío = ninguno. Un valor que no sea uno de esos tres se descarta. |
+| `repos` | `{}` | Carpeta (la misma clave que en `git.repos`) → su propia lista, que reemplaza a `defecto`. Una lista vacía apaga las pruebas de ese repositorio. Con algún tipo configurado, `sesion-inicio.js` le dice a la sesión qué agentes corre cada repositorio (METODO.md §9). |
 
 ### `odd`
 

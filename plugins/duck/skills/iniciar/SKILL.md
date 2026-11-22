@@ -93,6 +93,7 @@ Si `gh` no está, no tiene sesión o no tiene acceso a la organización, se dice
 7. **Tests mientras se itera.** Por cada repo, el comando para correr solo los tests de lo tocado. Proponelo a partir de lo que veas (`package.json` → `scripts.test`; un `.sln` o `.csproj` → `dotnet test --filter`; `pyproject.toml` → `pytest -k`).
 8. **Reglas que no se negocian.** Si los `CLAUDE.md` de los repos ya las tienen, **no las copies**: proponé dejar en convenciones solo lo que no esté ahí. ¿Hay algo más?
 9. **Quién lee los comentarios de cierre** en el ticket (PM, QA, negocio…).
+10. **Tipos de prueba por repo.** Además de la suite, ¿qué corre cada repo antes del merge: `adversarial`, `propiedades`, `fuzz`, o ninguno? Proponé `adversarial` para los repos de código (no necesita nada instalado) y ninguno para el de docs; `propiedades` y `fuzz` solo donde ya veas la librería o el arnés en las dependencias, porque sus agentes no la instalan. La respuesta es `pruebas` en `duck.json`: `defecto` si todos los repos corren lo mismo, `repos` para el que difiere.
 
 Si la persona dice «no sé», «después» o «dejalo», esa sección queda fuera del archivo: no la inventes.
 

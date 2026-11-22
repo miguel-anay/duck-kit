@@ -84,7 +84,15 @@ const DEFECTOS = {
   // Carpeta de los ADR, relativa a la raiz (docs/adr). Con valor, guard-adr.js no deja editar un ADR
   // aceptado en la rama base salvo su linea Status. null = sin guardia.
   adr: null,
+  // Que tipos de prueba corre cada repositorio antes del merge (METODO.md §9): 'adversarial',
+  // 'propiedades', 'fuzz'. defecto vale para el proyecto de un solo repo y para toda carpeta que
+  // repos no nombre; repos: carpeta -> lista, y una lista vacia apaga las pruebas de ese repo.
+  // Vacio = ninguna: los agentes de pruebas no se usan hasta que el proyecto los pide.
+  pruebas: { defecto: [], repos: {} },
 };
+
+// Los tipos que duck conoce, en el orden en que corren, y el agente de cada uno.
+const AGENTES_PRUEBA = { adversarial: 'duck:adversario', propiedades: 'duck:propiedades', fuzz: 'duck:fuzz' };
 
 function existe(ruta) {
   try {
@@ -127,6 +135,15 @@ function escapar(texto) {
 // Un nombre de estado como patron: «En Proceso» tambien reconoce «EnProceso».
 function patronNombre(nombre) {
   return new RegExp(escapar(nombre).replace(/\s+/g, '\\s*'), 'i');
+}
+
+// Tipos de prueba de un repositorio (su carpeta, o '.' si el proyecto es un solo repo). Lo que
+// duck.json diga de mas o repetido se descarta, y una entrada que no es lista cae en defecto.
+function pruebasDe(cfg, carpeta) {
+  const { defecto, repos } = cfg.pruebas || {};
+  const propia = repos && repos[carpeta];
+  const lista = Array.isArray(propia) ? propia : Array.isArray(defecto) ? defecto : [];
+  return Object.keys(AGENTES_PRUEBA).filter((tipo) => lista.includes(tipo));
 }
 
 // Devuelve la configuracion normalizada, o null si no hay duck.json legible.
@@ -531,6 +548,8 @@ module.exports = {
   ramaQueSeCrea,
   pushDe,
   clavesEnTexto,
+  pruebasDe,
+  AGENTES_PRUEBA,
   referenciaIssue,
   estadosDe,
   movidasDeGithub,

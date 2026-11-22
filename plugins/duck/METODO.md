@@ -360,3 +360,43 @@ mueve a In Review él mismo los issues que ese PR cierra (un PR parcial, con `Re
 un issue no tiene estado y nada lo puede seguir.
 
 - **`duck:analista` no tiene Bash.** Al delegarle con GitHub, pasale en el prompt la salida de `ticket.js ver <clave>` (de la HU y de la sub-tarea) y el cuerpo con `gh issue view <N> -R <owner>/<repo>`.
+
+## 9. Pruebas por repositorio
+
+`duck:verificador` contesta si el cambio hace lo que pedía la historia. Hay tres tipos de prueba más,
+cada uno con su agente, y **cada repositorio elige cuáles corre** en `pruebas` de `duck.json`:
+
+| Tipo | Agente | Qué busca | Qué necesita el repositorio |
+|---|---|---|---|
+| `adversarial` | `duck:adversario` | La entrada que rompe el código, y los tests que pasan sin probar nada | Nada: solo lee |
+| `propiedades` | `duck:propiedades` | Reglas que deben valer para toda entrada generada | Una librería de propiedades ya instalada |
+| `fuzz` | `duck:fuzz` | Caídas y cuelgues con entradas aleatorias, en tiempo acotado | Un arnés de fuzzing ya instalado |
+
+```json
+"pruebas": {
+  "defecto": ["adversarial"],
+  "repos": { "api": ["adversarial", "propiedades", "fuzz"], "docs": [] }
+}
+```
+
+`defecto` vale para el proyecto de un solo repo y para toda carpeta que `repos` no nombre; una lista
+vacía apaga las pruebas de ese repositorio. Sin `pruebas`, ninguno corre. `sesion-inicio.js` le dice a
+la sesión qué agentes le tocan a cada repositorio, y un cambio corre solo los del suyo.
+
+**Cuándo.** Después de `duck:verificador` y antes de la puerta (sección 2), sobre los archivos de código
+y de tests del cambio. Una tarea que no toca código no corre ninguno.
+
+**La revisión adversarial tiene tres roles.** El hilo principal lanza `duck:adversario` **dos veces en
+paralelo**, cada uno con la lista de archivos del cambio y nada de la conversación, para que no hereden
+los puntos ciegos de quien lo escribió. Después hace de **juez**: intenta reproducir cada fallo y lo
+deja `ACEPTADO` (es real y los tests no lo cubrían) o `RECHAZADO` (falso positivo, o lo controla la
+infraestructura), con el motivo, en una tabla.
+
+**Ninguno de los tres corrige.** Cada fallo aceptado, cada contraejemplo y cada caída va a
+`duck:escritor`, que escribe primero el test que lo cubre y después el arreglo. Si el repositorio
+tiene `propiedades`, un fallo sobre un validador, un parser o un cálculo se fija como propiedad y no
+como ejemplo suelto. `duck:propiedades` y `duck:fuzz` no instalan su herramienta: si falta, devuelven
+`blocked` y agregar la dependencia lo decide el proyecto.
+
+**No es la prueba en vivo.** Estos tres corren en local, antes del merge. Probar la aplicación
+desplegada es otro paso, después.

@@ -41,5 +41,12 @@
   "odd": {
     "tareas": "odd/tasks",
     "diseno": "docs/disenos/{historia}.md"
+  },
+  "pruebas": {
+    "defecto": ["adversarial"],
+    "repos": {
+      "api": ["adversarial", "propiedades", "fuzz"],
+      "docs": []
+    }
   }
 }
