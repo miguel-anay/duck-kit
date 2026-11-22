@@ -90,6 +90,63 @@ test('push-con-issue (github) lets a top-level Bug, Feature or untyped issue out
   }
 });
 
+// A docs repo of a GitHub project: its origin reads as github.com/org/docs but resolves to a local bare repo.
+function repoDocs(raiz) {
+  const docs = path.join(raiz, 'docs');
+  fs.mkdirSync(docs);
+  repo(docs, 'docs/96-bitacora');
+  const remoto = fs.mkdtempSync(path.join(os.tmpdir(), 'duck-origen-'));
+  temporales.push(remoto);
+  git(docs, 'init', '-q', '--bare', remoto);
+  git(docs, 'remote', 'add', 'origin', 'https://github.com/org/docs.git');
+  git(docs, 'config', `url.${remoto}.insteadOf`, 'https://github.com/org/docs.git');
+  return docs;
+}
+
+// Stand-in for `ticket.js ver` that only knows the issues in `abiertos`.
+function ticketsDe(raiz, abiertos) {
+  const script = path.join(raiz, 'ticket-ver.js');
+  fs.writeFileSync(
+    script,
+    `const abiertos = ${JSON.stringify(abiertos)}; const clave = process.argv[3];\n` +
+      "if (!abiertos[clave]) { console.error('ticket.js: no existe el issue ' + clave); process.exit(1); }\n" +
+      'console.log(JSON.stringify({ clave, abierto: true, ...abiertos[clave] }));\n'
+  );
+  return { env: { DUCK_TICKET_JS: script } };
+}
+
+test('push-con-issue (github) accepts a docs branch keyed by the story of the session when it lives in another repo', () => {
+  const duck = { ...GITHUB, git: { ...GITHUB.git, prefijos: ['feat', 'fix', 'docs'], repos: { app: 'app', docs: 'docs' } } };
+  const historia = (clave) => ({ historias: [{ historia: { clave, titulo: '' }, subtareas: [] }] });
+  const sesiones = (raiz) => path.join(raiz, '.claude', 'estado', 'sesiones');
+  const tickets = { 'org/app#96': { tipo: 'Feature', padre: null } };
+
+  // A project with the app repo (origin org/app) and the docs repo, and the story the session is on.
+  const con = (clave, tickets) => {
+    const raiz = proyecto(duck);
+    repoDocs(raiz);
+    fs.mkdirSync(path.join(raiz, 'app'));
+    repo(path.join(raiz, 'app'), 'main');
+    git(path.join(raiz, 'app'), 'remote', 'add', 'origin', 'https://github.com/org/app.git');
+    fs.mkdirSync(sesiones(raiz), { recursive: true });
+    fs.writeFileSync(path.join(sesiones(raiz), 's1-historia.json'), JSON.stringify(historia(clave)));
+    return correr('push-con-issue.js', raiz, bash('git -C docs push -u origin docs/96-bitacora', raiz), ticketsDe(raiz, tickets));
+  };
+
+  assert.ok(!negado(con('org/app#96', tickets)));
+  assert.ok(!negado(con('ORG/App#96', tickets)));
+
+  const otroNumero = con('org/app#97', tickets);
+  assert.ok(negado(otroNumero));
+  assert.match(motivo(otroNumero), /org\/docs#96 no existe/);
+  // A story in a repo that is not part of the project does not count.
+  assert.ok(negado(con('evil/x#96', { 'evil/x#96': { tipo: 'Feature', padre: null } })));
+  // Nor does it override an issue of the docs repo that exists and is closed.
+  const cerrado = con('org/app#96', { ...tickets, 'org/docs#96': { abierto: false } });
+  assert.ok(negado(cerrado));
+  assert.match(motivo(cerrado), /org\/docs#96 está cerrado/);
+});
+
 test('push-con-issue only warns for a branch already on the remote before the guard existed', () => {
   const raiz = conOrigen(GITHUB, 'feat/release-signing');
   git(raiz, 'push', '-q', 'origin', 'feat/release-signing');

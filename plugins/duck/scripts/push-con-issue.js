@@ -21,7 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, pushDe, claveDeRama, TICKET_JS } = require('./config');
+const { hook, partirEnTramos, pushDe, claveDeRama, repoDe, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -32,7 +32,7 @@ hook((evento, cfg) => {
       const push = pushDe(tramo, cwd);
       if (!push?.origen) continue;
       const rama = push.destino === 'HEAD' ? git(push.dir, ['rev-parse', '--abbrev-ref', 'HEAD']) : push.destino;
-      const veredicto = revisarPush(rama, push, cfg);
+      const veredicto = revisarPush(rama, push, cfg, evento?.session_id);
       if (veredicto) return responder(veredicto);
     }
   }
@@ -51,7 +51,7 @@ function formaDeRama(cfg) {
   return cfg.tickets.proveedor === 'github' ? '<prefijo>/<N>-<slug>' : '<prefijo>/<CLAVE>-<n>-<slug>';
 }
 
-function revisarPush(rama, { dir, remoto }, cfg) {
+function revisarPush(rama, { dir, remoto }, cfg, sesion) {
   if (!deTrabajo(rama, cfg)) return null;
   const clave = claveDeRama(rama, cfg, dir);
   const { problema, aviso } = !clave
@@ -61,6 +61,9 @@ function revisarPush(rama, { dir, remoto }, cfg) {
       : {};
   if (aviso) return { avisar: aviso };
   if (!problema) return null;
+  // El PR de bitacora del plan vive en el repo de docs y lleva la clave de la historia, que puede
+  // ser un issue de OTRO repo del proyecto: el #N de la rama es entonces el de la HU de la sesion.
+  if (clave && /no existe$/.test(problema) && deLaHistoria(clave, dir, cfg, sesion)) return null;
 
   const enRemoto = git(dir, ['ls-remote', '--heads', remoto, rama], 20000);
   if (enRemoto) {
@@ -73,6 +76,29 @@ function revisarPush(rama, { dir, remoto }, cfg) {
       + `\`git branch -m ${rama} <prefijo>/<N>-<slug>\`. Todavía no está en el remoto, así que el `
       + 'renombre es local y no cierra ningún PR.',
   };
+}
+
+// Si el numero de la rama es el de la HU de la sesion, que vive en OTRO repo del proyecto y sirve
+// como issue. Solo rescata un numero que en el repo de la rama no existe: un issue propio que
+// existe (cerrado, o un Task sin HU) manda, y una HU de un repo ajeno al proyecto no cuenta.
+function deLaHistoria(clave, dir, cfg, sesion) {
+  if (!sesion || !/^[A-Za-z0-9_-]+$/.test(sesion)) return false;
+  let datos;
+  try {
+    datos = JSON.parse(fs.readFileSync(path.join(cfg.dirEstado, `${sesion}-historia.json`), 'utf8'));
+  } catch {
+    return false; // la sesion no tiene historia anotada
+  }
+  const numero = clave.split('#')[1];
+  const propio = repoDe(dir);
+  const delProyecto = cfg.git.carpetas.map((carpeta) => repoDe(path.join(cfg.raiz, carpeta))).filter((r) => r && r !== propio);
+  const bloques = Array.isArray(datos?.historias) ? datos.historias : [datos];
+  const historia = bloques
+    .map((b) => String(b?.historia?.clave ?? '').toLowerCase())
+    .find((h) => delProyecto.some((repo) => h === `${repo}#${numero}`));
+  if (!historia) return false;
+  const { problema, aviso } = revisarIssue(historia, cfg);
+  return !problema && !aviso;
 }
 
 // { problema } si el issue no sirve, { aviso } si no se pudo consultar, {} si sirve.
