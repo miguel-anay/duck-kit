@@ -138,7 +138,9 @@ function reglaPruebas(cfg) {
   const porRepo = cfg.git.carpetas
     .map((repo) => ({ repo, agentes: pruebasDe(cfg, repo).map((tipo) => AGENTES_PRUEBA[tipo]) }))
     .filter(({ agentes }) => agentes.length);
-  if (!porRepo.length) return [];
+  // Con revision 'gentle-ai' el tipo adversarial ya no figura en ningun repo: si era lo unico
+  // que el proyecto pedia, igual hay que decir quien revisa.
+  if (!porRepo.length) return pideAdversarial(cfg) ? reglaRevision(cfg, porRepo) : [];
   return [
     'Pruebas por repositorio (METODO.md §9). Con el cambio implementado y su suite en verde, antes del ' +
       'cierre, un cambio de codigo corre solo los agentes de su repositorio; los demas no se lanzan:',
@@ -147,6 +149,12 @@ function reglaPruebas(cfg) {
       'arregla duck:escritor, con un test por fallo aceptado.',
     ...reglaRevision(cfg, porRepo),
   ];
+}
+
+// Si duck.json nombra el tipo adversarial en alguna lista, corra o no.
+function pideAdversarial(cfg) {
+  const { defecto, repos } = cfg.pruebas || {};
+  return [defecto, ...Object.values(repos || {})].some((lista) => Array.isArray(lista) && lista.includes('adversarial'));
 }
 
 // Una sola lectura a ciegas por cambio (METODO.md §7). pruebas.revision dice quien la hace; sin

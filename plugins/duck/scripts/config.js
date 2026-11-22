@@ -472,34 +472,65 @@ function carpetaDe(dir, cfg) {
   return cfg.git.carpetas.includes('.') ? '.' : null;
 }
 
-// --- Pruebas corridas: .claude/estado/pruebas.json = { <rama>: { <tipo>: fecha ISO } } ---
+// --- Pruebas corridas: .claude/estado/pruebas/<rama>/<tipo>.json = { fecha } ---
 // Por rama y no por sesion: el push puede salir en otra sesion que la que corrio los agentes.
+// Un archivo por rama y tipo, escrito con rename: los agentes de pruebas terminan a la vez, y con
+// un solo archivo compartido el hook de uno pisaria la anotacion del otro.
 
-const VIGENCIA_PRUEBAS_DIAS = 30;
+const VIGENCIA_PRUEBAS_MS = 30 * 24 * 3600 * 1000;
 
-function archivoPruebas(cfg) {
-  return path.join(path.dirname(cfg.dirEstado), 'pruebas.json');
+function dirPruebas(cfg, rama) {
+  const base = path.join(path.dirname(cfg.dirEstado), 'pruebas');
+  return rama ? path.join(base, encodeURIComponent(rama)) : base;
 }
 
-function leerPruebas(cfg) {
+// Tipos de prueba anotados para la rama y todavia vigentes: { <tipo>: fecha ISO }.
+function leerPruebas(cfg, rama) {
+  const corridos = {};
+  const limite = Date.now() - VIGENCIA_PRUEBAS_MS;
+  let archivos = [];
   try {
-    const datos = JSON.parse(fs.readFileSync(archivoPruebas(cfg), 'utf8'));
-    return datos && typeof datos === 'object' && !Array.isArray(datos) ? datos : {};
+    archivos = fs.readdirSync(dirPruebas(cfg, rama));
   } catch {
-    return {};
+    return corridos; // nada anotado para esta rama
   }
+  for (const archivo of archivos) {
+    if (!archivo.endsWith('.json')) continue;
+    try {
+      const { mtimeMs } = fs.statSync(path.join(dirPruebas(cfg, rama), archivo));
+      if (mtimeMs > limite) corridos[archivo.slice(0, -5)] = new Date(mtimeMs).toISOString();
+    } catch {
+      /* se borro entre el listado y la lectura: no cuenta */
+    }
+  }
+  return corridos;
 }
 
-// Anota que el agente de `tipo` corrio para `rama`, y suelta las ramas que nadie toca hace un mes.
+// Anota que el agente de `tipo` corrio para `rama`, y barre lo que ya vencio.
 function anotarPrueba(cfg, rama, tipo) {
-  const limite = Date.now() - VIGENCIA_PRUEBAS_DIAS * 24 * 3600 * 1000;
-  const vigentes = Object.entries(leerPruebas(cfg)).filter(([, tipos]) =>
-    Object.values(tipos || {}).some((fecha) => Date.parse(fecha) > limite)
-  );
-  const datos = Object.fromEntries(vigentes);
-  datos[rama] = { ...datos[rama], [tipo]: new Date().toISOString() };
-  fs.mkdirSync(path.dirname(archivoPruebas(cfg)), { recursive: true });
-  fs.writeFileSync(archivoPruebas(cfg), JSON.stringify(datos, null, 2) + '\n');
+  const dir = dirPruebas(cfg, rama);
+  fs.mkdirSync(dir, { recursive: true });
+  const destino = path.join(dir, `${tipo}.json`);
+  const temporal = `${destino}.${process.pid}.tmp`;
+  fs.writeFileSync(temporal, JSON.stringify({ fecha: new Date().toISOString() }) + '\n');
+  fs.renameSync(temporal, destino);
+  barrerPruebasViejas(cfg);
+}
+
+function barrerPruebasViejas(cfg) {
+  const limite = Date.now() - VIGENCIA_PRUEBAS_MS;
+  try {
+    for (const rama of fs.readdirSync(dirPruebas(cfg))) {
+      const dir = path.join(dirPruebas(cfg), rama);
+      for (const archivo of fs.readdirSync(dir)) {
+        const ruta = path.join(dir, archivo);
+        if (fs.statSync(ruta).mtimeMs <= limite) fs.rmSync(ruta, { force: true });
+      }
+      if (!fs.readdirSync(dir).length) fs.rmdirSync(dir);
+    }
+  } catch {
+    /* otro hook barre a la vez: lo que quede lo ignora leerPruebas por fecha */
+  }
 }
 
 // --- Estado de la sesion: <dirEstado>/<session_id>.json = { tareas, modo, ... } ---

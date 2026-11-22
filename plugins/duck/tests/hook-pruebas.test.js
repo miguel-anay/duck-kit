@@ -17,8 +17,21 @@ function ramaCon(dir, rama, archivo) {
   git(dir, 'commit', '-q', '-m', 'cambio');
 }
 
-const lanzar = (agente) => ({ session_id: 's1', tool_name: 'Agent', tool_input: { subagent_type: agente, prompt: 'p' } });
-const anotado = (raiz) => JSON.parse(fs.readFileSync(path.join(raiz, '.claude', 'estado', 'pruebas.json'), 'utf8'));
+const lanzar = (agente, respuesta = 'done') => ({
+  session_id: 's1',
+  tool_name: 'Agent',
+  tool_input: { subagent_type: agente, prompt: 'p' },
+  tool_response: { content: [{ type: 'text', text: respuesta }] },
+});
+const dirPruebas = (raiz, rama) => path.join(raiz, '.claude', 'estado', 'pruebas', encodeURIComponent(rama));
+// Test types recorded for a branch, sorted.
+function anotado(raiz, rama) {
+  try {
+    return fs.readdirSync(dirPruebas(raiz, rama)).map((f) => f.replace(/\.json$/, '')).sort();
+  } catch {
+    return [];
+  }
+}
 
 // --- pruebas-anota ---
 
@@ -26,8 +39,51 @@ test('pruebas-anota records which test agents ran for the current work branch', 
   const raiz = proyecto({ ...JIRA, pruebas: PRUEBAS });
   ramaCon(raiz, 'feature/ABC-1-x', 'a.js');
   correr('pruebas-anota.js', raiz, lanzar('duck:adversario'));
+  correr('pruebas-anota.js', raiz, lanzar('duck:fuzz'));
+  assert.deepEqual(anotado(raiz, 'feature/ABC-1-x'), ['adversarial', 'fuzz']);
+});
+
+test('pruebas-anota keeps one file per branch and type, so agents finishing together cannot lose a record', () => {
+  const raiz = proyecto({ ...JIRA, pruebas: { defecto: ['adversarial', 'propiedades', 'fuzz'] } });
+  ramaCon(raiz, 'feature/ABC-1-x', 'a.js');
+  const { spawn } = require('child_process');
+  const { SCRIPTS } = require('./helpers');
+  const hijos = ['duck:adversario', 'duck:propiedades', 'duck:fuzz', 'duck:adversario'].map(
+    (agente) =>
+      new Promise((listo) => {
+        const hijo = spawn('node', [path.join(SCRIPTS, 'pruebas-anota.js')], { cwd: raiz, env: { ...process.env, CLAUDE_PROJECT_DIR: raiz } });
+        hijo.on('close', listo);
+        hijo.stdin.end(JSON.stringify(lanzar(agente)));
+      })
+  );
+  return Promise.all(hijos).then(() => assert.deepEqual(anotado(raiz, 'feature/ABC-1-x'), ['adversarial', 'fuzz', 'propiedades']));
+});
+
+test('pruebas-anota does not record an agent that returned blocked, nor a same-named agent that is not duck\'s', () => {
+  const raiz = proyecto({ ...JIRA, pruebas: PRUEBAS });
+  ramaCon(raiz, 'feature/ABC-1-x', 'a.js');
+  correr('pruebas-anota.js', raiz, lanzar('duck:fuzz', 'No hay arnes de fuzzing en el repo.\n\n`blocked`'));
   correr('pruebas-anota.js', raiz, lanzar('fuzz'));
-  assert.deepEqual(Object.keys(anotado(raiz)['feature/ABC-1-x']).sort(), ['adversarial', 'fuzz']);
+  correr('pruebas-anota.js', raiz, lanzar('otro:adversario'));
+  assert.deepEqual(anotado(raiz, 'feature/ABC-1-x'), []);
+  correr('pruebas-anota.js', raiz, lanzar('duck:fuzz', 'Corri 60 s por objetivo, sin caidas. `done`'));
+  assert.deepEqual(anotado(raiz, 'feature/ABC-1-x'), ['fuzz']);
+});
+
+test('pruebas-anota records for the work branch of every repo and drops records older than 30 days', () => {
+  const raiz = proyecto({ ...JIRA, git: { ramaBase: 'main', repos: { api: 'x-api', web: 'x-web' } }, pruebas: PRUEBAS });
+  ramaCon(path.join(raiz, 'api'), 'feature/ABC-1-x', 'a.js');
+  ramaCon(path.join(raiz, 'web'), 'feature/ABC-2-y', 'b.js');
+  const vieja = path.join(dirPruebas(raiz, 'feature/ABC-0-vieja'), 'fuzz.json');
+  fs.mkdirSync(path.dirname(vieja), { recursive: true });
+  fs.writeFileSync(vieja, '{}');
+  const hace40dias = new Date(Date.now() - 40 * 24 * 3600 * 1000);
+  fs.utimesSync(vieja, hace40dias, hace40dias);
+
+  correr('pruebas-anota.js', raiz, lanzar('duck:adversario'));
+  assert.deepEqual(anotado(raiz, 'feature/ABC-1-x'), ['adversarial']);
+  assert.deepEqual(anotado(raiz, 'feature/ABC-2-y'), ['adversarial']);
+  assert.equal(fs.existsSync(vieja), false);
 });
 
 test('pruebas-anota ignores other agents and the base branch', () => {
@@ -36,7 +92,7 @@ test('pruebas-anota ignores other agents and the base branch', () => {
   correr('pruebas-anota.js', raiz, lanzar('duck:escritor'));
   git(raiz, 'checkout', '-q', 'main');
   correr('pruebas-anota.js', raiz, lanzar('duck:adversario'));
-  assert.equal(fs.existsSync(path.join(raiz, '.claude', 'estado', 'pruebas.json')), false);
+  assert.equal(fs.existsSync(path.join(raiz, '.claude', 'estado', 'pruebas')), false);
 });
 
 // --- push-con-pruebas ---
@@ -89,4 +145,32 @@ test('push-con-pruebas tells an auto project that a gentle-ai review stands in f
   const deDuck = proyecto({ ...JIRA, odd: { tareas: 'odd/tasks' }, pruebas: { defecto: ['adversarial'], revision: 'duck' } });
   ramaCon(deDuck, 'feature/ABC-5-x', 'a.js');
   assert.doesNotMatch(contexto(correr('push-con-pruebas.js', deDuck, bash('git push', deDuck))), /gentle-ai/);
+});
+
+test('push-con-pruebas ignores a record older than 30 days', () => {
+  const raiz = proyecto({ ...JIRA, pruebas: { defecto: ['fuzz'] } });
+  ramaCon(raiz, 'feature/ABC-6-x', 'a.js');
+  correr('pruebas-anota.js', raiz, lanzar('duck:fuzz'));
+  assert.equal(correr('push-con-pruebas.js', raiz, bash('git push', raiz)).stdout, '');
+  const hace40dias = new Date(Date.now() - 40 * 24 * 3600 * 1000);
+  fs.utimesSync(path.join(dirPruebas(raiz, 'feature/ABC-6-x'), 'fuzz.json'), hace40dias, hace40dias);
+  assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('git push', raiz))), /duck:fuzz/);
+});
+
+test('push-con-pruebas counts requirements.txt and an svg as code, and a branch it cannot compare as code', () => {
+  for (const archivo of ['requirements.txt', 'icono.svg']) {
+    const raiz = proyecto({ ...JIRA, pruebas: PRUEBAS });
+    ramaCon(raiz, 'feature/ABC-7-x', archivo);
+    assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('git push', raiz))), /duck:adversario/, archivo);
+  }
+  const sinBase = proyecto({ ...JIRA, git: { ramaBase: 'develop' }, pruebas: PRUEBAS });
+  ramaCon(sinBase, 'feature/ABC-8-x', 'README.md');
+  assert.match(contexto(correr('push-con-pruebas.js', sinBase, bash('git push', sinBase))), /duck:adversario/);
+});
+
+test('push-con-pruebas checks the branch named in the push, not the one checked out', () => {
+  const raiz = proyecto({ ...JIRA, pruebas: PRUEBAS });
+  ramaCon(raiz, 'feature/ABC-9-x', 'a.js');
+  git(raiz, 'checkout', '-q', 'main');
+  assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('git push origin feature/ABC-9-x', raiz))), /feature\/ABC-9-x/);
 });

@@ -11,7 +11,9 @@
 const { execFileSync } = require('child_process');
 const { hook, partirEnTramos, pushDe, ramaDe, carpetaDe, pruebasDe, revisionDe, leerPruebas, AGENTES_PRUEBA } = require('./config');
 
-const PASIVO = /\.(md|mdx|txt|rst|adoc|png|jpe?g|gif|svg|webp|pdf)$/i;
+// Lo que nunca cambia el comportamiento. Un .txt puede ser requirements.txt o CMakeLists.txt, y un
+// .svg puede llevar script: cuentan como codigo.
+const PASIVO = /\.(md|mdx|rst|adoc|png|jpe?g|gif|webp|pdf)$/i;
 
 hook((evento, cfg) => {
   const avisos = [];
@@ -34,7 +36,7 @@ function revisar(tramo, cwd, cfg) {
   if (!rama || [cfg.git.ramaBase, 'main', 'master'].includes(rama)) return null;
   if (!tocaCodigo(push.dir, rama, cfg.git.ramaBase)) return null;
 
-  const corridos = leerPruebas(cfg)[rama] || {};
+  const corridos = leerPruebas(cfg, rama);
   const faltan = pedidos.filter((tipo) => !corridos[tipo]);
   if (!faltan.length) return null;
 
@@ -58,6 +60,7 @@ function tocaCodigo(dir, rama, base) {
         cwd: dir,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 5000, // un repo lento no se queda sin aviso: vencido, cuenta como codigo
       })
         .split('\n')
         .filter(Boolean);

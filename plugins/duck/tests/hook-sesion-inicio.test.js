@@ -68,6 +68,16 @@ test('sesion-inicio names the one reviewer the project chose in pruebas.revision
   assert.match(deGentle, /la hace gentle-ai.*duck:adversario no se lanza/);
 });
 
+test('sesion-inicio still says gentle-ai reviews when adversarial was the only type configured', () => {
+  const raiz = proyecto({ ...JIRA, pruebas: { revision: 'gentle-ai', repos: { api: ['adversarial'] } } });
+  const texto = contexto(correr('sesion-inicio.js', raiz, {}));
+  assert.match(texto, /la hace gentle-ai.*duck:adversario no se lanza/);
+  assert.doesNotMatch(texto, /- api:/);
+
+  const sinAdversarial = proyecto({ ...JIRA, pruebas: { revision: 'gentle-ai', defecto: [] } });
+  assert.equal(correr('sesion-inicio.js', sinAdversarial, {}).stdout, '');
+});
+
 // --- continued sessions inherit the previous session's tasks ---
 
 function transcript(raiz, anterior) {
