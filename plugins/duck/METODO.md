@@ -130,6 +130,14 @@ cada una, encadena, y recién reporta al final o al primer tropiezo.
   plan lo que la serie hizo. Lleva la clave de la historia, no la finaliza y no necesita un issue propio:
   lo cubre la misma autorización. El modo tarea se devuelve **después** de mergear ese PR, no al cerrar
   la última sub-tarea.
+- **Un PR de plan, de spec o de bitácora nunca crea un issue**, ni propio ni para juntar varias
+  historias. Lleva la clave de la historia que toca y la nombra con una referencia, nunca con un cierre:
+  a una historia la cierra una persona.
+  - Si toca **una** historia: la rama lleva su clave (`<prefijo>/<clave>-plan`, `<prefijo>/<clave>-bitacora`).
+  - Si un mismo cambio toca los planes de **varias** historias que comparten archivo: un solo PR. La rama
+    lleva la clave de una de ellas, la primera que tomó la sesión, y el cuerpo nombra a **todas**, una
+    referencia por historia.
+  - Si los planes de varias historias no comparten archivos: un PR por historia.
 - **Cada tarea corre la secuencia entera**, sin recortes: rebase sobre `<base>`, suite completa en verde,
   y la verificación de UI cuando toca pantalla. El flujo quita la puerta, no los pasos.
 - **Entre una tarea y la siguiente:** `git fetch origin`, rama nueva desde `<base>` al día (con `DUCK_MODO=flujo` delante del `git switch -c`: la serie ya fue elegida), y revisar qué
@@ -328,6 +336,20 @@ Con `"tickets": {"proveedor": "github"}` el método es el mismo —una rama por 
 estado sigue al trabajo—, pero cada pieza sigue la convención de GitHub (la `gestion-github.md` del
 proyecto, si la hay), no una traducción de Jira. Lo que no aparece acá queda igual.
 
+**Dónde vive una HU.** Una HU cuyo código toca un solo repo vive en **ese** repo. Solo la que cruza
+varios repos vive en el repo de documentación, con un sub-issue por repo destino. Una HU de un solo
+repo puesta en el de docs obliga a referenciarla entre repos en cada PR sin ganar nada. El repo de docs
+sigue siendo el lugar de lo que cruza proyectos: propuestas, ADR y runbooks.
+
+**Un PR de plan o de bitácora que toca varias HU.** No se crea un `Task` para juntarlas: en GitHub un
+issue tiene un solo padre, así que ese issue colgaría de una HU y las demás no lo verían. Va un solo PR
+cuando los planes comparten archivo, con la rama de una de ellas (`docs/148-plan`) y una línea
+`Refs owner/repo#N` completa por cada HU en el cuerpo: cada mención deja la marca «mentioned this» en
+la línea de tiempo de esa HU, aunque viva en otro repo. Siempre `Refs`, nunca `Closes`. Si la sesión
+tiene varias HU anotadas y el cuerpo no nombra a alguna, `push-con-issue.js` lo avisa al abrir el PR; no
+lo bloquea, porque ese PR puede no tocarla. El aviso conoce las HU que figuran en el estado de la sesión,
+que es lo que escribe `/duck:estado`.
+
 **La bitácora del plan cuando la HU vive en otro repo.** La rama del repo de docs lleva el número de la
 HU (`docs/96-bitacora`), y el cuerpo del PR la nombra completa (`Refs owner/repo#96`): un `#96` suelto
 enlazaría el issue 96 del repo de docs. `push-con-issue.js` busca primero ese número en el repo de la
@@ -338,7 +360,7 @@ HU ni ningún issue del repo de docs.
 
 **Tickets y claves.** La HU es un issue de tipo `Feature` o `Bug`; las tareas son sub-issues `Task` solo
 cuando una tiene su propio PR, otro repo u otra persona. Una HU de varios repos vive en el repo de
-documentación, con un sub-issue por repo destino. La clave es `#N` (u `owner/repo#N` fuera del repo);
+documentación, con un sub-issue por repo destino; la de un solo repo vive en ese repo. La clave es `#N` (u `owner/repo#N` fuera del repo);
 duck la guarda como `owner/repo#N` en minúsculas. El tipo va en el issue type, no en etiquetas.
 Un issue que pertenece a una HU (una `Task` por repo, o un `Bug` con su propio PR hallado al trabajarla)
 lleva en su cuerpo la línea `Part of: <owner/repo#N de la HU>`: `issue-padre.js` lo cuelga como sub-issue

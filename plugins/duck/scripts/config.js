@@ -581,25 +581,27 @@ function enFlujo(almacen) {
   return almacen?.modo === 'flujo' && Boolean(almacen.flujoAutorizado);
 }
 
-// La HU de la sesion (<session_id>-historia.json) cuyo numero es `numero` y que vive en OTRO repo
-// del proyecto que `repoPropio`, como owner/repo#N, o null. Es el caso del PR de bitacora del
-// plan: la rama del repo de docs lleva el numero de una HU que es un issue de otro repo. Una HU
-// de un repo ajeno al proyecto no cuenta.
-function historiaEnOtroRepo(cfg, sesion, numero, repoPropio) {
-  if (!sesion || !/^[A-Za-z0-9_-]+$/.test(sesion)) return null;
+// Las HU que la sesion tiene anotadas (<session_id>-historia.json), como owner/repo#N en minusculas.
+function historiasDeSesion(cfg, sesion) {
+  if (!sesion || !/^[A-Za-z0-9_-]+$/.test(sesion)) return [];
   let datos;
   try {
     datos = JSON.parse(fs.readFileSync(path.join(cfg.dirEstado, `${sesion}-historia.json`), 'utf8'));
   } catch {
-    return null; // la sesion no tiene historia anotada
+    return []; // la sesion no tiene historia anotada
   }
-  const delProyecto = cfg.git.carpetas.map((carpeta) => repoDe(path.join(cfg.raiz, carpeta))).filter((r) => r && r !== repoPropio);
   const bloques = Array.isArray(datos?.historias) ? datos.historias : [datos];
-  return (
-    bloques
-      .map((b) => String(b?.historia?.clave ?? '').toLowerCase())
-      .find((h) => delProyecto.some((repo) => h === `${repo}#${numero}`)) ?? null
-  );
+  return bloques.map((b) => String(b?.historia?.clave ?? '').toLowerCase()).filter(Boolean);
+}
+
+// La HU de la sesion cuyo numero es `numero` y que vive en OTRO repo del proyecto que `repoPropio`,
+// como owner/repo#N, o null. Es el caso del PR de bitacora del plan: la rama del repo de docs lleva
+// el numero de una HU que es un issue de otro repo. Una HU de un repo ajeno al proyecto no cuenta.
+function historiaEnOtroRepo(cfg, sesion, numero, repoPropio) {
+  const historias = historiasDeSesion(cfg, sesion);
+  if (!historias.length) return null;
+  const delProyecto = cfg.git.carpetas.map((carpeta) => repoDe(path.join(cfg.raiz, carpeta))).filter((r) => r && r !== repoPropio);
+  return historias.find((h) => delProyecto.some((repo) => h === `${repo}#${numero}`)) ?? null;
 }
 
 // --- Pedido de modo al salir de un spike: <dirEstado>/<session_id>.pedido = { modo, fecha } ---
@@ -710,6 +712,7 @@ module.exports = {
   partirEnTramos,
   tramosConCwd,
   historiaEnOtroRepo,
+  historiasDeSesion,
   deducirEstado,
   claveDeRama,
   ramaQueSeCrea,

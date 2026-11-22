@@ -21,7 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, tramosConCwd, historiaEnOtroRepo, pushDe, claveDeRama, repoDe, TICKET_JS } = require('./config');
+const { hook, tramosConCwd, historiaEnOtroRepo, historiasDeSesion, pushDe, claveDeRama, repoDe, escapar, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
@@ -43,6 +43,8 @@ hook((evento, cfg) => {
     const dePr = tramos.find(({ tramo }) => /\bgh\b.*\bpr\s+create\b/.test(tramo))?.cwd ?? cwd;
     const motivo = revisarPr(comando, dePr, cfg);
     if (motivo) return responder({ negar: motivo });
+    const aviso = historiasSinNombrar(comando, dePr, cfg, evento?.session_id);
+    if (aviso) return responder({ avisar: aviso });
   }
 });
 
@@ -122,19 +124,48 @@ function revisarPr(comando, cwd, cfg) {
   if (!clave) return `La rama ${cabeza} no lleva el número de su issue (${formaDeRama(cfg)}): renombrala antes de abrir el PR.`;
 
   const n = clave.split('#')[1];
-  let texto = comando;
-  const archivo = comando.match(/(?:--body-file|-F)[=\s]+["']?([^\s"']+)/)?.[1];
-  if (archivo && archivo !== '-') {
-    try {
-      texto += '\n' + fs.readFileSync(path.resolve(cwd, archivo), 'utf8');
-    } catch {
-      /* archivo ilegible: gh tambien va a fallar */
-    }
-  }
+  const texto = textoDelPr(comando, cwd);
   const referencia = new RegExp(`\\b(?:close[sd]?|refs)\\s+(?:[\\w.-]+/[\\w.-]+)?#${n}(?!\\d)`, 'i');
   if (referencia.test(texto)) return null;
   return `El cuerpo del PR tiene que referenciar el issue de la rama ${cabeza}: \`Closes #${n}\` si el PR `
     + `lo termina, \`Refs #${n}\` si es parcial. Pasalo con --body o --body-file (--fill no lo garantiza).`;
+}
+
+// El comando de gh pr create mas el cuerpo, si viene en un archivo.
+function textoDelPr(comando, cwd) {
+  const archivo = comando.match(/(?:--body-file|-F)[=\s]+["']?([^\s"']+)/)?.[1];
+  if (!archivo || archivo === '-') return comando;
+  try {
+    return comando + '\n' + fs.readFileSync(path.resolve(cwd, archivo), 'utf8');
+  } catch {
+    return comando; // archivo ilegible: gh tambien va a fallar
+  }
+}
+
+// Un PR de plan o de bitacora que toca varias HU las nombra a todas (METODO.md §8): la rama admite
+// un solo numero, y lo unico que deja rastro en las demas es su `Refs owner/repo#N` en el cuerpo.
+// Avisa, no bloquea: la sesion puede tener anotada una HU que este PR no toca.
+function historiasSinNombrar(comando, cwd, cfg, sesion) {
+  const historias = historiasDeSesion(cfg, sesion);
+  if (historias.length < 2) return null;
+  const cabeza = comando.match(/(?:--head|-H)[=\s]+["']?([^\s"']+)/)?.[1] ?? git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const numero = claveDeRama(cabeza, cfg, cwd)?.split('#')[1];
+  if (!numero || !historias.some((h) => h.endsWith(`#${numero}`))) return null; // la rama no es de una HU de la sesion
+
+  const texto = textoDelPr(comando, cwd);
+  const propio = repoDe(cwd);
+  const nombrada = (historia) => {
+    const [repo, n] = historia.split('#');
+    const formas = [escapar(historia), ...(repo === propio ? [`#${n}`] : [])];
+    return new RegExp(`\\brefs\\s+(?:${formas.join('|')})(?!\\d)`, 'i').test(texto);
+  };
+  const faltan = historias.filter((h) => !nombrada(h));
+  if (!faltan.length) return null;
+  return (
+    `Aviso: la sesión tiene varias historias y el cuerpo de este PR no nombra a ${faltan.join(', ')}. Si el PR toca su plan ` +
+    `o su bitácora, agregá una línea por cada una (${faltan.map((h) => `Refs ${h}`).join(', ')}): es lo que deja el rastro en ` +
+    'esa historia. No crees un issue para juntarlas. Si este PR no las toca, no hace falta nada.'
+  );
 }
 
 function git(cwd, args, timeout = 8000) {
