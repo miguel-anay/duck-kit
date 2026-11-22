@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, AGENTES_PRUEBA } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -26,12 +26,12 @@ hook((evento, cfg) => {
 function procesar(cfg) {
   const ramas = ramasAbiertas(cfg);
   const pendientes = pendientesDeCerrar(cfg);
-  const odd = reglaOdd(cfg);
+  const reglas = [...reglaOdd(cfg), ...reglaPruebas(cfg)];
 
-  // Sesion limpia y sin regla de ODD: nada de ruido en el contexto.
-  if (!ramas.length && !pendientes.length && !odd.length) return;
+  // Sesion limpia y sin reglas del proyecto: nada de ruido en el contexto.
+  if (!ramas.length && !pendientes.length && !reglas.length) return;
 
-  const lineas = [...odd];
+  const lineas = [...reglas];
   if (!ramas.length && !pendientes.length) {
     escribir(lineas);
     return;
@@ -129,6 +129,22 @@ function reglaOdd(cfg) {
       'diseño -> duck:analista.',
     '- La rama la crea /duck:tomar con la clave; ODD no crea la suya. Los commits de unidad de ' +
       'trabajo van en esa rama; push, PR y merge siguen el cierre de METODO.md §2 y el modo activo.',
+  ];
+}
+
+// Que agentes de pruebas corre cada repositorio antes del merge (METODO.md §9). Sale de
+// pruebas en duck.json; un repo sin tipos no se nombra, y sin ninguno no se dice nada.
+function reglaPruebas(cfg) {
+  const porRepo = cfg.git.carpetas
+    .map((repo) => ({ repo, agentes: pruebasDe(cfg, repo).map((tipo) => AGENTES_PRUEBA[tipo]) }))
+    .filter(({ agentes }) => agentes.length);
+  if (!porRepo.length) return [];
+  return [
+    'Pruebas por repositorio (METODO.md §9). Despues de duck:verificador y antes del merge, un cambio ' +
+      'de codigo corre solo los agentes de su repositorio; los demas no se lanzan:',
+    ...porRepo.map(({ repo, agentes }) => `- ${repo}: ${agentes.join(', ')}`),
+    '- Ninguno corrige codigo de la aplicacion: lo que encuentran lo reproduce la sesion principal y lo ' +
+      'arregla duck:escritor, con un test por fallo aceptado.',
   ];
 }
 

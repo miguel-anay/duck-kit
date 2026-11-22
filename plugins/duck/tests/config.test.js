@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const { cargar, claveDeRama, clavesEnTexto, repoDe } = require('../scripts/config');
+const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe } = require('../scripts/config');
 
 const temporales = [];
 
@@ -159,4 +159,31 @@ test('jira keys ignore the folder', () => {
   const dir = carpetaGit('https://github.com/org/app.git');
   assert.equal(claveDeRama('feature/ABC-1-x', cfg, dir), 'ABC-1');
   assert.deepEqual(clavesEnTexto('ABC-1 #2', cfg, dir), ['ABC-1']);
+});
+
+// --- test types per repository (pruebas) ---
+
+test('pruebasDe gives each repo its own test types and falls back to pruebas.defecto', () => {
+  const cfg = cargarCon({
+    git: { repos: { api: 'x-api', web: 'x-web', docs: 'x-docs' } },
+    pruebas: { defecto: ['adversarial'], repos: { api: ['fuzz', 'adversarial', 'propiedades'], docs: [] } },
+  });
+  assert.deepEqual(pruebasDe(cfg, 'api'), ['adversarial', 'propiedades', 'fuzz']);
+  assert.deepEqual(pruebasDe(cfg, 'web'), ['adversarial']);
+  assert.deepEqual(pruebasDe(cfg, 'docs'), []);
+});
+
+test('pruebasDe drops unknown and repeated types, and a malformed entry falls back to defecto', () => {
+  const cfg = cargarCon({
+    pruebas: { defecto: ['fuzz', 'mutacion', 'fuzz'], repos: { api: 'adversarial' } },
+  });
+  assert.deepEqual(pruebasDe(cfg, '.'), ['fuzz']);
+  assert.deepEqual(pruebasDe(cfg, 'api'), ['fuzz']);
+  assert.deepEqual(pruebasDe(cargarCon({ pruebas: { defecto: 'fuzz' } }), '.'), []);
+});
+
+test('without a pruebas section no repo has test types', () => {
+  const cfg = cargarCon({ git: { repos: { api: 'x-api' } } });
+  assert.deepEqual(pruebasDe(cfg, 'api'), []);
+  assert.deepEqual(pruebasDe(cfg, '.'), []);
 });

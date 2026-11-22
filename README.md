@@ -177,6 +177,10 @@ del ticket) y `estructura-docs` (dónde va cada documento y la carpeta de docs).
 También trae cuatro agentes que Claude usa solo: `analista` (decide el enfoque), `escritor` (implementa),
 `explorador` (mapea código) y `verificador` (corre la suite y contrasta con el ticket).
 
+Y tres agentes de pruebas que corren antes del merge, solo en los repositorios que los piden en
+`pruebas` de `duck.json`: `adversario` (busca la entrada que rompe el código), `propiedades` (testing
+basado en propiedades) y `fuzz` (fuzzing en tiempo acotado).
+
 ## Glosario
 
 - **Rama base**: la rama de integración (`develop`, o `main` en GitHub). Nadie trabaja directo en ella.

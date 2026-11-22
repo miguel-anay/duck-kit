@@ -25,5 +25,9 @@
   "odd": {
     "tareas": "odd/tasks",
     "diseno": null
+  },
+  "pruebas": {
+    "defecto": ["adversarial"],
+    "repos": {}
   }
 }
