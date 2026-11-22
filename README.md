@@ -205,6 +205,22 @@ y el repo de docs ninguno:
 - Una lista vacía apaga las pruebas de ese repo.
 - Sin `pruebas` en `duck.json` no corre ninguno. `/duck:iniciar` lo pregunta al configurar.
 
+No hace falta correrlos en todo cambio. Con `"cuando": "riesgo"` corren solo cuando el cambio toca
+validaciones, cálculos, permisos o datos que entran de afuera; un cambio de texto en un mensaje no
+lanza nada:
+
+```json
+"pruebas": {
+  "cuando": "riesgo",
+  "riesgo": ["src/mesas", "src/cobros"],
+  "defecto": ["adversarial"]
+}
+```
+
+`riesgo` es opcional: son las carpetas que tu proyecto sabe que son delicadas, además de las que duck
+reconoce por el nombre (`validators/`, `pagos/`, `auth`…) o por el código que se agrega. Sin `cuando`,
+vale `"siempre"`.
+
 Qué tener en cuenta:
 
 - **Ninguno corrige el código de la aplicación.** Lo que encuentran lo arregla `duck:escritor`, con un

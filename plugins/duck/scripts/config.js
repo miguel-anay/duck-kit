@@ -91,7 +91,10 @@ const DEFECTOS = {
   // revision: quien hace la lectura a ciegas del cambio cuando el proyecto usa tambien gentle-ai
   // (METODO.md §7). 'duck' = duck:adversario; 'gentle-ai' = su revision nativa o Judgment Day, y
   // el tipo adversarial no corre en ningun repo; 'auto' = duck:adversario cede si gentle-ai revisa.
-  pruebas: { defecto: [], repos: {}, revision: 'auto' },
+  // cuando: 'siempre' = todo cambio de codigo corre los agentes de su repo; 'riesgo' = solo el que
+  // toca validaciones, calculos, permisos o entradas de afuera. riesgo: fragmentos de ruta propios
+  // del proyecto que cuentan como riesgo ademas de los que duck reconoce solo (METODO.md §9).
+  pruebas: { defecto: [], repos: {}, revision: 'auto', cuando: 'siempre', riesgo: [] },
 };
 
 // Los tipos que duck conoce, en el orden en que corren, y el agente de cada uno.
@@ -148,6 +151,13 @@ function pruebasDe(cfg, carpeta) {
   const lista = Array.isArray(propia) ? propia : Array.isArray(defecto) ? defecto : [];
   const sinAdversarial = revisionDe(cfg) === 'gentle-ai';
   return Object.keys(AGENTES_PRUEBA).filter((tipo) => lista.includes(tipo) && !(sinAdversarial && tipo === 'adversarial'));
+}
+
+// Cuando corren los agentes de pruebas: 'riesgo' solo si el proyecto lo pide; todo lo demas es
+// 'siempre', que es lo que duck hacia antes de que existiera el campo.
+function cuandoDe(cfg) {
+  const valor = cfg.pruebas && cfg.pruebas.cuando;
+  return typeof valor === 'string' && valor.trim().toLowerCase() === 'riesgo' ? 'riesgo' : 'siempre';
 }
 
 // Quien hace la revision a ciegas: 'duck', 'gentle-ai' o 'auto'. Lo que no sea uno de los dos
@@ -623,6 +633,7 @@ module.exports = {
   clavesEnTexto,
   pruebasDe,
   revisionDe,
+  cuandoDe,
   leerPruebas,
   anotarPrueba,
   carpetaDe,

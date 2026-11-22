@@ -27,6 +27,8 @@
     "diseno": null
   },
   "pruebas": {
+    "cuando": "siempre",
+    "riesgo": [],
     "revision": "auto",
     "defecto": ["adversarial"],
     "repos": {}
