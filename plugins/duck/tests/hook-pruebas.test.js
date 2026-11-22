@@ -153,6 +153,12 @@ test('push-con-pruebas uses the test types of the repo being pushed in a multi-r
   assert.equal(correr('push-con-pruebas.js', raiz, bash('git -C web push', raiz)).stdout, '');
 });
 
+test('push-con-pruebas follows a cd in the command to find the repo being pushed', () => {
+  const raiz = proyecto({ ...JIRA, git: { ramaBase: 'main', repos: { api: 'x-api' } }, pruebas: { repos: { api: ['fuzz'] } } });
+  ramaCon(path.join(raiz, 'api'), 'feature/ABC-4-x', 'a.js');
+  assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('cd api && git commit -qm x --allow-empty && git push', raiz))), /feature\/ABC-4-x.*duck:fuzz/);
+});
+
 test('push-con-pruebas tells an auto project that a gentle-ai review stands in for duck:adversario', () => {
   const raiz = proyecto({ ...JIRA, odd: { tareas: 'odd/tasks' }, pruebas: { defecto: ['adversarial'] } });
   ramaCon(raiz, 'feature/ABC-5-x', 'a.js');

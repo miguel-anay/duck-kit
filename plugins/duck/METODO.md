@@ -332,7 +332,9 @@ proyecto, si la hay), no una traducción de Jira. Lo que no aparece acá queda i
 HU (`docs/96-bitacora`), y el cuerpo del PR la nombra completa (`Refs owner/repo#96`): un `#96` suelto
 enlazaría el issue 96 del repo de docs. `push-con-issue.js` busca primero ese número en el repo de la
 rama; si ahí no existe y es el de la HU de la sesión en otro repo del proyecto, la deja salir. Un issue
-del repo de docs con ese número que sí existe manda, aunque esté cerrado.
+del repo de docs con ese número que sí existe manda, aunque esté cerrado. Al mergearlo,
+`cierre-finalizado.js` reconoce el mismo caso y no manda nada a Done: un PR de bitácora no finaliza la
+HU ni ningún issue del repo de docs.
 
 **Tickets y claves.** La HU es un issue de tipo `Feature` o `Bug`; las tareas son sub-issues `Task` solo
 cuando una tiene su propio PR, otro repo u otra persona. Una HU de varios repos vive en el repo de

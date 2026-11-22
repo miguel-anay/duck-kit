@@ -16,15 +16,15 @@
 // lo bloquea guard-git.js; este hook no lo duplica.
 
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, pushDe } = require('./config');
+const { hook, tramosConCwd, pushDe } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
   const cwd = evento?.cwd || process.cwd();
   if (!/\bgit\b[^\n;&|]*\bpush\b/.test(comando)) return;
 
-  for (const tramo of partirEnTramos(comando)) {
-    const push = leerPush(tramo, cwd, cfg);
+  for (const { tramo, cwd: carpeta } of tramosConCwd(comando, cwd)) {
+    const push = leerPush(tramo, carpeta, cfg);
     if (!push) continue;
     const veredicto = revisar(push, cfg.git.ramaBase);
     if (veredicto?.bloquear) return responder('deny', veredicto.texto);

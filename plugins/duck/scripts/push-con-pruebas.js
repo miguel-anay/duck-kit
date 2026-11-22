@@ -9,7 +9,7 @@
 // persona, y el push sigue. Una rama que solo toca documentacion no pide nada.
 
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, pushDe, ramaDe, carpetaDe, pruebasDe, revisionDe, cuandoDe, leerPruebas, AGENTES_PRUEBA } = require('./config');
+const { hook, tramosConCwd, pushDe, ramaDe, carpetaDe, pruebasDe, revisionDe, cuandoDe, leerPruebas, AGENTES_PRUEBA } = require('./config');
 
 // Lo que nunca cambia el comportamiento. Un .txt puede ser requirements.txt o CMakeLists.txt, y un
 // .svg puede llevar script: cuentan como codigo.
@@ -17,8 +17,8 @@ const PASIVO = /\.(md|mdx|rst|adoc|png|jpe?g|gif|webp|pdf)$/i;
 
 hook((evento, cfg) => {
   const avisos = [];
-  for (const tramo of partirEnTramos(evento?.tool_input?.command ?? '')) {
-    const aviso = revisar(tramo, evento?.cwd || cfg.raiz, cfg);
+  for (const { tramo, cwd } of tramosConCwd(evento?.tool_input?.command ?? '', evento?.cwd || cfg.raiz)) {
+    const aviso = revisar(tramo, cwd, cfg);
     if (aviso && !avisos.includes(aviso)) avisos.push(aviso);
   }
   if (avisos.length) avisar(avisos.join('\n\n'));

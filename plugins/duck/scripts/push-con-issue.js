@@ -21,15 +21,16 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { hook, partirEnTramos, pushDe, claveDeRama, repoDe, TICKET_JS } = require('./config');
+const { hook, tramosConCwd, historiaEnOtroRepo, pushDe, claveDeRama, repoDe, TICKET_JS } = require('./config');
 
 hook((evento, cfg) => {
   const comando = evento?.tool_input?.command ?? '';
   const cwd = evento?.cwd || process.cwd();
 
+  const tramos = tramosConCwd(comando, cwd);
   if (/\bgit\b[^\n;&|]*\bpush\b/.test(comando)) {
-    for (const tramo of partirEnTramos(comando)) {
-      const push = pushDe(tramo, cwd);
+    for (const { tramo, cwd: carpeta } of tramos) {
+      const push = pushDe(tramo, carpeta);
       if (!push?.origen) continue;
       const rama = push.destino === 'HEAD' ? git(push.dir, ['rev-parse', '--abbrev-ref', 'HEAD']) : push.destino;
       const veredicto = revisarPush(rama, push, cfg, evento?.session_id);
@@ -38,7 +39,9 @@ hook((evento, cfg) => {
   }
 
   if (cfg.tickets.proveedor === 'github' && /\bgh\b[^\n]*?\bpr\s+create\b/.test(comando)) {
-    const motivo = revisarPr(comando, cwd, cfg);
+    // La carpeta del tramo que abre el PR: de ahi sale la rama cuando no hay --head.
+    const dePr = tramos.find(({ tramo }) => /\bgh\b.*\bpr\s+create\b/.test(tramo))?.cwd ?? cwd;
+    const motivo = revisarPr(comando, dePr, cfg);
     if (motivo) return responder({ negar: motivo });
   }
 });
@@ -80,22 +83,9 @@ function revisarPush(rama, { dir, remoto }, cfg, sesion) {
 
 // Si el numero de la rama es el de la HU de la sesion, que vive en OTRO repo del proyecto y sirve
 // como issue. Solo rescata un numero que en el repo de la rama no existe: un issue propio que
-// existe (cerrado, o un Task sin HU) manda, y una HU de un repo ajeno al proyecto no cuenta.
+// existe (cerrado, o un Task sin HU) manda.
 function deLaHistoria(clave, dir, cfg, sesion) {
-  if (!sesion || !/^[A-Za-z0-9_-]+$/.test(sesion)) return false;
-  let datos;
-  try {
-    datos = JSON.parse(fs.readFileSync(path.join(cfg.dirEstado, `${sesion}-historia.json`), 'utf8'));
-  } catch {
-    return false; // la sesion no tiene historia anotada
-  }
-  const numero = clave.split('#')[1];
-  const propio = repoDe(dir);
-  const delProyecto = cfg.git.carpetas.map((carpeta) => repoDe(path.join(cfg.raiz, carpeta))).filter((r) => r && r !== propio);
-  const bloques = Array.isArray(datos?.historias) ? datos.historias : [datos];
-  const historia = bloques
-    .map((b) => String(b?.historia?.clave ?? '').toLowerCase())
-    .find((h) => delProyecto.some((repo) => h === `${repo}#${numero}`));
+  const historia = historiaEnOtroRepo(cfg, sesion, clave.split('#')[1], repoDe(dir));
   if (!historia) return false;
   const { problema, aviso } = revisarIssue(historia, cfg);
   return !problema && !aviso;
