@@ -248,6 +248,8 @@ cualquier etiqueta que signifique «una persona lo vio»: si la pudiera poner un
 | Qué quedó abierto al arrancar | `sesion-inicio.js` |
 | Merge por la API con chequeos | `mergear-pr.js` |
 | ODD escribe su documento fuera de los repos y delega en duck | `sesion-inicio.js` (inyecta la regla si `odd.tareas` está) |
+| Qué agentes de pruebas corre cada repositorio, y quién revisa | `sesion-inicio.js` (lo dice al arrancar) |
+| Una rama no sale sin que alguien sepa qué pruebas le faltaron | `pruebas-anota.js` anota cada agente lanzado; `push-con-pruebas.js` **avisa** en el push, no bloquea |
 
 Los guardias fallan **abiertos**: un JSON ilegible, un estado que no se puede leer o una excepción dejan pasar
 el comando. Pero no en silencio: si un guardia no pudo revisar (una excepción, `gh` o el remoto sin
@@ -255,6 +257,9 @@ responder), la persona ve un aviso que lo dice. Comparan el texto literal del co
 ajenos) no se detecta: son una red, no un sandbox.
 
 ## 7. Convivencia con ODD de gentle-ai
+
+duck y gentle-ai no son rivales: cubren capas distintas, y duck funciona con gentle-ai o sin él. Esta
+sección dice quién manda en cada punto donde los dos tienen algo que decir, para que no choquen.
 
 gentle-ai trae **ODD** (Organic Driven Development) como flujo por defecto: el trabajo chico va inline, el
 grande lleva un documento de feature (`odd/tasks/<feature>.md` + espejo en Engram) con `## Specs`,
@@ -285,6 +290,7 @@ documento de ODD, el otro carril no la ve.
 | Verificador independiente (ODD lo pide solo para un cambio de alto riesgo) | Es `duck:verificador`, una sola vez: no se lanza otro además. Sin esa exigencia, lo que el método pide siempre es la suite en verde del cierre (sección 2), no un verificador por cambio. |
 | Revisión nativa (RDD: hasta cuatro revisores, según el riesgo que da `gentle-ai review assess`) | Corre sobre el cambio ya terminado, así que va **después** de `duck:propiedades` y `duck:fuzz`, cuyos arreglos cambian el código. Si el cambio va a pasar por ella, `duck:adversario` no se lanza: es la misma lectura a ciegas. Si no le toca o la persona la declina, el adversarial corre como diga `pruebas`. |
 | Judgment Day (dos jueces a ciegas, `jd-judge-a` y `jd-judge-b`) | Corre solo cuando alguien lo pide y mira también seguridad, rendimiento y estándares. Si corrió sobre ese mismo cambio, `duck:adversario` no se lanza. Nunca los dos. |
+| Quién hace la revisión a ciegas | Lo elige cada proyecto en `pruebas.revision` de `duck.json`: `duck`, `gentle-ai` o `auto` (sección 9). Las dos filas de arriba describen `auto`. |
 | Memoria entre sesiones (Engram) | Guarda decisiones, descubrimientos y el espejo del documento de ODD. En qué tarea y rama está la sesión lo guarda duck en `.claude/estado/`, que es lo único que leen los hooks. Ninguna reemplaza a la otra: el estado de una tarea no se guarda en Engram, y una decisión no se busca en `.claude/estado/`. |
 
 **Variante de un solo documento (`odd.versionado: true`):** hay proyectos que no separan los dos
@@ -402,10 +408,25 @@ tiene `propiedades`, un fallo sobre un validador, un parser o un cálculo se fij
 como ejemplo suelto. `duck:propiedades` y `duck:fuzz` no instalan su herramienta: si falta, devuelven
 `blocked` y agregar la dependencia lo decide el proyecto.
 
-**Con gentle-ai instalado.** Si ese cambio va a pasar por la revisión nativa de gentle-ai o por
-Judgment Day, la revisión adversarial se saltea y se dice así en el reporte (sección 7): las tres son
-lecturas a ciegas del mismo código. `duck:propiedades` y `duck:fuzz` corren igual, y antes de esa
-revisión: generan entradas, que es lo que una lectura no hace.
+**Con gentle-ai instalado: una sola revisión a ciegas por cambio.** La revisión nativa de gentle-ai,
+Judgment Day y `duck:adversario` leen a ciegas el mismo código. Quién la hace lo elige el proyecto en
+`pruebas.revision`:
+
+| `pruebas.revision` | Quién revisa | Qué pasa con el otro |
+|---|---|---|
+| `"duck"` | `duck:adversario`, en los repos con `adversarial` | La sesión no inicia la revisión nativa ni Judgment Day. El interruptor de gentle-ai es de la persona (`gentle-ai review mode disable --scope clone`, en cada repo): duck no lo toca. |
+| `"gentle-ai"` | La revisión nativa o Judgment Day | El tipo `adversarial` no corre en ningún repo, aunque esté en la lista. |
+| `"auto"` (por defecto) | Depende del cambio | Si el cambio va a pasar por gentle-ai, `duck:adversario` no se lanza; si no, corre. |
+
+`duck:propiedades` y `duck:fuzz` corren en los tres casos, y antes de la revisión de gentle-ai: generan
+entradas, que es lo que una lectura no hace, y sus arreglos cambian el código que se revisa.
+
+**Lo que se hace cumplir.** `pruebas-anota.js` anota en `.claude/estado/pruebas.json` cada agente de
+pruebas que se lanza, para la rama de trabajo actual. Al hacer push, `push-con-pruebas.js` compara eso
+con lo que `pruebas` pide para ese repositorio y **avisa** si falta alguno; el push sigue. No avisa en
+la rama base ni cuando la rama solo toca documentación o imágenes. Es un aviso y no un bloqueo porque
+hay saltos válidos que el hook no ve (con `revision: "auto"`, la revisión de gentle-ai reemplaza a
+`duck:adversario`), y porque sabe que el agente corrió, no que se arregló lo que encontró.
 
 **No es la prueba en vivo.** Estos tres corren en local, antes del merge. Probar la aplicación
 desplegada es otro paso, después.

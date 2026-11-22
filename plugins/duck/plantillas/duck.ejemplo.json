@@ -43,6 +43,7 @@
     "diseno": "docs/disenos/{historia}.md"
   },
   "pruebas": {
+    "revision": "auto",
     "defecto": ["adversarial"],
     "repos": {
       "api": ["adversarial", "propiedades", "fuzz"],

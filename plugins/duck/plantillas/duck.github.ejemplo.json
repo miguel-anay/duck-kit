@@ -27,6 +27,7 @@
     "diseno": null
   },
   "pruebas": {
+    "revision": "auto",
     "defecto": ["adversarial"],
     "repos": {}
   }

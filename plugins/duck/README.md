@@ -24,6 +24,8 @@ salen sin ruido, el panel no se registra, el status line no imprime nada.
 | Hook `rama-reusada` | `scripts/rama-reusada.js` | Avisa al crear una rama con una clave ya usada bajo otro nombre. |
 | Hook `push-sobre-develop-al-dia` | `scripts/push-sobre-develop-al-dia.js` | Bloquea el primer push si la base avanzó (rebase antes). Es independiente del nombre de la base. |
 | Hook `push-con-issue` | `scripts/push-con-issue.js` | Una rama de trabajo no sale sin su issue: deniega el `git push` de una rama de `git.prefijos` sin clave en el nombre y, con GitHub, si el issue no existe, está cerrado o es un `Task` que no cuelga de una HU (`ticket.js ver`; un Bug o una Feature sueltos pasan). Deniega `gh pr create` sin `Closes #N` o `Refs #N` del issue de la rama en el cuerpo. Una rama que ya estaba publicada solo recibe un aviso. |
+| Hook `pruebas-anota` | `scripts/pruebas-anota.js` | Anota en `.claude/estado/pruebas.json` que `duck:adversario`, `duck:propiedades` o `duck:fuzz` se lanzó, para la rama de trabajo actual de cada repo. Lo anota el hook, no el agente. |
+| Hook `push-con-pruebas` | `scripts/push-con-pruebas.js` | **Avisa, no bloquea**, cuando sale el `git push` de una rama a la que le faltan agentes de los que su repo pide en `pruebas`. No avisa en la rama base, ni si la rama solo toca documentación o imágenes. Sabe que el agente corrió, no que se arregló lo que encontró. |
 | Hook `guard-spike` | `scripts/guard-spike.js` | En spike: sin push, sin PR, sin escrituras en Jira ni en GitHub (issues, Project), sin clave en commits. |
 | Hook `plan-con-existente` | `scripts/plan-con-existente.js` | Deniega escribir el plan de la historia (`odd.diseno`) sin la sección `## Lo que ya existe`: antes de proponer, el analista busca en los repos si ya está implementado. Sin `odd.diseno` no hace nada. |
 | Hook `guard-adr` | `scripts/guard-adr.js` | Deniega editar un ADR (`NNNN-titulo.md` en la carpeta `adr`) que está `Status: Accepted` en la rama base (`origin/HEAD`), salvo su línea Status (`Superseded by NNNN`, `Deprecated`). Un ADR nuevo o `Proposed` en la base sigue editable en su PR. También cuida los worktrees del repo de docs. Sin `adr` no hace nada. |
@@ -69,12 +71,13 @@ archivos del cambio (METODO.md §9):
   regresión la entrada mínima que rompe.
 - **Ninguno corrige código de la aplicación.** Cada fallo aceptado va a `duck:escritor`, que escribe
   primero el test y después el arreglo.
-- **Con gentle-ai, `duck:adversario` cede.** Si el cambio pasa por la revisión nativa o por Judgment Day,
-  no se lanza; `duck:propiedades` y `duck:fuzz` corren antes de esa revisión (METODO.md §7). Con
-  `odd.tareas` configurado, `sesion-inicio.js` lo dice al arrancar.
+- **Con gentle-ai, una sola revisión a ciegas.** `pruebas.revision` dice quién la hace: `duck`,
+  `gentle-ai` o `auto`, donde `duck:adversario` cede si gentle-ai revisa ese cambio. `duck:propiedades`
+  y `duck:fuzz` corren siempre, antes de esa revisión (METODO.md §9). `sesion-inicio.js` lo dice al
+  arrancar.
 
 Qué agentes corre cada repositorio sale de [`pruebas`](#pruebas) en `duck.json`, y `sesion-inicio.js`
-se lo dice a la sesión al arrancar. No hay guardia que lo exija: es una instrucción en el contexto.
+se lo dice a la sesión al arrancar. `push-con-pruebas.js` avisa en el push si faltó alguno; no lo bloquea.
 
 ## Instalación
 
@@ -216,6 +219,7 @@ Necesita `gh` con sesión y el scope `project`: `gh auth status` lo muestra; si 
 |---|---|---|
 | `defecto` | `[]` | Tipos de prueba del proyecto de un solo repo y de toda carpeta que `repos` no nombre: `adversarial`, `propiedades`, `fuzz`. Vacío = ninguno. Un valor que no sea uno de esos tres se descarta. |
 | `repos` | `{}` | Carpeta (la misma clave que en `git.repos`) → su propia lista, que reemplaza a `defecto`. Una lista vacía apaga las pruebas de ese repositorio. Con algún tipo configurado, `sesion-inicio.js` le dice a la sesión qué agentes corre cada repositorio (METODO.md §9). |
+| `revision` | `auto` | Quién hace la revisión a ciegas del cambio cuando el proyecto también usa gentle-ai: `duck` (`duck:adversario`; la sesión no inicia la revisión nativa ni Judgment Day), `gentle-ai` (el tipo `adversarial` no corre en ningún repo) o `auto` (`duck:adversario` cede si gentle-ai revisa ese cambio). Otro valor se trata como `auto`. duck no prende ni apaga el interruptor de gentle-ai: con `duck`, eso lo hace la persona con `gentle-ai review mode disable --scope clone`. |
 
 ### `odd`
 
@@ -235,6 +239,38 @@ Todo lo que escriben los hooks va a `<proyecto>/.claude/estado/`:
 - `ultimo-contexto-stop.json` — volcado de diagnóstico del último `Stop`.
 
 Es estado local por máquina: va al `.gitignore`. Las sesiones de más de 16 horas se barren solas.
+
+## Con gentle-ai
+
+duck y gentle-ai no compiten: gentle-ai dice **cómo** se ejecuta una tarea (ODD, test-first, revisión,
+memoria) y duck dice **dónde** vive el trabajo y **cómo** sale al remoto (rama por ticket, estado, puerta,
+merge). duck no depende de gentle-ai, y con los dos instalados cada punto de contacto tiene dueño
+(METODO.md §7):
+
+| Punto de contacto | Campo de `duck.json` | Qué hace |
+|---|---|---|
+| Documento de feature de ODD | `odd.tareas`, `odd.diseno`, `odd.versionado` | `sesion-inicio.js` le da a ODD la ruta absoluta, la estrategia `single-pr` y los agentes de duck |
+| Agentes que ODD delega | — | ODD decide cuándo; duck, a quién |
+| Revisión a ciegas del cambio | `pruebas.revision` | `duck`, `gentle-ai` o `auto`: una sola lectura por cambio |
+| Memoria | — | Engram guarda decisiones; `.claude/estado/` guarda la tarea y la rama de la sesión |
+
+Ejemplo de un proyecto que usa ODD de gentle-ai, revisa con los agentes de duck y suma propiedades y
+fuzzing solo en la API:
+
+```json
+{
+  "odd": { "tareas": "odd/tasks", "diseno": "docs/disenos/{historia}.md" },
+  "pruebas": {
+    "revision": "duck",
+    "defecto": ["adversarial"],
+    "repos": { "api": ["adversarial", "propiedades", "fuzz"], "docs": [] }
+  }
+}
+```
+
+El mismo proyecto dejando la revisión a gentle-ai: `"revision": "gentle-ai"`, y `adversarial` deja de
+correr aunque siga en las listas. Con `"duck"`, la revisión nativa de gentle-ai la apaga la persona en
+cada repo (`gentle-ai review mode disable --scope clone`); duck nunca toca ese interruptor.
 
 ## Dependencias de la máquina
 

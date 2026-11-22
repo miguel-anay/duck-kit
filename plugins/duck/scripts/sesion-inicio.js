@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, AGENTES_PRUEBA } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, revisionDe, AGENTES_PRUEBA } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -139,20 +139,38 @@ function reglaPruebas(cfg) {
     .map((repo) => ({ repo, agentes: pruebasDe(cfg, repo).map((tipo) => AGENTES_PRUEBA[tipo]) }))
     .filter(({ agentes }) => agentes.length);
   if (!porRepo.length) return [];
-  // Con ODD hay otras dos lecturas a ciegas del mismo cambio (METODO.md §7): no se pagan dos veces.
-  const conGentle = cfg.odd && cfg.odd.tareas && porRepo.some(({ agentes }) => agentes.includes(AGENTES_PRUEBA.adversarial));
   return [
     'Pruebas por repositorio (METODO.md §9). Con el cambio implementado y su suite en verde, antes del ' +
       'cierre, un cambio de codigo corre solo los agentes de su repositorio; los demas no se lanzan:',
     ...porRepo.map(({ repo, agentes }) => `- ${repo}: ${agentes.join(', ')}`),
     '- Ninguno corrige codigo de la aplicacion: lo que encuentran lo reproduce la sesion principal y lo ' +
       'arregla duck:escritor, con un test por fallo aceptado.',
-    ...(conGentle
-      ? [
-          '- Si ese cambio va a pasar por la revision nativa de gentle-ai o Judgment Day, duck:adversario no se lanza: ' +
-            'es la misma lectura a ciegas. duck:propiedades y duck:fuzz corren igual, y antes de esa revision.',
-        ]
-      : []),
+    ...reglaRevision(cfg, porRepo),
+  ];
+}
+
+// Una sola lectura a ciegas por cambio (METODO.md §7). pruebas.revision dice quien la hace; sin
+// elegir, duck:adversario cede ante gentle-ai, y eso solo se dice si el proyecto usa ODD.
+function reglaRevision(cfg, porRepo) {
+  const revision = revisionDe(cfg);
+  if (revision === 'gentle-ai') {
+    return [
+      '- La revision a ciegas de este proyecto la hace gentle-ai (pruebas.revision): su revision nativa o ' +
+        'Judgment Day. duck:adversario no se lanza. Los demas agentes corren antes de esa revision.',
+    ];
+  }
+  if (!porRepo.some(({ agentes }) => agentes.includes(AGENTES_PRUEBA.adversarial))) return [];
+  if (revision === 'duck') {
+    return [
+      '- La revision a ciegas de este proyecto la hace duck:adversario (pruebas.revision): no inicies la ' +
+        'revision nativa de gentle-ai ni Judgment Day sobre el mismo cambio. Si gentle-ai la pide igual, no la ' +
+        'apagues vos: decile a la persona que el interruptor es gentle-ai review mode disable --scope clone.',
+    ];
+  }
+  if (!(cfg.odd && cfg.odd.tareas)) return [];
+  return [
+    '- Si ese cambio va a pasar por la revision nativa de gentle-ai o Judgment Day, duck:adversario no se lanza: ' +
+      'es la misma lectura a ciegas. duck:propiedades y duck:fuzz corren igual, y antes de esa revision.',
   ];
 }
 
