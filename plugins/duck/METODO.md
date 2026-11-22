@@ -421,12 +421,17 @@ Judgment Day y `duck:adversario` leen a ciegas el mismo código. Quién la hace 
 `duck:propiedades` y `duck:fuzz` corren en los tres casos, y antes de la revisión de gentle-ai: generan
 entradas, que es lo que una lectura no hace, y sus arreglos cambian el código que se revisa.
 
-**Lo que se hace cumplir.** `pruebas-anota.js` anota en `.claude/estado/pruebas.json` cada agente de
-pruebas que se lanza, para la rama de trabajo actual. Al hacer push, `push-con-pruebas.js` compara eso
-con lo que `pruebas` pide para ese repositorio y **avisa** si falta alguno; el push sigue. No avisa en
-la rama base ni cuando la rama solo toca documentación o imágenes. Es un aviso y no un bloqueo porque
-hay saltos válidos que el hook no ve (con `revision: "auto"`, la revisión de gentle-ai reemplaza a
-`duck:adversario`), y porque sabe que el agente corrió, no que se arregló lo que encontró.
+**Lo que se hace cumplir.** `pruebas-anota.js` anota en `.claude/estado/pruebas/` cada agente de
+pruebas de duck que se lanza, para la rama de trabajo actual; uno que devolvió `blocked` no se anota,
+porque no probó nada. Al hacer push, `push-con-pruebas.js` compara eso con lo que `pruebas` pide para
+ese repositorio y **avisa** si falta alguno; el push sigue. No avisa en la rama base ni cuando la rama
+solo toca documentación o imágenes. Es un aviso y no un bloqueo por lo que el hook no puede ver:
+
+- Con `revision: "auto"`, la revisión de gentle-ai reemplaza a `duck:adversario`, y ese salto es válido.
+- Sabe que el agente corrió, no que se arregló lo que encontró.
+- Una anotación vale 30 días para esa rama. Si después de correr el agente la rama sumó trabajo nuevo,
+  el hook no lo distingue de los commits que arreglan lo que el agente encontró, y no vuelve a avisar.
+- Un agente lanzado en segundo plano se anota al lanzarlo, antes de saber si devolvió `blocked`.
 
 **No es la prueba en vivo.** Estos tres corren en local, antes del merge. Probar la aplicación
 desplegada es otro paso, después.
