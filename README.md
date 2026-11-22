@@ -174,12 +174,49 @@ Los comandos son skills del plugin que solo invocás vos; `/duck:estado` tambié
 Dos skills más que Claude carga sola cuando hacen falta: `evidencia-de-pruebas` (el comentario de cierre
 del ticket) y `estructura-docs` (dónde va cada documento y la carpeta de docs).
 
-También trae cuatro agentes que Claude usa solo: `analista` (decide el enfoque), `escritor` (implementa),
-`explorador` (mapea código) y `verificador` (corre la suite y contrasta con el ticket).
+## Agentes
 
-Y tres agentes de pruebas que corren antes del merge, solo en los repositorios que los piden en
-`pruebas` de `duck.json`: `adversario` (busca la entrada que rompe el código), `propiedades` (testing
-basado en propiedades) y `fuzz` (fuzzing en tiempo acotado).
+Claude los usa solo; no hace falta invocarlos. Cada uno hace una cosa y devuelve un reporte.
+
+| Agente | Qué hace | ¿Escribe? |
+|---|---|---|
+| `duck:analista` | Lee el ticket, decide el alcance y el enfoque, y escribe el plan de la historia. | Solo el plan |
+| `duck:explorador` | Mapea cómo funciona hoy el código y devuelve un mapa corto. | No |
+| `duck:escritor` | Implementa un cambio ya decidido, con sus tests. | Código y tests |
+| `duck:verificador` | Corre la suite y contrasta el resultado con lo que pedía el ticket. | No |
+| `duck:adversario` | Busca la entrada que rompe el código y los tests que pasan sin probar nada. | No |
+| `duck:propiedades` | Escribe tests basados en propiedades con la librería que el repo ya tiene. | Solo tests |
+| `duck:fuzz` | Corre fuzzing local, en tiempo acotado, sobre lo que recibe datos de afuera. | Solo arnés y casos de regresión |
+
+### Pruebas por repositorio
+
+Los tres últimos son agentes de pruebas. Corren antes del merge, después de `duck:verificador`, y
+**cada repositorio elige cuáles usa**. En un proyecto de varios repos, la API puede correr los tres
+y el repo de docs ninguno:
+
+```json
+"pruebas": {
+  "defecto": ["adversarial"],
+  "repos": { "api": ["adversarial", "propiedades", "fuzz"], "docs": [] }
+}
+```
+
+- `defecto` vale para el proyecto de un solo repo y para todo repo que `repos` no nombre.
+- Una lista vacía apaga las pruebas de ese repo.
+- Sin `pruebas` en `duck.json` no corre ninguno. `/duck:iniciar` lo pregunta al configurar.
+
+Qué tener en cuenta:
+
+- **Ninguno corrige el código de la aplicación.** Lo que encuentran lo arregla `duck:escritor`, con un
+  test por cada fallo.
+- **`duck:adversario` corre dos veces en paralelo** y sin ver la conversación, para no heredar los puntos
+  ciegos de quien escribió el código. La sesión principal reproduce cada fallo y decide si es real.
+- **`duck:propiedades` y `duck:fuzz` no instalan nada.** Si el repo no tiene la librería o el arnés,
+  avisan y proponen cuál agregar; sumarla es decisión del proyecto.
+- **No reemplazan la prueba en vivo.** Corren en local, sobre el código; probar la aplicación desplegada
+  es otro paso.
+
+El detalle está en [METODO.md §9](plugins/duck/METODO.md).
 
 ## Glosario
 
@@ -188,6 +225,8 @@ basado en propiedades) y `fuzz` (fuzzing en tiempo acotado).
 - **Modo tarea / flujo / spike**: una sub-tarea por vez; una historia completa en secuencia; una prueba
   local sin ticket.
 - **La puerta**: el único momento en que duck pide permiso; todo lo anterior es local.
+- **Tipos de prueba**: `adversarial`, `propiedades` y `fuzz`; lo que cada repo corre antes del merge,
+  además de su suite.
 
 ## Herramientas opcionales
 
