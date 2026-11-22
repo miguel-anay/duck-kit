@@ -1,6 +1,6 @@
 ---
 name: iniciar
-description: Configura duck en este proyecto — detecta repos, rama base y Jira o GitHub Projects, pregunta lo propio del proyecto, y genera .claude/duck.json y su archivo de convenciones
+description: Configura duck en este proyecto — detecta repos, rama base, Jira o GitHub Projects y la norma propia del proyecto (ramas, commits, specs), pregunta lo propio del proyecto, y genera .claude/duck.json y su archivo de convenciones
 argument-hint: "[clave-de-jira]"
 allowed-tools: Bash, Read, Write, Glob, Grep, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__getVisibleJiraProjects, mcp__atlassian__discover, mcp__atlassian__executeRead
 disable-model-invocation: true
@@ -80,6 +80,20 @@ Si `gh` no está, no tiene sesión o no tiene acceso a la organización, se dice
 
 **Nunca adivines un id ni un nombre de estado.** Lo que no salga de una respuesta real de alguna de las fuentes queda con el valor por defecto, y en el paso 5 se marca como «sin verificar».
 
+## 2c. La norma del proyecto: la de duck o la propia
+
+Un proyecto puede tener ya su norma de trabajo (rama `tipo/spec-NNN-slug`, commits `SPEC-NNN: …`, specs en `specs/NNN-slug/spec.md`…). **Manda la del proyecto, no la de duck**: duck se adapta y la respeta, y la de Jira o GitHub de este archivo es solo el valor por defecto.
+
+- **Buscala, sin preguntar.** Los `CLAUDE.md` de la raíz y de cada repo, y los documentos de norma que estos citen o que existan en la carpeta de docs (`convenciones*.md`, `CONTRIBUTING.md`, `conventions*`, una plantilla de sdd-kit). Buscá reglas de **ramas** (formato, tipos, rama base), de **commits** (formato, si un hook `commit-msg` lo valida) y de la **unidad de trabajo** (¿el trabajo se identifica por ticket, o por una spec con número propio y dónde vive?). No leas `.env` ni secretos.
+- **Si la encontrás**, traducila a campos de `duck.json` (referencia en el README, «`trabajo`, `commits` y `norma`»), citando de qué líneas sale cada uno:
+  - `trabajo`: `id`, `clave` (`SPEC-{NNN}`), `rama` (`{tipo}/spec-{NNN}-{slug}`), `fuente` (`<docs>/specs/{NNN}-{slug}/spec.md`, relativa a la raíz). **Solo los marcadores `{tipo} {NNN} {slug} {clave}`**: si la norma pide otra cosa, no inventes un marcador ni pongas una expresión regular; decilo en el paso 5 como algo que duck no puede validar. `{tipo}` sale de `git.prefijos`, así que los tipos de la norma van ahí.
+  - `commits.formato`: `SPEC-{NNN}: {descripcion}`. duck no lo valida (lo hace el hook del proyecto); lo usan `/duck:tomar` y los agentes.
+  - `git.ramaBase` y `git.prefijos`: los de la norma, aunque git sugiera otros (la norma manda; mostrá la diferencia).
+  - `norma.archivo`: el documento principal. `norma.hash` se calcula al escribir (paso 6), nunca a mano.
+  - Si la unidad es propia y el proyecto **también** usa Jira, `jira` se configura igual (paso 2): el ticket se enlaza desde la spec (`jira:` en su encabezado) y `/duck:tomar` lo mueve.
+- **Si no la encontrás** (proyecto nuevo, o sin docs), **preguntá antes de seguir**, con `AskUserQuestion` y una sola pregunta: *adoptar las convenciones de duck* (ticket de Jira o de GitHub como clave, `<prefijo>/<CLAVE>-<slug>` — lo de siempre) o *adoptar una norma externa* que la persona indique (una ruta, un repo o una plantilla como sdd-kit). Con la externa, leela y seguí como si la hubieras encontrado; si conviene copiarla al proyecto, proponelo en el paso 5, no lo hagas solo. **Nunca apliques los valores por defecto sin esa respuesta.**
+- **Con `duck.json` existente** (paso 0) que ya sigue Jira, GitHub o una norma propia: se respeta. Solo se muestran las diferencias con lo detectado y se escribe lo que la persona apruebe; adaptarlo es decisión de ella.
+
 ## 3. Preguntar lo que no se puede detectar
 
 **Una pregunta por vez, y esperá la respuesta.** Proponé siempre una respuesta, la que sale de lo detectado, para que alcance con decir «sí». Saltá las que ya quedaron resueltas.
@@ -110,7 +124,7 @@ Validá el JSON antes de mostrarlo: `node -e "JSON.parse(require('fs').readFileS
 
 Mostrá los dos archivos completos (o, si ya existían, las diferencias), y debajo:
 
-- Lo **detectado**, con su origen en una línea (por ejemplo: `git.ramaBase = develop` — `origin/HEAD` de los 3 repos).
+- Lo **detectado**, con su origen en una línea (por ejemplo: `git.ramaBase = develop` — `origin/HEAD` de los 3 repos). Con norma propia, cada campo de `trabajo`, `commits` y `git` con el archivo y la línea de la norma de la que sale, y lo que la norma pide y duck no puede validar.
 - Lo **sin verificar**: lo que quedó con el valor por defecto porque no se pudo consultar.
 - Los repos con **`delete_branch_on_merge` en `false`**, cada uno con el comando que lo prende: `gh api -X PATCH repos/<org>/<repo> -F delete_branch_on_merge=true`. Lo corre la persona (pide admin del repo); duck no lo cambia.
 - La **regla de permiso del merge**, para que la persona la agregue a mano en `permissions.allow` de `.claude/settings.json`: `"Bash(node ${CLAUDE_PLUGIN_ROOT}/scripts/mergear-pr.js:*)"`, con la ruta tal como se expande acá. Sin ella, el auto mode de Claude Code frena el merge del modo flujo («Merge Without Review»), porque no lee el modo de duck. Cubre solo ese script, que exige CI en verde y el head verificado, y `guard-git.js` lo niega fuera del modo flujo salvo con `--a-pedido`. duck no la escribe: ampliar permisos lo decide la persona.
@@ -121,10 +135,10 @@ Esperá un «sí» explícito. Una corrección no es un sí: se aplica, se vuelv
 
 ## 6. Escribir
 
-1. Los dos archivos.
+1. Los dos archivos. Con `norma.archivo`, antes de escribir `duck.json` calculá `norma.hash` con `node "${CLAUDE_PLUGIN_ROOT}/scripts/norma.js" hash <norma.archivo>` (desde la raíz) y ponelo tal cual.
 2. `.claude/estado/` en el `.gitignore` del repo que contenga `.claude/`, si la raíz es un repo y todavía no está. Si la raíz no es un repo, no hace falta.
 3. La carpeta de docs, si se aceptó: el mismo `crear-docs.js` sin `--dry-run` (nunca pisa nada). Si quedaron agentes en `ai/agents/`, corré `sh <docs>/ai/install-agents.sh` (en Windows, `install-agents.ps1`). Si `crear-docs.js` avisa nombres viejos en español, mostralo: el rename lo decide la persona.
-4. Comprobá que la configuración carga: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventario.js" <session_id>` no tiene que responder `sinConfiguracion`.
+4. Comprobá que la configuración carga: `node "${CLAUDE_PLUGIN_ROOT}/scripts/inventario.js" <session_id>` no tiene que responder `sinConfiguracion`. Con `trabajo`, que las plantillas compilan: `node -e "const c=require('${CLAUDE_PLUGIN_ROOT}/scripts/config').cargar(); console.log(c.trabajo.propio, c.trabajo.error)"` tiene que imprimir `true null`; si no, el error dice qué marcador sobra: corregilo y volvé al paso 5. `node "${CLAUDE_PLUGIN_ROOT}/scripts/norma.js" revisar` no tiene que imprimir nada.
 
 ## 7. Reportar
 

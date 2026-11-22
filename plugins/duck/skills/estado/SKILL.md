@@ -20,6 +20,10 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/inventario.js" <session_id>
 
 Pasá el id de la sesión actual como argumento si lo conocés — así el panel puede mostrar la sub-tarea que se está tocando ahora mismo (`sesion` en la salida). Si no lo conocés, corré el comando sin argumento; `sesion` sale `null` y el resto del inventario sigue intacto.
 
+En la misma tanda, `node "${CLAUDE_PLUGIN_ROOT}/scripts/norma.js" revisar`: si imprime algo, la norma del proyecto cambió desde que se aprobó `duck.json` (va a las alertas, 4.d).
+
+**Con `trabajo` en `duck.json`** las claves de la sesión y de las ramas son las de la unidad propia (`SPEC-002`), no las de Jira. La historia de Jira se resuelve por el enlace de la sesión (`enlaces` en su `.json`: `SPEC-002` → `GPDEV-123`); una unidad sin enlace no tiene historia en Jira: el panel la muestra con su rama y su estado local, sin consultar Jira.
+
 **No reemplaces esto por una ristra de `git status`, `git branch`, `git rev-list` sueltos.** El script existe precisamente para que estos hechos no dependan de que el agente se acuerde de mirarlos todos — y ya resuelve cosas que a mano son fáciles de hacer mal, como descartar el alias `origin/HEAD` al listar ramas. Un solo `inventario.js` y listo.
 
 La salida trae: `piezas` (hooks y statusLine instalados), `comandos` (slash commands disponibles), `skills`, `repos` (rama, limpio, al día, commits propios de cada carpeta de `git.repos`), `sesion` (tareas tocadas en las últimas 16 horas por esta sesión), `ramasPorClave` y `sospechas` (reuso de una clave de Jira bajo nombres de rama distintos).
@@ -140,6 +144,7 @@ Cada línea empieza con ⚠️. Mostrá esta sección únicamente si alguna de e
 - Cualquier sub-tarea `[BLOQ]` que no esté `Finalizado`.
 - Cualquier sub-tarea de la historia en `En Proceso` cuyo `assignee` sea otra persona (no quien corre el comando).
 - Cualquier clave presente en `sesion` con `estado: "Mergeado"` que en Jira **no** figure `Finalizado` todavía — es un merge que falta cerrar en el ticket.
+- La línea de `norma.js revisar`, tal cual: la norma cambió o no está, y toca `/duck:iniciar`.
 
 ## 5. Qué NO hacer
 
