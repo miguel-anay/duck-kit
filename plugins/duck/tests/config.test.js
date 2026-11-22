@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe, cuandoDe, comandoGh } = require('../scripts/config');
+const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe, cuandoDe, e2eDe, comandoGh } = require('../scripts/config');
 
 const temporales = [];
 
@@ -228,4 +228,21 @@ test('comandoGh runs gh, or the DUCK_GH stand-in, and a .js stand-in through nod
     if (antes === undefined) delete process.env.DUCK_GH;
     else process.env.DUCK_GH = antes;
   }
+});
+
+test('pruebas.e2e gives each repo its screen-test command, where the tests live and what counts as screen', () => {
+  const cfg = cargarCon({
+    git: { repos: { web: 'x-web', api: 'x-api' } },
+    pruebas: { e2e: { web: { comando: 'npx playwright test', tests: 'e2e', pantalla: ['resources/js', '.vue', 7, ''] } } },
+  });
+  assert.deepEqual(e2eDe(cfg, 'web'), { comando: 'npx playwright test', tests: 'e2e', pantalla: ['resources/js', '.vue'] });
+  assert.equal(e2eDe(cfg, 'api'), null);
+});
+
+test('pruebas.e2e without a command, or malformed, means the repo has no screen-test step', () => {
+  assert.equal(e2eDe(cargarCon({}), '.'), null);
+  assert.equal(e2eDe(cargarCon({ pruebas: { e2e: { '.': { tests: 'e2e' } } } }), '.'), null);
+  assert.equal(e2eDe(cargarCon({ pruebas: { e2e: { '.': 'npx playwright test' } } }), '.'), null);
+  assert.equal(e2eDe(cargarCon({ pruebas: { e2e: ['x'] } }), '.'), null);
+  assert.deepEqual(e2eDe(cargarCon({ pruebas: { e2e: { '.': { comando: ' npm run e2e ' } } } }), '.'), { comando: 'npm run e2e', tests: null, pantalla: [] });
 });

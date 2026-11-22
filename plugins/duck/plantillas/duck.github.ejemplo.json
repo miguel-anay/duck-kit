@@ -31,6 +31,7 @@
     "riesgo": [],
     "revision": "auto",
     "defecto": ["adversarial"],
-    "repos": {}
+    "repos": {},
+    "e2e": {}
   }
 }

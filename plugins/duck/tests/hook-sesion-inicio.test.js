@@ -85,6 +85,19 @@ test('sesion-inicio tells a cuando-riesgo project to run the test agents only fo
   assert.doesNotMatch(contexto(correr('sesion-inicio.js', siempre, {})), /solo si el cambio toca/);
 });
 
+test('sesion-inicio tells the session the screen-test command of each repo that has one, and nothing otherwise', () => {
+  const raiz = proyecto({
+    ...JIRA,
+    git: { ramaBase: 'main', repos: { web: 'x-web', api: 'x-api' } },
+    pruebas: { e2e: { web: { comando: 'npx playwright test', tests: 'e2e' } } },
+  });
+  const texto = contexto(correr('sesion-inicio.js', raiz, {}));
+  assert.match(texto, /Test de pantalla.*METODO\.md §10/);
+  assert.match(texto, /- web: npx playwright test \(tests en e2e\)/);
+  assert.doesNotMatch(texto, /- api:/);
+  assert.equal(correr('sesion-inicio.js', proyecto(JIRA), {}).stdout, '');
+});
+
 // --- continued sessions inherit the previous session's tasks ---
 
 function transcript(raiz, anterior) {

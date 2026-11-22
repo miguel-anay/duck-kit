@@ -227,3 +227,46 @@ test('with cuando riesgo, a branch that cannot be compared with the base still w
   ramaCon(raiz, 'feature/ABC-1-x', 'src/ui/saludo.js');
   assert.match(contexto(correr('push-con-pruebas.js', raiz, bash('git push', raiz))), /Motivo: no se pudo comparar/);
 });
+
+// --- pruebas.e2e: a screen change without its screen test ---
+
+const E2E = { e2e: { '.': { comando: 'npx playwright test', tests: 'e2e', pantalla: ['resources/views', '.vue'] } } };
+
+// A repo on `rama` whose change is every file in `archivos`.
+function ramaConVarios(dir, rama, archivos) {
+  ramaCon(dir, rama, archivos[0]);
+  for (const archivo of archivos.slice(1)) {
+    fs.mkdirSync(path.dirname(path.join(dir, archivo)), { recursive: true });
+    fs.writeFileSync(path.join(dir, archivo), 'x\n');
+  }
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'mas');
+}
+const pushDe = (pruebas, archivos) => {
+  const raiz = proyecto({ ...JIRA, pruebas });
+  ramaConVarios(raiz, 'feature/ABC-1-x', archivos);
+  return correr('push-con-pruebas.js', raiz, bash('git push', raiz));
+};
+
+test('push-con-pruebas warns, never denies, when a branch touches screen files and adds or changes no screen test', () => {
+  for (const archivo of ['src/Pantalla.vue', 'resources/views/mesas/index.blade.php']) {
+    const r = pushDe(E2E, [archivo]);
+    assert.ok(!negado(r), archivo);
+    assert.match(contexto(r), new RegExp(`toca pantalla \\(${archivo.replace(/[.\/]/g, '\\$&')}\\).*ningún test en e2e`), archivo);
+    assert.match(contexto(r), /npx playwright test/);
+  }
+});
+
+test('push-con-pruebas says nothing about the screen test when it is there, when no screen changed, or with no e2e configured', () => {
+  assert.equal(pushDe(E2E, ['src/Pantalla.vue', 'e2e/pantalla.spec.ts']).stdout, '');
+  assert.equal(pushDe(E2E, ['app/Servicio.php']).stdout, '');
+  assert.equal(pushDe({}, ['src/Pantalla.vue']).stdout, '');
+  // Without `pantalla` patterns duck cannot tell a screen file: the step still applies, the warning does not.
+  assert.equal(pushDe({ e2e: { '.': { comando: 'npx playwright test', tests: 'e2e' } } }, ['src/Pantalla.vue']).stdout, '');
+});
+
+test('push-con-pruebas gives the screen-test warning next to the missing test agents', () => {
+  const texto = contexto(pushDe({ ...E2E, defecto: ['fuzz'] }, ['src/Pantalla.vue']));
+  assert.match(texto, /duck:fuzz/);
+  assert.match(texto, /toca pantalla/);
+});

@@ -9,7 +9,7 @@
 // persona, y el push sigue. Una rama que solo toca documentacion no pide nada.
 
 const { execFileSync } = require('child_process');
-const { hook, tramosConCwd, pushDe, ramaDe, carpetaDe, pruebasDe, revisionDe, cuandoDe, leerPruebas, AGENTES_PRUEBA } = require('./config');
+const { hook, tramosConCwd, pushDe, ramaDe, carpetaDe, pruebasDe, revisionDe, cuandoDe, e2eDe, leerPruebas, AGENTES_PRUEBA } = require('./config');
 
 // Lo que nunca cambia el comportamiento. Un .txt puede ser requirements.txt o CMakeLists.txt, y un
 // .svg puede llevar script: cuentan como codigo.
@@ -29,12 +29,16 @@ function revisar(tramo, cwd, cfg) {
   if (!push || !push.origen) return null;
   const carpeta = carpetaDe(push.dir, cfg);
   if (carpeta === null) return null;
-  const pedidos = pruebasDe(cfg, carpeta);
-  if (!pedidos.length) return null;
-
   const rama = push.origen === 'HEAD' ? ramaDe(push.dir) : push.origen;
   if (!rama || [cfg.git.ramaBase, 'main', 'master'].includes(rama)) return null;
-  const motivo = motivoDe(push.dir, rama, cfg);
+
+  return [agentesQueFaltan(push.dir, rama, carpeta, cfg), pantallaSinTest(push.dir, rama, carpeta, cfg)].filter(Boolean).join('\n\n') || null;
+}
+
+function agentesQueFaltan(dir, rama, carpeta, cfg) {
+  const pedidos = pruebasDe(cfg, carpeta);
+  if (!pedidos.length) return null;
+  const motivo = motivoDe(dir, rama, cfg);
   if (!motivo) return null;
 
   const corridos = leerPruebas(cfg, rama);
@@ -51,6 +55,26 @@ function revisar(tramo, cwd, cfg) {
     lineas.push('duck:adversario no hace falta si este cambio paso por la revision nativa de gentle-ai o por Judgment Day.');
   }
   return lineas.join('\n');
+}
+
+// Una rama que toca pantalla lleva su test de pantalla en el mismo PR (METODO.md §10). Avisa cuando
+// el cambio toca un archivo de pruebas.e2e.pantalla y ninguno de pruebas.e2e.tests. Sin esos dos
+// datos no se puede saber, y no se dice nada; sin base contra la que comparar, tampoco.
+function pantallaSinTest(dir, rama, carpeta, cfg) {
+  const e2e = e2eDe(cfg, carpeta);
+  if (!e2e || !e2e.tests || !e2e.pantalla.length) return null;
+  const base = baseDe(dir, rama, cfg.git.ramaBase);
+  if (!base) return null;
+  const cambiados = git(dir, ['diff', '--name-only', `${base}...${rama}`]).split('\n').filter(Boolean);
+  const enRuta = (archivo, fragmento) => archivo.toLowerCase().includes(fragmento.toLowerCase());
+  if (cambiados.some((archivo) => enRuta(archivo, e2e.tests))) return null;
+  const pantalla = cambiados.find((archivo) => e2e.pantalla.some((fragmento) => enRuta(archivo, fragmento)));
+  if (!pantalla) return null;
+  return [
+    `duck: la rama ${rama} toca pantalla (${pantalla}) y no agrega ni cambia ningún test en ${e2e.tests} (METODO.md §10).`,
+    `El test de pantalla va en el mismo PR que la funcionalidad: se escribe primero, desde los Specs, y se corre con \`${e2e.comando}\`.`,
+    'Es un aviso: el push sigue. Si el cambio no altera ningún flujo visible, decíselo a la persona.',
+  ].join('\n');
 }
 
 // Nombres de ruta y codigo que suelen llevar el riesgo que estos agentes buscan: validar, parsear,

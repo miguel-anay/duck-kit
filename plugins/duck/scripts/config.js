@@ -94,7 +94,11 @@ const DEFECTOS = {
   // cuando: 'siempre' = todo cambio de codigo corre los agentes de su repo; 'riesgo' = solo el que
   // toca validaciones, calculos, permisos o entradas de afuera. riesgo: fragmentos de ruta propios
   // del proyecto que cuentan como riesgo ademas de los que duck reconoce solo (METODO.md §9).
-  pruebas: { defecto: [], repos: {}, revision: 'auto', cuando: 'siempre', riesgo: [] },
+  // e2e: el test de pantalla de cada repo (METODO.md §10), carpeta -> { comando, tests, pantalla };
+  // '.' si el proyecto es un solo repo. comando: como se corre (duck no impone la herramienta).
+  // tests: donde viven esos tests. pantalla: fragmentos de ruta que cuentan como pantalla. Sin
+  // comando, ese repo no tiene el paso.
+  pruebas: { defecto: [], repos: {}, revision: 'auto', cuando: 'siempre', riesgo: [], e2e: {} },
 };
 
 // Los tipos que duck conoce, en el orden en que corren, y el agente de cada uno.
@@ -158,6 +162,19 @@ function pruebasDe(cfg, carpeta) {
 function cuandoDe(cfg) {
   const valor = cfg.pruebas && cfg.pruebas.cuando;
   return typeof valor === 'string' && valor.trim().toLowerCase() === 'riesgo' ? 'riesgo' : 'siempre';
+}
+
+// El test de pantalla de un repositorio: { comando, tests, pantalla }, o null si no tiene el paso
+// (sin entrada, o sin comando). Lo que duck.json traiga de mas o mal formado se descarta.
+function e2eDe(cfg, carpeta) {
+  const propio = cfg.pruebas && cfg.pruebas.e2e && cfg.pruebas.e2e[carpeta];
+  const texto = (valor) => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
+  if (!propio || typeof propio !== 'object' || Array.isArray(propio) || !texto(propio.comando)) return null;
+  return {
+    comando: texto(propio.comando),
+    tests: texto(propio.tests),
+    pantalla: (Array.isArray(propio.pantalla) ? propio.pantalla : []).map(texto).filter(Boolean),
+  };
 }
 
 // Quien hace la revision a ciegas: 'duck', 'gentle-ai' o 'auto'. Lo que no sea uno de los dos
@@ -729,6 +746,7 @@ module.exports = {
   pruebasDe,
   revisionDe,
   cuandoDe,
+  e2eDe,
   leerPruebas,
   anotarPrueba,
   carpetaDe,
