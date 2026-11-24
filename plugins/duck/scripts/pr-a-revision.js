@@ -11,7 +11,7 @@
 // La prueba de que el PR existe es la URL que imprime gh, no el comando: intentado no es abierto.
 
 const { execFileSync } = require('child_process');
-const { hook, leerSesion, guardarSesion, TICKET_JS } = require('./config');
+const { hook, leerSesion, guardarSesion, comandoGh, TICKET_JS } = require('./config');
 
 const CIERRA = 'query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){closingIssuesReferences(first:20){nodes{number repository{nameWithOwner}}}}}}';
 
@@ -26,8 +26,7 @@ hook((evento, cfg) => {
   let claves;
   try {
     const respuesta = execFileSync(
-      process.env.DUCK_GH || 'gh',
-      ['api', 'graphql', '-f', `query=${CIERRA}`, '-f', `o=${pr[1]}`, '-f', `r=${pr[2]}`, '-F', `n=${pr[3]}`],
+      ...comandoGh(['api', 'graphql', '-f', `query=${CIERRA}`, '-f', `o=${pr[1]}`, '-f', `r=${pr[2]}`, '-F', `n=${pr[3]}`]),
       { encoding: 'utf8', timeout: 20000 }
     );
     claves = JSON.parse(respuesta).data.repository.pullRequest.closingIssuesReferences.nodes.map(

@@ -7,7 +7,7 @@
 // sesion colgaria issues donde no van. La prueba de que el issue existe es la URL que imprime gh.
 
 const { execFileSync } = require('child_process');
-const { hook } = require('./config');
+const { hook, comandoGh } = require('./config');
 
 hook((evento, cfg) => {
   if (cfg.tickets.proveedor !== 'github') return;
@@ -18,7 +18,7 @@ hook((evento, cfg) => {
   if (!creado) return;
   const [, repo, numero] = creado;
 
-  const gh = (...args) => execFileSync(process.env.DUCK_GH || 'gh', args, { encoding: 'utf8', timeout: 20000 });
+  const gh = (...args) => execFileSync(...comandoGh(args), { encoding: 'utf8', timeout: 20000 });
   let texto;
   try {
     const issue = JSON.parse(gh('api', `repos/${repo}/issues/${numero}`));

@@ -6,7 +6,7 @@
 // duplica: gh devuelve el item existente.
 
 const { execFileSync } = require('child_process');
-const { hook } = require('./config');
+const { hook, comandoGh } = require('./config');
 
 hook((evento, cfg) => {
   if (cfg.tickets.proveedor !== 'github') return;
@@ -21,7 +21,7 @@ hook((evento, cfg) => {
   const clave = `${creado[1]}#${creado[2]}`;
   let texto;
   try {
-    execFileSync(process.env.DUCK_GH || 'gh', ['project', 'item-add', String(numero), '--owner', owner, '--url', creado[0]], {
+    execFileSync(...comandoGh(['project', 'item-add', String(numero), '--owner', owner, '--url', creado[0]]), {
       encoding: 'utf8',
       timeout: 20000,
     });

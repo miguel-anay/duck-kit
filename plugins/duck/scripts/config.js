@@ -343,6 +343,13 @@ function estadosDe(cfg) {
 // Ruta del adaptador de GitHub para las instrucciones que se le inyectan al agente.
 const TICKET_JS = path.join(__dirname, 'ticket.js').replace(/\\/g, '/');
 
+// [ejecutable, argumentos] para correr gh con execFileSync. DUCK_GH lo reemplaza (los tests ponen un
+// gh falso); si es un .js se corre con node, porque Windows no ejecuta un script por su shebang.
+function comandoGh(args) {
+  const gh = process.env.DUCK_GH || 'gh';
+  return /\.js$/i.test(gh) ? [process.execPath, [gh, ...args]] : [gh, args];
+}
+
 // Movidas de GitHub que prueba un Bash: `ticket.js mover` y su linea de exito, una por issue.
 // Como con acli, lo que cuenta es la linea impresa, no el comando: intentado no es movido.
 // Devuelve [{clave, estado}] con la clave owner/repo#N y la opcion tal cual la imprimio ticket.js.
@@ -705,6 +712,7 @@ function textoResultante(herramienta, entrada) {
   return entrada.replace_all ? actual.split(viejo).join(nuevo) : actual.replace(viejo, () => nuevo);
 }
 module.exports = {
+  comandoGh,
   textoResultante,
 
   cargar,

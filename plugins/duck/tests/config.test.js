@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe, cuandoDe } = require('../scripts/config');
+const { cargar, claveDeRama, clavesEnTexto, repoDe, pruebasDe, revisionDe, cuandoDe, comandoGh } = require('../scripts/config');
 
 const temporales = [];
 
@@ -211,4 +211,21 @@ test('pruebas.cuando is siempre unless the project asks for riesgo', () => {
   assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: 'Riesgo' } })), 'riesgo');
   assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: 'nunca' } })), 'siempre');
   assert.equal(cuandoDe(cargarCon({ pruebas: { cuando: ['riesgo'] } })), 'siempre');
+});
+
+// --- gh replaced through DUCK_GH ---
+
+test('comandoGh runs gh, or the DUCK_GH stand-in, and a .js stand-in through node', () => {
+  const antes = process.env.DUCK_GH;
+  try {
+    delete process.env.DUCK_GH;
+    assert.deepEqual(comandoGh(['api', 'x']), ['gh', ['api', 'x']]);
+    process.env.DUCK_GH = '/bin/gh-wrapper';
+    assert.deepEqual(comandoGh(['api']), ['/bin/gh-wrapper', ['api']]);
+    process.env.DUCK_GH = '/tmp/gh-falso.js';
+    assert.deepEqual(comandoGh(['api']), [process.execPath, ['/tmp/gh-falso.js', 'api']]);
+  } finally {
+    if (antes === undefined) delete process.env.DUCK_GH;
+    else process.env.DUCK_GH = antes;
+  }
 });
