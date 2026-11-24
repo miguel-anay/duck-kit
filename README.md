@@ -23,6 +23,7 @@ a qué ticket pertenecen. duck convierte esas costumbres en reglas que se cumple
 | Nadie empuja ni mergea a mano sobre la rama base | Un hook bloquea `git push` a la base, el merge local y `git branch -D` |
 | Una sola puerta hacia el remoto | Push, PR y merge se piden juntos, una vez, al final |
 | El ticket sigue al código | Pasa a «en proceso» al tomarlo y a «finalizado» al mergear, sin que lo pidas |
+| Solo la persona autoriza una serie sin pausas | El modo flujo lo marca tu elección en `/duck:tomar`; un hook impide que el agente se lo active solo |
 
 ## Cómo se ve un día con duck
 
@@ -42,6 +43,23 @@ Mientras tanto ves:
 
 ¿Querés probar una idea sin ticket? `/duck:spike <tema>` crea una rama `spike/<tema>` local: sin push, sin
 PR y sin tocar Jira. Si sale bien, `/duck:tomar <clave> desde-spike` la convierte en una tarea real.
+
+### Una tarea o la historia entera
+
+Al tomar una historia, `/duck:tomar` pregunta cómo seguir:
+
+- **Modo tarea** (el de por defecto): una puerta por sub-tarea. duck llega al push, te reporta y espera tu sí.
+- **Modo flujo**: una sola puerta para toda la serie. Con tu sí, encadena push, PR y merge de cada
+  sub-tarea, y reporta al final o al primer tropiezo.
+
+El flujo lo activa solo tu respuesta a esa pregunta, o `flujo` como argumento (`/duck:tomar PROJ-123 flujo`).
+El agente no puede activárselo: si escribe el modo a mano, un hook lo deniega o lo devuelve a tarea.
+Tampoco se hereda: la próxima conversación vuelve a modo tarea.
+
+Si la historia tiene plan, la serie termina con un PR en el repo de docs que anota en el plan lo que se
+hizo (la bitácora). Ese PR no crea issue ni finaliza la historia: la nombra con `Refs`, nunca con `Closes`.
+Si el cambio toca los planes de varias historias que comparten archivo, va un solo PR que las nombra a
+todas; duck avisa si falta alguna.
 
 ## Instalación
 
@@ -150,13 +168,18 @@ Si el proyecto tiene una base de conocimiento (decisiones de arquitectura, guía
 - **El merge se hace sobre el PR**, nunca con `git merge` local ni `git push` a la base.
 - **Varios repos, varios PR unidos por la clave**, en orden (backend antes que frontend, o el que fije el
   proyecto).
+- **Una historia vive donde está su código.** Si toca un solo repo, el issue va en ese repo; solo la que
+  cruza varios repos vive en el de docs, con un sub-issue por repo.
+- **Un PR de plan o de bitácora referencia, no cierra.** Nombra cada historia con `Refs owner/repo#N` y no
+  crea un issue para juntarlas; a una historia la cierra una persona.
 - **El agente reporta evidencia; no confirma.** La casilla de «confirmo el correcto funcionamiento» la firma
   una persona, con nombre y fecha.
 - **Probar sin comprometer.** Una idea dudosa va a un spike local antes de tener ticket.
 - **Pedir permiso una vez.** Todo lo local corre sin preguntar; la única pregunta es la puerta al remoto.
 
 **Límites.** Los hooks leen el texto del comando: un `sh -c`, un alias o un script propio los esquivan. Son
-una red para el trabajo de todos los días, no un sandbox. Si un guardia no puede revisar (sin red, `gh`
+una red para el trabajo de todos los días, no un sandbox. Sí siguen un `cd <carpeta>` del mismo comando
+(`cd api && git push`) cuando la carpeta existe: revisan el repo de esa carpeta. Si un guardia no puede revisar (sin red, `gh`
 caído), deja pasar el comando y lo avisa.
 
 ## Comandos y skills
@@ -310,8 +333,9 @@ en `duck.json`. El detalle está en [METODO.md §7](plugins/duck/METODO.md).
 
 - **Rama base**: la rama de integración (`develop`, o `main` en GitHub). Nadie trabaja directo en ella.
 - **Clave**: el identificador del ticket: `PROJ-123` en Jira, `#12` u `owner/repo#12` en GitHub.
-- **Modo tarea / flujo / spike**: una sub-tarea por vez; una historia completa en secuencia; una prueba
-  local sin ticket.
+- **Modo tarea / flujo / spike**: una sub-tarea por vez; una historia completa en secuencia, autorizada
+  una vez por la persona; una prueba local sin ticket.
+- **Bitácora del plan**: el PR final de una serie que anota en el plan de la historia lo que se hizo.
 - **La puerta**: el único momento en que duck pide permiso; todo lo anterior es local.
 - **gentle-ai**: otro kit para Claude Code, con su flujo de ejecución (ODD), su revisión y su memoria
   (Engram). duck convive con él; no lo necesita.
