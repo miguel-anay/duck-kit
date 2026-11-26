@@ -36,6 +36,19 @@ proyecto:
 - **Una captura no es prueba por sí sola**: una herramienta puede salir con código 0 y una imagen
   en blanco cuando la sesión venció. Lo que prueba es un script que afirma y sale distinto de 0.
 
+## El test de pantalla es un escalón tuyo
+
+Si `.claude/duck.json` tiene `pruebas.e2e` para el repositorio del cambio, ese `comando` es uno de los
+escalones automáticos: corrélo y pegá su salida real, como la de la suite. Es local: levanta la
+aplicación en tu máquina, no consulta un ambiente desplegado. Además contrastá:
+
+- ¿Hay un test de pantalla por cada `S#` con flujo visible? Uno que falta es un hallazgo.
+- ¿Prueba el flujo que pedía el Spec, o lo que el código terminó haciendo?
+- Si no se pudo correr (falta el navegador, no levanta la aplicación), **declaralo con el motivo**:
+  la verificación queda incompleta, no en verde.
+
+Sin `pruebas.e2e` para ese repositorio el paso no aplica, y lo decís en una línea.
+
 ## La prueba humana no es tuya
 
 Si el proyecto tiene una cadena de verificación de UI, reportás los escalones automáticos y dejás

@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, revisionDe, cuandoDe, AGENTES_PRUEBA } = require('./config');
+const { hook, claveDeRama, TICKET_JS, heredarSesionAnterior, pruebasDe, revisionDe, cuandoDe, e2eDe, AGENTES_PRUEBA } = require('./config');
 
 const VIGENCIA_HORAS = 16; // mismo criterio que estado-tarea.js: un merge de ayer ya no es noticia
 
@@ -26,7 +26,7 @@ hook((evento, cfg) => {
 function procesar(cfg) {
   const ramas = ramasAbiertas(cfg);
   const pendientes = pendientesDeCerrar(cfg);
-  const reglas = [...reglaOdd(cfg), ...reglaPruebas(cfg)];
+  const reglas = [...reglaOdd(cfg), ...reglaPruebas(cfg), ...reglaE2e(cfg)];
 
   // Sesion limpia y sin reglas del proyecto: nada de ruido en el contexto.
   if (!ramas.length && !pendientes.length && !reglas.length) return;
@@ -155,6 +155,20 @@ function reglaPruebas(cfg) {
         ]
       : []),
     ...reglaRevision(cfg, porRepo),
+  ];
+}
+
+// El test de pantalla de cada repositorio que tiene uno (METODO.md §10). duck no impone la
+// herramienta: el comando sale de pruebas.e2e. Sin ninguno, no se dice nada.
+function reglaE2e(cfg) {
+  const porRepo = cfg.git.carpetas.map((repo) => ({ repo, e2e: e2eDe(cfg, repo) })).filter(({ e2e }) => e2e);
+  if (!porRepo.length) return [];
+  return [
+    'Test de pantalla (METODO.md §10). Una tarea que toca pantalla escribe PRIMERO un test E2E por cada S# con flujo ' +
+      'visible, solo el camino principal, desde los Specs y no desde el codigo; lo ve fallar, y es lo ultimo en pasar. ' +
+      'Los casos borde van en los tests unitarios o de feature. Con el E2E en verde se abre el PR, que lo lleva adentro:',
+    ...porRepo.map(({ repo, e2e }) => `- ${repo}: ${e2e.comando}${e2e.tests ? ` (tests en ${e2e.tests})` : ''}`),
+    '- No es la prueba humana: la historia en pruebas la prueba y la firma una persona.',
   ];
 }
 

@@ -34,7 +34,8 @@ es dónde está la puerta.**
 
 ### Antes de la puerta — todo local, sin pedir permiso
 
-1. **Suite completa de la rama en verde.**
+1. **Suite completa de la rama en verde.** Si la tarea toca pantalla, también su test de pantalla
+   (sección 10): con él en rojo no se abre el PR.
 2. `git fetch origin`.
 3. **Integrar `<base>` y volver a probar:** `git rebase origin/<base>` sobre la rama. Es seguro
    porque la rama todavía no está en el remoto; después del push, nunca se rebasa.
@@ -139,7 +140,7 @@ cada una, encadena, y recién reporta al final o al primer tropiezo.
     referencia por historia.
   - Si los planes de varias historias no comparten archivos: un PR por historia.
 - **Cada tarea corre la secuencia entera**, sin recortes: rebase sobre `<base>`, suite completa en verde,
-  y la verificación de UI cuando toca pantalla. El flujo quita la puerta, no los pasos.
+  y el test de pantalla cuando toca pantalla (sección 10). El flujo quita la puerta, no los pasos.
 - **Entre una tarea y la siguiente:** `git fetch origin`, rama nueva desde `<base>` al día (con `DUCK_MODO=flujo` delante del `git switch -c`: la serie ya fue elegida), y revisar qué
   entregó el otro carril. Encadenar sobre una base vieja es la forma más barata de romper dos tareas en
   vez de una.
@@ -491,3 +492,43 @@ solo toca documentación o imágenes. Es un aviso y no un bloqueo por lo que el 
 
 **No es la prueba en vivo.** Estos tres corren en local, antes del merge. Probar la aplicación
 desplegada es otro paso, después.
+
+## 10. Pantalla: el test E2E se escribe primero
+
+Una tarea que toca pantalla lleva un test de pantalla (E2E, en un navegador real), y lo lleva **dentro
+del desarrollo**: vive en el código, se escribe antes que la funcionalidad y va en el mismo PR. Son dos
+vueltas, una dentro de la otra:
+
+1. **La vuelta de afuera: el test de pantalla.** Un test E2E por cada `S#` de la historia que tenga un
+   flujo visible, y solo su camino principal. Se escribe **desde los Specs del plan**, no desde el
+   código: prueba lo que se pidió, no lo que se terminó escribiendo. Se corre y **se ve fallar** antes
+   de escribir una línea de la funcionalidad, y es lo último en pasar.
+2. **La vuelta de adentro: los tests del repositorio.** Unitarios o de feature, regla por regla, fallando
+   primero y pasando después, como siempre. **Los casos borde van acá** (validaciones, cálculos,
+   permisos), no en E2E: un test de pantalla es lento y frágil, y uno por cada borde vuelve la suite
+   inservible.
+3. **Con el test de pantalla en verde se abre el PR**, no antes.
+
+**Lo configura cada proyecto.** duck no impone la herramienta, impone el paso. En `duck.json`, por
+repositorio (`"."` si el proyecto es un solo repo):
+
+```json
+"pruebas": {
+  "e2e": {
+    "web": { "comando": "npx playwright test", "tests": "e2e", "pantalla": ["resources/js", ".vue", ".blade.php"] }
+  }
+}
+```
+
+`comando` es cómo se corre; `tests`, dónde viven esos tests; `pantalla`, qué rutas cuentan como pantalla.
+Un repositorio sin `comando` no tiene el paso: el agente lo dice en el reporte y sigue con los tests del
+repositorio. `sesion-inicio.js` le da a la sesión el comando de cada repositorio.
+
+**Lo que se hace cumplir.** `duck:verificador` corre el test de pantalla como un escalón automático más
+y reporta su salida. Al hacer push, `push-con-pruebas.js` **avisa** si la rama toca un archivo de
+`pantalla` y no agrega ni cambia ninguno de `tests`; no bloquea, porque un cambio de pantalla puede no
+alterar ningún flujo. Sin `tests` o sin `pantalla` configurados, ese aviso no existe.
+
+**No es la prueba humana.** El test de pantalla es desarrollo. La historia en pruebas (`Testing` en
+GitHub, `historiaPruebas` en Jira) sigue siendo una persona usando lo desplegado, y que pase el E2E no
+la reemplaza ni la adelanta: la firma la pone una persona, nunca el agente (sección 4).

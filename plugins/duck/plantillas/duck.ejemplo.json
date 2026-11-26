@@ -50,6 +50,9 @@
     "repos": {
       "api": ["adversarial", "propiedades", "fuzz"],
       "docs": []
+    },
+    "e2e": {
+      "web": { "comando": "npx playwright test", "tests": "e2e", "pantalla": ["src/pages", ".vue"] }
     }
   }
 }

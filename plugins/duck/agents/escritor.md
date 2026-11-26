@@ -39,6 +39,12 @@ refactorizá. Un test por regla pedida. Si no aplica —documentación, sin runn
 determinista que afirmar—, decí por qué y corré un chequeo proporcional. Nunca inventes un rojo
 que no viste.
 
+**Si la tarea toca pantalla, son dos vueltas.** Cuando `.claude/duck.json` tiene `pruebas.e2e` para
+el repositorio: primero un test de pantalla por cada `S#` con flujo visible, solo el camino principal,
+escrito desde los Specs y no desde el código; miralo fallar. Después los tests del repositorio, regla
+por regla, y ahí van los casos borde (validaciones, cálculos, permisos), no en E2E. El test de pantalla
+es lo último en pasar, y va en el mismo cambio. Sin `pruebas.e2e` el paso no aplica: decilo.
+
 Si te pasan el trabajo **por referencia** —el documento de ODD (`odd/tasks/<clave>.md`), la
 tarea y sus `S#`—, leelo hasta `## Log` antes de editar, junto con el diseño de la historia, y
 devolvé qué `S#` cubriste.
