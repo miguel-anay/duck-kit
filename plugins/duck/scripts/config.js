@@ -241,6 +241,7 @@ function hook(fn) {
     } catch {
       /* JSON ilegible: no es tarea del hook opinar; evento queda vacio */
     }
+    refrescarSesion(cfg, evento?.session_id);
     try {
       fn(evento, cfg, entrada);
     } catch (e) {
@@ -671,9 +672,17 @@ function guardarSesion(cfg, sesion, almacen) {
   barrerSesionesViejas(cfg.dirEstado);
 }
 
-// Las sesiones no avisan cuando terminan: sin esto la carpeta crece sola.
+// Las sesiones no avisan cuando terminan: sin esto la carpeta crece sola. Pero este barrido lo
+// corre CUALQUIER sesion del proyecto sobre los archivos de todas, y «hace rato que no escribe» no
+// es «termino»: una sesion larga, o retomada al dia siguiente, sigue viva sin haber guardado nada.
+// Visto en un proyecto real con el limite en 16 horas: otra sesion borro el estado de una serie en
+// curso, que perdio su modo flujo y su historia. Por eso el limite es de dias, y cada sesion
+// refresca la fecha de sus propios archivos cada vez que corre un hook (refrescarSesion).
+// No es VIGENCIA_HORAS: aquella dice cuando una TAREA deja de ser noticia, no cuando se borra el estado.
+const VIGENCIA_ESTADO_DIAS = 14;
+
 function barrerSesionesViejas(carpeta) {
-  const limite = Date.now() - VIGENCIA_HORAS * 3600 * 1000;
+  const limite = Date.now() - VIGENCIA_ESTADO_DIAS * 24 * 3600 * 1000;
   try {
     for (const archivo of fs.readdirSync(carpeta)) {
       const ruta = path.join(carpeta, archivo);
@@ -681,6 +690,21 @@ function barrerSesionesViejas(carpeta) {
     }
   } catch {
     /* si no se puede barrer, no es grave */
+  }
+}
+
+// Marca como recien usados los archivos de estado de la sesion (el estado, y los del panel), para
+// que el barrido de otra sesion no se los lleve mientras esta siga corriendo hooks. No crea nada:
+// una sesion sin estado sigue sin estado.
+function refrescarSesion(cfg, sesion) {
+  if (!ID_SESION.test(sesion || '')) return;
+  const ahora = new Date();
+  for (const sufijo of ['.json', '-historia.json', '-vista.json']) {
+    try {
+      fs.utimesSync(path.join(cfg.dirEstado, `${sesion}${sufijo}`), ahora, ahora);
+    } catch {
+      /* ese archivo no existe para esta sesion */
+    }
   }
 }
 
