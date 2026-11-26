@@ -243,7 +243,7 @@ Todo lo que escriben los hooks va a `<proyecto>/.claude/estado/`:
 - `sesiones/<session_id>-vista.json` — cache del sticker para el título.
 - `ultimo-contexto-stop.json` — volcado de diagnóstico del último `Stop`.
 
-Es estado local por máquina: va al `.gitignore`. Las sesiones de más de 16 horas se barren solas.
+Es estado local por máquina: va al `.gitignore`. El estado de una sesión que lleva 14 días sin correr ningún hook se barre solo; mientras la sesión siga en uso, sus archivos se refrescan y no vencen. (Las 16 horas son otra cosa: cuánto dura como «tarea en curso» una tarea anotada.)
 
 ## Con gentle-ai
 
